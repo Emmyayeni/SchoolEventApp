@@ -1,0 +1,464 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useMemo, useState } from "react";
+import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+
+export default function SearchScreen({ value, results, onChange, onOpenEvent }) {
+  const [activeCategory, setActiveCategory] = useState("All Events");
+  const [viewMode, setViewMode] = useState("list");
+
+  const categories = ["All Events", "Academic", "Social", "Sports"];
+
+  const filtered = useMemo(() => {
+    if (activeCategory === "All Events") {
+      return results;
+    }
+
+    if (activeCategory === "Academic") {
+      return results.filter((item) => ["Seminar", "Workshop", "Conference"].includes(item.category));
+    }
+
+    if (activeCategory === "Social") {
+      return results.filter((item) => item.category === "Social");
+    }
+
+    if (activeCategory === "Sports") {
+      return results.filter((item) => item.category === "Sports");
+    }
+
+    return results;
+  }, [activeCategory, results]);
+
+  return (
+    <FlatList
+      data={filtered}
+      key={viewMode}
+      numColumns={viewMode === "grid" ? 2 : 1}
+      keyExtractor={(item) => String(item.id)}
+      showsVerticalScrollIndicator={false}
+      columnWrapperStyle={viewMode === "grid" ? styles.gridRow : undefined}
+      contentContainerStyle={styles.contentContainer}
+      renderItem={({ item, index }) => (
+        <ExploreCard
+          event={item}
+          index={index}
+          viewMode={viewMode}
+          onPress={() => onOpenEvent(item.id)}
+        />
+      )}
+      ListHeaderComponent={
+        <View style={styles.headerWrap}>
+          <View style={styles.topRow}>
+            <View style={styles.brandRow}>
+              <Ionicons name="school" size={14} color="#166534" />
+              <Text style={styles.brandText}>NSUK Events</Text>
+            </View>
+            <Pressable style={styles.actionBtn}>
+              <Ionicons name="options-outline" size={14} color="#166534" />
+            </Pressable>
+          </View>
+
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={15} color="#91a39a" />
+              <TextInput
+                value={value}
+                onChangeText={onChange}
+                placeholder="Search events, workshops..."
+                placeholderTextColor="#93a49b"
+                style={styles.searchInput}
+              />
+            </View>
+            <Pressable style={styles.filterBtn}>
+              <Ionicons name="funnel" size={15} color="#ffffff" />
+            </Pressable>
+          </View>
+
+          <View style={styles.metaFilterRow}>
+            <Pressable style={styles.metaFilterChip}>
+              <Ionicons name="calendar-outline" size={11} color="#6b7280" />
+              <Text style={styles.metaFilterText}>Any Date</Text>
+              <Ionicons name="chevron-down" size={11} color="#6b7280" />
+            </Pressable>
+            <Pressable style={styles.metaFilterChip}>
+              <Ionicons name="location-outline" size={11} color="#6b7280" />
+              <Text style={styles.metaFilterText}>Any Venue</Text>
+              <Ionicons name="chevron-down" size={11} color="#6b7280" />
+            </Pressable>
+          </View>
+
+          <View style={styles.switchRow}>
+            <Pressable onPress={() => setViewMode("list")} style={styles.switchItem}>
+              <Text style={[styles.switchText, viewMode === "list" && styles.switchTextActive]}>List View</Text>
+            </Pressable>
+            <Pressable onPress={() => setViewMode("grid")} style={styles.switchItem}>
+              <Text style={[styles.switchText, viewMode === "grid" && styles.switchTextActive]}>Grid View</Text>
+            </Pressable>
+          </View>
+
+          <FlatList
+            data={categories}
+            horizontal
+            keyExtractor={(item) => item}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+            renderItem={({ item }) => {
+              const active = activeCategory === item;
+              return (
+                <Pressable
+                  style={[styles.categoryChip, active && styles.categoryChipActive]}
+                  onPress={() => setActiveCategory(item)}
+                >
+                  <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{item}</Text>
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      }
+    />
+  );
+}
+
+function ExploreCard({ event, index, viewMode, onPress }) {
+  const status = getStatus(index);
+  const disabled = status.label === "CLOSED";
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.card, viewMode === "grid" && styles.cardGrid, disabled && styles.cardDisabled]}
+    >
+      <View style={styles.imageWrap}>
+        <Image source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
+        <View style={styles.badgeOverlay}>
+          <Text style={[styles.badgeTag, status.type === "closed" && styles.badgeGray]}>{status.label}</Text>
+          <Text style={styles.badgeTagSecondary}>{toCategoryLabel(event.category)}</Text>
+        </View>
+        {index === 1 && (
+          <View style={styles.bookmarkBadge}>
+            <Ionicons name="bookmark" size={12} color="#ffffff" />
+          </View>
+        )}
+      </View>
+
+      <View style={styles.cardBody}>
+        <Text style={[styles.eventTitle, disabled && styles.textMuted]} numberOfLines={2}>
+          {event.title}
+        </Text>
+
+        <View style={styles.metaLine}>
+          <Ionicons name="calendar-outline" size={11} color="#7c8d84" />
+          <Text style={styles.metaText}>{formatDate(event.date)}</Text>
+          <Ionicons name="time-outline" size={11} color="#7c8d84" style={styles.timeIcon} />
+          <Text style={styles.metaText}>{event.time}</Text>
+        </View>
+
+        <View style={styles.metaLine}>
+          <Ionicons name="location-outline" size={11} color="#7c8d84" />
+          <Text style={styles.metaText} numberOfLines={1}>
+            {event.venue}
+          </Text>
+        </View>
+
+        <View style={styles.bottomRow}>
+          <Text style={styles.attendingText}>{getAttending(index)}</Text>
+          <Pressable disabled={disabled} style={[styles.actionButton, disabled && styles.actionButtonDisabled]}>
+            <Text style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>
+              {disabled ? "View Results" : index === 0 ? "RSVP Now" : "Register"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function getStatus(index) {
+  if (index === 0) {
+    return { label: "ONGOING", type: "ongoing" };
+  }
+  if (index === 1) {
+    return { label: "UPCOMING", type: "upcoming" };
+  }
+  return { label: "CLOSED", type: "closed" };
+}
+
+function getAttending(index) {
+  if (index === 0) {
+    return "20k+";
+  }
+  if (index === 1) {
+    return "250+ attending";
+  }
+  return "Registration ended";
+}
+
+function toCategoryLabel(category) {
+  if (!category) {
+    return "ACADEMIC";
+  }
+  return category.toUpperCase();
+}
+
+function formatDate(dateText) {
+  const parsed = new Date(dateText);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateText;
+  }
+  const month = parsed.toLocaleString("en-US", { month: "short" });
+  return `${month} ${parsed.getDate()}`;
+}
+
+const styles = StyleSheet.create({
+  contentContainer: {
+    backgroundColor: "#e9ecea",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 22,
+  },
+  headerWrap: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  brandText: {
+    color: "#166534",
+    fontSize: 21,
+    fontWeight: "800",
+  },
+  actionBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#dce8df",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  searchBox: {
+    flex: 1,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#e4ebe6",
+    borderWidth: 1,
+    borderColor: "#d3ddd6",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  searchInput: {
+    flex: 1,
+    color: "#1f2937",
+    fontSize: 12,
+    fontWeight: "500",
+    paddingVertical: 0,
+  },
+  filterBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#007a08",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metaFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  metaFilterChip: {
+    flex: 1,
+    minHeight: 28,
+    borderRadius: 14,
+    backgroundColor: "#f1f4f2",
+    borderWidth: 1,
+    borderColor: "#d8dfdb",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  metaFilterText: {
+    color: "#6b7280",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 22,
+    paddingTop: 2,
+  },
+  switchItem: {
+    paddingVertical: 4,
+  },
+  switchText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#8ea09a",
+  },
+  switchTextActive: {
+    color: "#166534",
+    textDecorationLine: "underline",
+  },
+  categoryRow: {
+    gap: 6,
+    paddingTop: 2,
+  },
+  categoryChip: {
+    borderRadius: 999,
+    backgroundColor: "#d8e3da",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  categoryChipActive: {
+    backgroundColor: "#007a08",
+  },
+  categoryChipText: {
+    color: "#45664f",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  categoryChipTextActive: {
+    color: "#ffffff",
+  },
+  gridRow: {
+    justifyContent: "space-between",
+  },
+  card: {
+    borderRadius: 14,
+    backgroundColor: "#f2f5f3",
+    borderWidth: 1,
+    borderColor: "#dbe2de",
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  cardGrid: {
+    width: "48.5%",
+  },
+  cardDisabled: {
+    opacity: 0.72,
+  },
+  imageWrap: {
+    width: "100%",
+    height: 104,
+    position: "relative",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  badgeOverlay: {
+    position: "absolute",
+    left: 8,
+    top: 8,
+    flexDirection: "row",
+    gap: 4,
+  },
+  badgeTag: {
+    backgroundColor: "#ef4444",
+    color: "#ffffff",
+    fontSize: 8,
+    fontWeight: "900",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 999,
+    letterSpacing: 0.4,
+  },
+  badgeTagSecondary: {
+    backgroundColor: "#ecfdf3",
+    color: "#1f2937",
+    fontSize: 8,
+    fontWeight: "900",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 999,
+    letterSpacing: 0.3,
+  },
+  badgeGray: {
+    backgroundColor: "#6b7280",
+  },
+  bookmarkBadge: {
+    position: "absolute",
+    right: 8,
+    top: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(17, 24, 39, 0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardBody: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 5,
+  },
+  eventTitle: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+  textMuted: {
+    color: "#6b7280",
+  },
+  metaLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  timeIcon: {
+    marginLeft: 6,
+  },
+  metaText: {
+    color: "#64748b",
+    fontSize: 10,
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+  bottomRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  attendingText: {
+    color: "#94a3b8",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  actionButton: {
+    minHeight: 28,
+    borderRadius: 14,
+    backgroundColor: "#007a08",
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionButtonDisabled: {
+    backgroundColor: "#e5e7eb",
+  },
+  actionButtonText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  actionButtonTextDisabled: {
+    color: "#9ca3af",
+  },
+});
