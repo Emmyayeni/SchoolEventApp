@@ -1,8 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "../theme/theme";
+import { ms, scale } from "../utils/responsive";
 
 export default function CreateEventScreen({ values, errors, onChange, onSubmit, onBack }) {
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [targetAudience, setTargetAudience] = useState("All");
   const [capacity, setCapacity] = useState("");
 
@@ -15,8 +20,8 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
 
   return (
     <ScrollView
-      style={styles.page}
-      contentContainerStyle={styles.pageContent}
+      style={[styles.page, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.pageContent, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
@@ -28,7 +33,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       </View>
 
       <Text style={styles.sectionLabel}>Event Banner</Text>
-      <Pressable style={styles.bannerUpload}>
+      <Pressable style={[styles.bannerUpload, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
         <View style={styles.bannerIconWrap}>
           <Ionicons name="camera" size={20} color="#0b7a24" />
         </View>
@@ -139,11 +144,12 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
 }
 
 function FormCard({ title, icon, iconColor, children }) {
+  const { colors } = useAppTheme();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
       <View style={styles.cardHeader}>
         <Ionicons name={icon} size={12} color={iconColor} />
-        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
       </View>
       {children}
     </View>
@@ -191,106 +197,106 @@ const styles = StyleSheet.create({
     backgroundColor: "#e9ecea",
   },
   pageContent: {
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 20,
+    paddingHorizontal: scale(14),
+    paddingTop: scale(8),
+    paddingBottom: scale(24),
   },
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: scale(8),
+    gap: scale(8),
   },
   backButton: {
-    width: 26,
-    height: 26,
+    width: scale(28),
+    height: scale(28),
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     color: "#166534",
-    fontSize: 19,
+    fontSize: ms(18),
     fontWeight: "800",
   },
   sectionLabel: {
-    marginTop: 6,
-    marginBottom: 5,
+    marginTop: scale(6),
+    marginBottom: scale(5),
     color: "#166534",
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "800",
   },
   bannerUpload: {
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: "#9fc7a6",
-    borderRadius: 14,
-    minHeight: 120,
+    borderRadius: scale(14),
+    minHeight: scale(110),
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: scale(12),
     backgroundColor: "#e8efea",
   },
   bannerIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
     backgroundColor: "#d5e7d9",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    marginBottom: scale(6),
   },
   bannerText: {
     color: "#111827",
-    fontSize: 12,
+    fontSize: ms(12),
     fontWeight: "700",
   },
   bannerHint: {
-    marginTop: 3,
+    marginTop: scale(3),
     color: "#6b7280",
-    fontSize: 10,
+    fontSize: ms(10),
     fontWeight: "500",
   },
   card: {
-    borderRadius: 14,
+    borderRadius: scale(14),
     borderWidth: 1,
     borderColor: "#dfe5e2",
     backgroundColor: "#f1f4f2",
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 8,
-    marginBottom: 10,
+    paddingHorizontal: scale(12),
+    paddingTop: scale(10),
+    paddingBottom: scale(8),
+    marginBottom: scale(10),
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
+    gap: scale(6),
+    marginBottom: scale(10),
   },
   cardTitle: {
     color: "#14532d",
-    fontSize: 10,
+    fontSize: ms(10),
     letterSpacing: 1,
     fontWeight: "900",
   },
   fieldWrap: {
-    marginBottom: 10,
+    marginBottom: scale(10),
   },
   fieldLabel: {
     color: "#1f2937",
-    fontSize: 12,
+    fontSize: ms(12),
     fontWeight: "700",
-    marginBottom: 5,
+    marginBottom: scale(5),
   },
   inputWrap: {
-    minHeight: 40,
+    minHeight: scale(42),
     borderWidth: 1,
     borderColor: "#cfd8d1",
-    borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: "#edf2ee",
     justifyContent: "center",
   },
   inputWrapMultiline: {
-    minHeight: 88,
+    minHeight: scale(84),
     justifyContent: "flex-start",
   },
   inputWrapError: {
@@ -298,60 +304,60 @@ const styles = StyleSheet.create({
   },
   input: {
     color: "#111827",
-    fontSize: 13,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    fontSize: ms(13),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(10),
   },
   inputWithLeftIcon: {
-    paddingLeft: 33,
+    paddingLeft: scale(34),
   },
   inputWithRightIcon: {
-    paddingRight: 28,
+    paddingRight: scale(30),
   },
   inputMultiline: {
     textAlignVertical: "top",
   },
   leftIcon: {
     position: "absolute",
-    left: 10,
-    top: 12,
+    left: scale(10),
+    top: scale(12),
   },
   rightIcon: {
     position: "absolute",
-    right: 10,
-    top: 12,
+    right: scale(10),
+    top: scale(12),
   },
   errorText: {
     color: "#b91c1c",
-    fontSize: 11,
-    marginTop: 3,
+    fontSize: ms(11),
+    marginTop: scale(3),
   },
   doubleRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: scale(8),
   },
   halfField: {
     flex: 1,
   },
   publishButton: {
-    marginTop: 2,
-    minHeight: 44,
-    borderRadius: 22,
+    marginTop: scale(2),
+    minHeight: scale(46),
+    borderRadius: scale(23),
     backgroundColor: "#007a08",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 6,
+    gap: scale(6),
   },
   publishText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: ms(14),
     fontWeight: "800",
   },
   draftButton: {
-    marginTop: 8,
-    minHeight: 40,
-    borderRadius: 20,
+    marginTop: scale(8),
+    minHeight: scale(42),
+    borderRadius: scale(21),
     borderWidth: 1,
     borderColor: "#c5d3c8",
     backgroundColor: "#eef3ef",
@@ -360,7 +366,7 @@ const styles = StyleSheet.create({
   },
   draftText: {
     color: "#166534",
-    fontSize: 14,
+    fontSize: ms(14),
     fontWeight: "700",
   },
 });

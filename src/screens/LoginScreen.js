@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
+import { ms, scale, hp } from "../utils/responsive";
 
 export default function LoginScreen({
   email,
@@ -16,7 +18,8 @@ export default function LoginScreen({
   onBack,
 }) {
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(colors, isDark, insets);
 
   return (
     <View style={styles.container}>
@@ -96,77 +99,77 @@ export default function LoginScreen({
   );
 }
 
-const getStyles = (colors, isDark) =>
+const getStyles = (colors, isDark, insets) =>
   StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: isDark ? colors.background : "#f2f5f3",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: scale(20),
+    paddingTop: (insets?.top ?? 0) + scale(16),
+    paddingBottom: Math.max(insets?.bottom ?? 0, scale(20)),
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: scale(20),
   },
   backBtn: {
-    width: 28,
-    height: 28,
+    width: scale(28),
+    height: scale(28),
     alignItems: "center",
     justifyContent: "center",
   },
   spacer: {
-    width: 28,
+    width: scale(28),
   },
   logo: {
-    fontSize: 31,
+    fontSize: ms(20),
     fontWeight: "800",
     color: colors.text,
     textAlign: "center",
   },
   heroBlock: {
-    marginTop: 4,
-    marginBottom: 22,
+    marginTop: scale(4),
+    marginBottom: scale(18),
   },
   welcome: {
-    fontSize: 50,
+    fontSize: ms(30),
     fontWeight: "900",
     color: colors.text,
-    lineHeight: 54,
+    lineHeight: ms(36),
   },
   subTitle: {
-    marginTop: 8,
-    fontSize: 30,
+    marginTop: scale(6),
+    fontSize: ms(15),
     fontWeight: "700",
     color: "#0b7a24",
   },
   fieldWrap: {
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   label: {
-    fontSize: 27,
+    fontSize: ms(14),
     color: colors.text,
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: scale(6),
   },
   input: {
     borderWidth: 1,
     borderColor: "#c9d8cc",
     color: colors.text,
     borderRadius: 999,
-    height: 66,
-    paddingHorizontal: 16,
-    fontSize: 26,
+    height: scale(50),
+    paddingHorizontal: scale(16),
+    fontSize: ms(15),
     backgroundColor: isDark ? colors.surface : "#f8faf9",
   },
   passwordRow: {
     borderWidth: 1,
     borderColor: "#c9d8cc",
     borderRadius: 999,
-    height: 66,
-    paddingHorizontal: 16,
+    height: scale(50),
+    paddingHorizontal: scale(16),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -174,34 +177,34 @@ const getStyles = (colors, isDark) =>
   },
   passwordInput: {
     flex: 1,
-    fontSize: 26,
+    fontSize: ms(15),
     color: colors.text,
   },
   eyeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
     alignItems: "center",
     justifyContent: "center",
   },
   error: {
     color: colors.error,
-    fontSize: 14,
-    marginTop: 5,
+    fontSize: ms(12),
+    marginTop: scale(4),
   },
   forgotWrap: {
-    marginTop: 6,
+    marginTop: scale(6),
     alignSelf: "flex-end",
   },
   forgotLink: {
     color: "#0b7a24",
     fontWeight: "700",
-    fontSize: 23,
+    fontSize: ms(13),
   },
   loginBtn: {
-    height: 64,
+    height: scale(52),
     borderRadius: 999,
-    marginTop: 18,
+    marginTop: scale(16),
     backgroundColor: "#007a08",
     alignItems: "center",
     justifyContent: "center",
@@ -213,14 +216,14 @@ const getStyles = (colors, isDark) =>
   },
   loginBtnText: {
     color: "#ffffff",
-    fontSize: 30,
+    fontSize: ms(17),
     fontWeight: "800",
   },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 24,
+    gap: scale(10),
+    marginTop: scale(20),
   },
   divider: {
     flex: 1,
@@ -229,41 +232,41 @@ const getStyles = (colors, isDark) =>
   },
   dividerText: {
     color: colors.textSubtle,
-    fontSize: 20,
+    fontSize: ms(13),
     fontWeight: "600",
   },
   googleBtn: {
-    marginTop: 16,
-    height: 62,
-    borderRadius: 24,
+    marginTop: scale(14),
+    height: scale(50),
+    borderRadius: scale(22),
     borderWidth: 1,
     borderColor: "#d5dce0",
     backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: scale(10),
   },
   googleText: {
     color: "#334155",
     fontWeight: "700",
-    fontSize: 30,
+    fontSize: ms(14),
   },
   footer: {
     marginTop: "auto",
-    marginBottom: 6,
+    marginBottom: scale(6),
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
   footerText: {
     color: colors.textMuted,
-    fontSize: 30,
+    fontSize: ms(14),
     fontWeight: "500",
   },
   signupLink: {
     color: "#0b7a24",
     fontWeight: "800",
-    fontSize: 30,
+    fontSize: ms(14),
   },
   });

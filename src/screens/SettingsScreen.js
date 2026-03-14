@@ -1,33 +1,41 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "../theme/theme";
+import { scale } from "../utils/responsive";
 export default function SettingsScreen({ onBack, onLogout }) {
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [reminderTiming, setReminderTiming] = useState("15m before");
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
         <Pressable onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={20} color="#1f2937" />
         </Pressable>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
         <View style={styles.headerBadge}>
           <Ionicons name="settings" size={10} color="#0b7a24" />
         </View>
       </View>
 
       <SectionTitle title="ACCOUNT" />
-      <View style={styles.groupCard}>
+      <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
         <SettingsRow icon="lock-closed" label="Password change" />
         <Divider />
         <SettingsRow icon="shield-checkmark" label="Privacy settings" />
       </View>
 
       <SectionTitle title="NOTIFICATIONS" />
-      <View style={styles.groupCard}>
+      <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
         <ToggleRow
           icon="notifications"
           label="Push Notifications"
@@ -66,7 +74,7 @@ export default function SettingsScreen({ onBack, onLogout }) {
       </View>
 
       <SectionTitle title="APP INFO" />
-      <View style={styles.groupCard}>
+      <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
         <SettingsRow icon="document-text" label="Terms and conditions" />
         <Divider />
         <SettingsRow icon="code-slash" label="About developers" />
@@ -140,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e9ecea",
   },
   content: {
-    paddingHorizontal: 10,
+    paddingHorizontal: scale(14),
     paddingTop: 8,
     paddingBottom: 30,
   },
@@ -199,9 +207,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#dbe9df",
     alignItems: "center",
     justifyContent: "center",

@@ -1,8 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "../theme/theme";
+import { ms, scale } from "../utils/responsive";
 
 export default function SearchScreen({ value, results, onChange, onOpenEvent }) {
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState("All Events");
   const [viewMode, setViewMode] = useState("list");
 
@@ -36,12 +41,13 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
       keyExtractor={(item) => String(item.id)}
       showsVerticalScrollIndicator={false}
       columnWrapperStyle={viewMode === "grid" ? styles.gridRow : undefined}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[styles.contentContainer, { paddingTop: (insets?.top ?? 0) + scale(8), backgroundColor: colors.background }]}
       renderItem={({ item, index }) => (
         <ExploreCard
           event={item}
           index={index}
           viewMode={viewMode}
+          colors={colors}
           onPress={() => onOpenEvent(item.id)}
         />
       )}
@@ -58,7 +64,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
           </View>
 
           <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
+            <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
               <Ionicons name="search" size={15} color="#91a39a" />
               <TextInput
                 value={value}
@@ -119,7 +125,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   );
 }
 
-function ExploreCard({ event, index, viewMode, onPress }) {
+function ExploreCard({ event, index, viewMode, onPress, colors }) {
   const status = getStatus(index);
   const disabled = status.label === "CLOSED";
 
@@ -127,7 +133,12 @@ function ExploreCard({ event, index, viewMode, onPress }) {
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.card, viewMode === "grid" && styles.cardGrid, disabled && styles.cardDisabled]}
+      style={[
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.borderSoft },
+        viewMode === "grid" && styles.cardGrid,
+        disabled && styles.cardDisabled,
+      ]}
     >
       <View style={styles.imageWrap}>
         <Image source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
@@ -143,7 +154,7 @@ function ExploreCard({ event, index, viewMode, onPress }) {
       </View>
 
       <View style={styles.cardBody}>
-        <Text style={[styles.eventTitle, disabled && styles.textMuted]} numberOfLines={2}>
+        <Text style={[styles.eventTitle, { color: colors.text }, disabled && styles.textMuted]} numberOfLines={2}>
           {event.title}
         </Text>
 
@@ -213,13 +224,13 @@ function formatDate(dateText) {
 const styles = StyleSheet.create({
   contentContainer: {
     backgroundColor: "#e9ecea",
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    paddingBottom: 22,
+    paddingHorizontal: scale(14),
+    paddingTop: scale(8),
+    paddingBottom: scale(22),
   },
   headerWrap: {
-    gap: 10,
-    marginBottom: 8,
+    gap: scale(10),
+    marginBottom: scale(8),
   },
   topRow: {
     flexDirection: "row",
@@ -229,84 +240,84 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: scale(6),
   },
   brandText: {
     color: "#166534",
-    fontSize: 21,
+    fontSize: ms(18),
     fontWeight: "800",
   },
   actionBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: scale(26),
+    height: scale(26),
+    borderRadius: scale(13),
     backgroundColor: "#dce8df",
     alignItems: "center",
     justifyContent: "center",
   },
   searchRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: scale(8),
   },
   searchBox: {
     flex: 1,
-    height: 36,
-    borderRadius: 18,
+    height: scale(38),
+    borderRadius: scale(19),
     backgroundColor: "#e4ebe6",
     borderWidth: 1,
     borderColor: "#d3ddd6",
-    paddingHorizontal: 10,
+    paddingHorizontal: scale(12),
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: scale(6),
   },
   searchInput: {
     flex: 1,
     color: "#1f2937",
-    fontSize: 12,
+    fontSize: ms(13),
     fontWeight: "500",
     paddingVertical: 0,
   },
   filterBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(19),
     backgroundColor: "#007a08",
     alignItems: "center",
     justifyContent: "center",
   },
   metaFilterRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: scale(8),
   },
   metaFilterChip: {
     flex: 1,
-    minHeight: 28,
-    borderRadius: 14,
+    minHeight: scale(30),
+    borderRadius: scale(15),
     backgroundColor: "#f1f4f2",
     borderWidth: 1,
     borderColor: "#d8dfdb",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: scale(4),
   },
   metaFilterText: {
     color: "#6b7280",
-    fontSize: 10,
+    fontSize: ms(11),
     fontWeight: "600",
   },
   switchRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 22,
-    paddingTop: 2,
+    gap: scale(22),
+    paddingTop: scale(2),
   },
   switchItem: {
-    paddingVertical: 4,
+    paddingVertical: scale(4),
   },
   switchText: {
-    fontSize: 12,
+    fontSize: ms(13),
     fontWeight: "700",
     color: "#8ea09a",
   },
@@ -315,21 +326,21 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   categoryRow: {
-    gap: 6,
-    paddingTop: 2,
+    gap: scale(6),
+    paddingTop: scale(2),
   },
   categoryChip: {
     borderRadius: 999,
     backgroundColor: "#d8e3da",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(6),
   },
   categoryChipActive: {
     backgroundColor: "#007a08",
   },
   categoryChipText: {
     color: "#45664f",
-    fontSize: 10,
+    fontSize: ms(11),
     fontWeight: "800",
   },
   categoryChipTextActive: {
@@ -339,12 +350,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   card: {
-    borderRadius: 14,
+    borderRadius: scale(14),
     backgroundColor: "#f2f5f3",
     borderWidth: 1,
     borderColor: "#dbe2de",
     overflow: "hidden",
-    marginBottom: 10,
+    marginBottom: scale(10),
   },
   cardGrid: {
     width: "48.5%",
@@ -354,7 +365,7 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: "100%",
-    height: 104,
+    height: scale(110),
     position: "relative",
   },
   image: {
@@ -363,28 +374,28 @@ const styles = StyleSheet.create({
   },
   badgeOverlay: {
     position: "absolute",
-    left: 8,
-    top: 8,
+    left: scale(8),
+    top: scale(8),
     flexDirection: "row",
-    gap: 4,
+    gap: scale(4),
   },
   badgeTag: {
     backgroundColor: "#ef4444",
     color: "#ffffff",
-    fontSize: 8,
+    fontSize: ms(9),
     fontWeight: "900",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(2),
     borderRadius: 999,
     letterSpacing: 0.4,
   },
   badgeTagSecondary: {
     backgroundColor: "#ecfdf3",
     color: "#1f2937",
-    fontSize: 8,
+    fontSize: ms(9),
     fontWeight: "900",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(2),
     borderRadius: 999,
     letterSpacing: 0.3,
   },
@@ -393,26 +404,26 @@ const styles = StyleSheet.create({
   },
   bookmarkBadge: {
     position: "absolute",
-    right: 8,
-    top: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    right: scale(8),
+    top: scale(8),
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(12),
     backgroundColor: "rgba(17, 24, 39, 0.65)",
     alignItems: "center",
     justifyContent: "center",
   },
   cardBody: {
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 10,
-    gap: 5,
+    paddingHorizontal: scale(10),
+    paddingTop: scale(8),
+    paddingBottom: scale(10),
+    gap: scale(5),
   },
   eventTitle: {
     color: "#111827",
-    fontSize: 13,
+    fontSize: ms(13),
     fontWeight: "800",
-    lineHeight: 18,
+    lineHeight: ms(18),
   },
   textMuted: {
     color: "#6b7280",
@@ -420,33 +431,33 @@ const styles = StyleSheet.create({
   metaLine: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: scale(4),
   },
   timeIcon: {
-    marginLeft: 6,
+    marginLeft: scale(6),
   },
   metaText: {
     color: "#64748b",
-    fontSize: 10,
+    fontSize: ms(11),
     fontWeight: "600",
     flexShrink: 1,
   },
   bottomRow: {
-    marginTop: 6,
+    marginTop: scale(6),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   attendingText: {
     color: "#94a3b8",
-    fontSize: 9,
+    fontSize: ms(10),
     fontWeight: "700",
   },
   actionButton: {
-    minHeight: 28,
-    borderRadius: 14,
+    minHeight: scale(28),
+    borderRadius: scale(14),
     backgroundColor: "#007a08",
-    paddingHorizontal: 14,
+    paddingHorizontal: scale(12),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -455,7 +466,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: "#ffffff",
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "800",
   },
   actionButtonTextDisabled: {

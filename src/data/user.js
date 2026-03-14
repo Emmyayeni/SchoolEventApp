@@ -1,5 +1,6 @@
 export const user = {
   id: 101,
+  accountType: "student",
   fullName: "Aisha Mohammed",
   email: "aisha@nsuk.edu.ng",
   department: "Computer Science",

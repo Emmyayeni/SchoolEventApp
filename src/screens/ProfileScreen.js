@@ -1,22 +1,34 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
+import { ms, scale } from "../utils/responsive";
 
 export default function ProfileScreen({
   user,
+  isStaff,
   totalRegistered,
   favoriteCategory,
   themeMode,
   onToggleTheme,
   onEditProfile,
+  onOpenMyEvents,
+  onOpenSavedEvents,
+  onOpenNotifications,
+  onCreateEvent,
   onOpenSettings,
   onLogout,
 }) {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(10) }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
         <Text style={styles.title}>Profile</Text>
         <Pressable style={styles.settingsBtn} onPress={onOpenSettings}>
@@ -36,11 +48,17 @@ export default function ProfileScreen({
         </View>
         <Text style={styles.name}>{user.fullName}</Text>
         <Text style={styles.meta}>{user.department}</Text>
-        <Text style={styles.level}>400 Level · ID: NSUK/20/0452</Text>
+        <Text style={styles.level}>{user.level || (isStaff ? "Organizer" : "Student")}</Text>
+        <Text style={styles.roleBadge}>{isStaff ? "Staff / Organizer" : "Student / Attendee"}</Text>
 
         <Pressable style={styles.editButton} onPress={onEditProfile}>
           <Ionicons name="create-outline" size={15} color="#ffffff" />
           <Text style={styles.editButtonText}>Edit Profile</Text>
+        </Pressable>
+
+        <Pressable style={styles.manageButton} onPress={isStaff ? onCreateEvent : onOpenMyEvents}>
+          <Ionicons name={isStaff ? "add-circle-outline" : "compass-outline"} size={15} color="#ffffff" />
+          <Text style={styles.manageButtonText}>{isStaff ? "Create Event" : "Discover Events"}</Text>
         </Pressable>
       </View>
 
@@ -52,6 +70,7 @@ export default function ProfileScreen({
           value={`${totalRegistered}`}
           iconBg="#e9f7ed"
           iconColor="#0b7a24"
+          onPress={onOpenMyEvents}
         />
         <Divider colors={colors} />
         <ActionRow
@@ -60,6 +79,7 @@ export default function ProfileScreen({
           value={favoriteCategory || "Campus Picks"}
           iconBg="#edf6ef"
           iconColor="#0b7a24"
+          onPress={onOpenSavedEvents}
         />
         <Divider colors={colors} />
         <ActionRow
@@ -67,6 +87,7 @@ export default function ProfileScreen({
           label="Notification Settings"
           iconBg="#edf6ef"
           iconColor="#0b7a24"
+          onPress={onOpenNotifications}
         />
       </View>
 
@@ -90,9 +111,9 @@ export default function ProfileScreen({
 
       <SectionTitle title="SUPPORT & INFO" />
       <View style={styles.groupCard}>
-        <ActionRow icon="help-circle" label="Help & Support" iconBg="#edf6ef" iconColor="#0b7a24" />
+        <ActionRow icon="help-circle" label="Help & Support" iconBg="#edf6ef" iconColor="#0b7a24" onPress={onOpenSettings} />
         <Divider colors={colors} />
-        <ActionRow icon="code-slash" label="About Developers" iconBg="#edf6ef" iconColor="#0b7a24" />
+        <ActionRow icon="code-slash" label="About Developers" iconBg="#edf6ef" iconColor="#0b7a24" onPress={onOpenSettings} />
       </View>
 
       <Pressable style={styles.logoutBtn} onPress={onLogout}>
@@ -111,11 +132,11 @@ function Divider({ colors }) {
   return <View style={[stylesStatic.divider, { backgroundColor: colors.borderSoft }]} />;
 }
 
-function ActionRow({ icon, label, value, iconBg, iconColor }) {
+function ActionRow({ icon, label, value, iconBg, iconColor, onPress }) {
   const { colors } = useAppTheme();
 
   return (
-    <Pressable style={stylesStatic.actionRow}>
+    <Pressable style={stylesStatic.actionRow} onPress={onPress}>
       <View style={stylesStatic.rowLeft}>
         <View style={[stylesStatic.rowIconWrap, { backgroundColor: iconBg }]}> 
           <Ionicons name={icon} size={14} color={iconColor} />
@@ -137,10 +158,10 @@ const getStyles = (colors, isDark) =>
     backgroundColor: isDark ? colors.background : "#f0f2f1",
   },
   content: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 18,
-    gap: 12,
+    paddingHorizontal: scale(14),
+    paddingTop: scale(10),
+    paddingBottom: scale(20),
+    gap: scale(12),
   },
   headerRow: {
     flexDirection: "row",
@@ -148,46 +169,46 @@ const getStyles = (colors, isDark) =>
     alignItems: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: ms(22),
     fontWeight: "800",
     color: "#0b7a24",
   },
   settingsBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     alignItems: "center",
     justifyContent: "center",
   },
   profileCard: {
-    borderRadius: 18,
+    borderRadius: scale(18),
     backgroundColor: isDark ? colors.surface : "#eef1ef",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    gap: 4,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(12),
+    gap: scale(4),
   },
   avatarWrap: {
     position: "relative",
-    marginBottom: 4,
+    marginBottom: scale(4),
     borderRadius: 999,
     borderWidth: 3,
     borderColor: "#b7d6c0",
-    padding: 3,
+    padding: scale(3),
   },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: scale(80),
+    height: scale(80),
+    borderRadius: scale(40),
     backgroundColor: colors.surfaceAlt,
   },
   verifiedBadge: {
     position: "absolute",
     right: 0,
-    bottom: 4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: scale(4),
+    width: scale(22),
+    height: scale(22),
+    borderRadius: scale(11),
     backgroundColor: "#0b7a24",
     alignItems: "center",
     justifyContent: "center",
@@ -195,46 +216,73 @@ const getStyles = (colors, isDark) =>
     borderColor: "#ffffff",
   },
   name: {
-    fontSize: 34,
+    fontSize: ms(22),
     fontWeight: "800",
     color: colors.text,
   },
   meta: {
-    fontSize: 16,
+    fontSize: ms(14),
     color: colors.textMuted,
     fontWeight: "600",
   },
   level: {
-    fontSize: 14,
+    fontSize: ms(13),
     color: "#0b7a24",
     fontWeight: "800",
   },
+  roleBadge: {
+    marginTop: scale(2),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: 999,
+    color: "#14532d",
+    backgroundColor: "#dcfce7",
+    fontSize: ms(11),
+    fontWeight: "800",
+    overflow: "hidden",
+  },
   editButton: {
-    marginTop: 8,
+    marginTop: scale(8),
     width: "100%",
     borderRadius: 999,
     backgroundColor: "#0b7a24",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 11,
+    gap: scale(6),
+    paddingVertical: scale(11),
   },
   editButtonText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: ms(14),
+    fontWeight: "800",
+  },
+  manageButton: {
+    marginTop: scale(8),
+    width: "100%",
+    borderRadius: 999,
+    backgroundColor: "#166534",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: scale(6),
+    paddingVertical: scale(10),
+  },
+  manageButtonText: {
+    color: "#ffffff",
+    fontSize: ms(13),
     fontWeight: "800",
   },
   groupCard: {
-    borderRadius: 16,
+    borderRadius: scale(16),
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
   },
   preferenceRow: {
-    minHeight: 54,
-    paddingHorizontal: 12,
+    minHeight: scale(52),
+    paddingHorizontal: scale(14),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -242,37 +290,44 @@ const getStyles = (colors, isDark) =>
   rowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: scale(10),
+  },
+  rowIconWrap: {
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
+    alignItems: "center",
+    justifyContent: "center",
   },
   logoutBtn: {
-    borderRadius: 14,
+    borderRadius: scale(14),
     backgroundColor: "#fef2f2",
-    minHeight: 48,
-    marginTop: 6,
+    minHeight: scale(48),
+    marginTop: scale(6),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: scale(6),
   },
   logoutText: {
     color: "#ef4444",
-    fontSize: 15,
+    fontSize: ms(14),
     fontWeight: "800",
   },
   });
 
 const stylesStatic = StyleSheet.create({
   sectionTitle: {
-    fontSize: 12,
+    fontSize: ms(11),
     letterSpacing: 1,
     fontWeight: "800",
     color: "#94a3b8",
-    marginTop: 2,
-    marginBottom: 2,
+    marginTop: scale(2),
+    marginBottom: scale(2),
   },
   actionRow: {
-    minHeight: 56,
-    paddingHorizontal: 12,
+    minHeight: scale(54),
+    paddingHorizontal: scale(14),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -280,12 +335,12 @@ const stylesStatic = StyleSheet.create({
   rowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: scale(10),
   },
   rowIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -293,15 +348,15 @@ const stylesStatic = StyleSheet.create({
     gap: 1,
   },
   rowLabel: {
-    fontSize: 15,
+    fontSize: ms(14),
     fontWeight: "700",
   },
   rowValue: {
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "600",
   },
   divider: {
     height: 1,
-    marginLeft: 50,
+    marginLeft: scale(50),
   },
 });

@@ -1,6 +1,7 @@
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import CustomButton from "../components/CustomButton";
 import { useAppTheme } from "../theme/theme";
+import { ms, scale,hp } from "../utils/responsive";
 
 export default function EditProfileScreen({ values, onChange, onSave, onBack }) {
   const { colors } = useAppTheme();
@@ -57,28 +58,28 @@ const getStyles = (colors) =>
   container: {
     flex: 1,
     backgroundColor: colors.surface,
-    padding: 16,
+    padding: scale(16),
     justifyContent: "center",
   },
   title: {
-    fontSize: 24,
+    fontSize: ms(20),
     fontWeight: "800",
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   input: {
-    height: 44,
-    borderRadius: 11,
+    height: scale(46),
+    borderRadius: scale(11),
     borderWidth: 1,
     borderColor: colors.border,
     color: colors.text,
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    paddingHorizontal: scale(12),
+    marginBottom: scale(10),
   },
   buttonRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
+    gap: scale(10),
+    marginTop: scale(4),
   },
   flexButton: {
     flex: 1,

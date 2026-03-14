@@ -1,23 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-
-export default function EventDetailsScreen({ event, isRegistered, registering, onRegister, onBack }) {
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "../theme/theme";
+import { ms, scale } from "../utils/responsive";
+export default function EventDetailsScreen({
+  event,
+  isRegistered,
+  isBookmarked,
+  registering,
+  onRegister,
+  onToggleBookmark,
+  onBack,
+}) {
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const registerLabel = isRegistered ? "Registered" : registering ? "Registering..." : "Register Now";
 
   return (
     <ScrollView
-      style={styles.page}
-      contentContainerStyle={styles.pageContent}
+      style={[styles.page, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.pageContent, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.topBar}>
         <Pressable onPress={onBack} style={styles.topIconBtn}>
           <Ionicons name="arrow-back" size={18} color="#166534" />
         </Pressable>
-        <Text style={styles.topTitle}>Event Details</Text>
+        <Text style={[styles.topTitle, { color: colors.text }]}>Event Details</Text>
         <View style={styles.topActions}>
-          <Pressable style={styles.topIconBtn}>
-            <Ionicons name="bookmark" size={14} color="#0b7a24" />
+          <Pressable style={styles.topIconBtn} onPress={onToggleBookmark}>
+            <Ionicons name={isBookmarked ? "bookmark" : "bookmark-outline"} size={14} color="#0b7a24" />
           </Pressable>
           <Pressable
             style={styles.topIconBtn}
@@ -30,7 +42,7 @@ export default function EventDetailsScreen({ event, isRegistered, registering, o
 
       <Image source={{ uri: event.image }} style={styles.heroImage} resizeMode="cover" />
 
-      <View style={styles.contentCard}>
+      <View style={[styles.contentCard, { backgroundColor: colors.background }]}> 
         <View style={styles.badgeRow}>
           <Text style={[styles.badge, styles.badgeGreen]}>{event.category || "FACULTY OF SCIENCE"}</Text>
           <Text style={[styles.badge, styles.badgeYellow]}>TRENDING</Text>
@@ -46,7 +58,7 @@ export default function EventDetailsScreen({ event, isRegistered, registering, o
           </View>
         </View>
 
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.infoIconWrap}>
             <Ionicons name="calendar" size={14} color="#166534" />
           </View>
@@ -56,7 +68,7 @@ export default function EventDetailsScreen({ event, isRegistered, registering, o
           </View>
         </View>
 
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.infoIconWrap}>
             <Ionicons name="location" size={14} color="#166534" />
           </View>
@@ -66,7 +78,7 @@ export default function EventDetailsScreen({ event, isRegistered, registering, o
           </View>
         </View>
 
-        <View style={styles.registeredBar}>
+        <View style={[styles.registeredBar, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.avatarsWrap}>
             <View style={[styles.avatarDot, { backgroundColor: "#dbeafe" }]} />
             <View style={[styles.avatarDot, { backgroundColor: "#fde68a" }]} />
@@ -81,9 +93,15 @@ export default function EventDetailsScreen({ event, isRegistered, registering, o
 
         <Text style={styles.sectionTitle}>Who can attend</Text>
         <View style={styles.chipRow}>
-          <Text style={styles.chip}>All Students</Text>
-          <Text style={styles.chip}>Faculty Staff</Text>
-          <Text style={styles.chip}>Tech Enthusiasts</Text>
+          <Text style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+            All Students
+          </Text>
+          <Text style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+            Faculty Staff
+          </Text>
+          <Text style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+            Tech Enthusiasts
+          </Text>
         </View>
 
         <Text style={styles.sectionTitle}>Event agenda</Text>
@@ -151,50 +169,50 @@ const styles = StyleSheet.create({
     backgroundColor: "#e9ecea",
   },
   pageContent: {
-    paddingBottom: 18,
+    paddingBottom: scale(18),
   },
   topBar: {
-    minHeight: 40,
-    paddingHorizontal: 10,
+    minHeight: scale(44),
+    paddingHorizontal: scale(14),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#e9ecea",
   },
   topIconBtn: {
-    width: 24,
-    height: 24,
+    width: scale(28),
+    height: scale(28),
     alignItems: "center",
     justifyContent: "center",
   },
   topTitle: {
     color: "#1f2937",
-    fontSize: 13,
+    fontSize: ms(14),
     fontWeight: "800",
   },
   topActions: {
     flexDirection: "row",
-    gap: 2,
+    gap: scale(4),
   },
   heroImage: {
     width: "100%",
-    height: 150,
+    height: scale(160),
     backgroundColor: "#cbd5e1",
   },
   contentCard: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
+    paddingHorizontal: scale(14),
+    paddingTop: scale(12),
   },
   badgeRow: {
     flexDirection: "row",
-    gap: 5,
-    marginBottom: 8,
+    gap: scale(5),
+    marginBottom: scale(8),
   },
   badge: {
     borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    fontSize: 9,
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(2),
+    fontSize: ms(9),
     fontWeight: "900",
     letterSpacing: 0.6,
   },
@@ -208,187 +226,187 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     color: "#111827",
-    fontSize: 37,
+    fontSize: ms(24),
     fontWeight: "900",
-    lineHeight: 39,
-    marginBottom: 8,
+    lineHeight: ms(30),
+    marginBottom: scale(8),
   },
   organizerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
+    gap: scale(6),
+    marginBottom: scale(8),
   },
   organizerLabel: {
     color: "#94a3b8",
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "600",
   },
   organizerName: {
     color: "#166534",
-    fontSize: 12,
+    fontSize: ms(12),
     fontWeight: "800",
   },
   infoCard: {
-    borderRadius: 12,
+    borderRadius: scale(12),
     borderWidth: 1,
     borderColor: "#dbe3de",
     backgroundColor: "#f3f5f4",
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(10),
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
+    gap: scale(10),
+    marginBottom: scale(8),
   },
   infoIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
     backgroundColor: "#e2ebe4",
     alignItems: "center",
     justifyContent: "center",
   },
   infoLabel: {
     color: "#94a3b8",
-    fontSize: 10,
+    fontSize: ms(10),
     fontWeight: "700",
   },
   infoValue: {
     color: "#111827",
-    fontSize: 13,
+    fontSize: ms(13),
     fontWeight: "800",
   },
   locationLink: {
-    marginTop: 1,
+    marginTop: scale(1),
     color: "#166534",
-    fontSize: 10,
+    fontSize: ms(11),
     fontWeight: "800",
   },
   registeredBar: {
     borderRadius: 999,
-    minHeight: 34,
+    minHeight: scale(36),
     backgroundColor: "#f0f3f1",
     borderWidth: 1,
     borderColor: "#dbe3de",
-    paddingHorizontal: 10,
+    paddingHorizontal: scale(12),
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+    gap: scale(8),
+    marginBottom: scale(10),
   },
   avatarsWrap: {
     flexDirection: "row",
   },
   avatarDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    marginRight: -6,
+    width: scale(18),
+    height: scale(18),
+    borderRadius: scale(9),
+    marginRight: -scale(6),
     borderWidth: 1,
     borderColor: "#ffffff",
   },
   registeredText: {
     color: "#166534",
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "800",
   },
   statusText: {
     marginLeft: "auto",
     color: "#94a3b8",
-    fontSize: 9,
+    fontSize: ms(9),
     fontWeight: "900",
     letterSpacing: 1,
   },
   sectionTitle: {
     color: "#111827",
-    fontSize: 20,
+    fontSize: ms(16),
     fontWeight: "900",
-    marginBottom: 5,
+    marginBottom: scale(5),
   },
   aboutText: {
     color: "#475569",
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 10,
+    fontSize: ms(13),
+    lineHeight: ms(20),
+    marginBottom: scale(10),
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 10,
+    gap: scale(6),
+    marginBottom: scale(10),
   },
   chip: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: scale(5),
+    paddingHorizontal: scale(10),
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#d1d9d4",
     backgroundColor: "#eef2ef",
     color: "#374151",
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "700",
   },
   agendaList: {
-    gap: 8,
-    marginBottom: 10,
+    gap: scale(8),
+    marginBottom: scale(10),
   },
   agendaItem: {
-    paddingLeft: 10,
+    paddingLeft: scale(10),
     borderLeftWidth: 2,
     borderLeftColor: "#d3ddd6",
   },
   agendaTime: {
     color: "#166534",
-    fontSize: 11,
+    fontSize: ms(11),
     fontWeight: "900",
   },
   agendaTitle: {
     color: "#111827",
-    fontSize: 13,
+    fontSize: ms(13),
     fontWeight: "800",
-    marginTop: 1,
+    marginTop: scale(1),
   },
   agendaSubtitle: {
     color: "#64748b",
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: ms(11),
+    marginTop: scale(1),
   },
   footerBar: {
-    marginHorizontal: 10,
+    marginHorizontal: scale(14),
     borderTopWidth: 1,
     borderTopColor: "#d5ddd8",
-    paddingTop: 8,
+    paddingTop: scale(10),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   priceLabel: {
     color: "#94a3b8",
-    fontSize: 10,
+    fontSize: ms(10),
     fontWeight: "700",
   },
   priceValue: {
     color: "#166534",
-    fontSize: 23,
+    fontSize: ms(18),
     fontWeight: "900",
-    marginTop: 1,
+    marginTop: scale(1),
   },
   registerButton: {
-    minHeight: 38,
-    borderRadius: 19,
+    minHeight: scale(40),
+    borderRadius: scale(20),
     backgroundColor: "#007a08",
-    paddingHorizontal: 16,
+    paddingHorizontal: scale(18),
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: scale(6),
   },
   registerButtonDisabled: {
     opacity: 0.7,
   },
   registerText: {
     color: "#ffffff",
-    fontSize: 13,
+    fontSize: ms(14),
     fontWeight: "800",
   },
 });
