@@ -7,6 +7,7 @@ import { ms, scale } from "../utils/responsive";
 
 export default function SearchScreen({ value, results, onChange, onOpenEvent }) {
   const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState("All Events");
   const [viewMode, setViewMode] = useState("list");
@@ -48,6 +49,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
           index={index}
           viewMode={viewMode}
           colors={colors}
+          styles={styles}
           onPress={() => onOpenEvent(item.id)}
         />
       )}
@@ -55,40 +57,40 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
         <View style={styles.headerWrap}>
           <View style={styles.topRow}>
             <View style={styles.brandRow}>
-              <Ionicons name="school" size={14} color="#166534" />
+              <Ionicons name="school" size={14} color={colors.accent} />
               <Text style={styles.brandText}>NSUK Events</Text>
             </View>
             <Pressable style={styles.actionBtn}>
-              <Ionicons name="options-outline" size={14} color="#166534" />
+              <Ionicons name="options-outline" size={14} color={colors.accent} />
             </Pressable>
           </View>
 
           <View style={styles.searchRow}>
             <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-              <Ionicons name="search" size={15} color="#91a39a" />
+              <Ionicons name="search" size={15} color={colors.textSubtle} />
               <TextInput
                 value={value}
                 onChangeText={onChange}
                 placeholder="Search events, workshops..."
-                placeholderTextColor="#93a49b"
-                style={styles.searchInput}
+                placeholderTextColor={colors.textSubtle}
+                style={[styles.searchInput, { color: colors.text }]}
               />
             </View>
             <Pressable style={styles.filterBtn}>
-              <Ionicons name="funnel" size={15} color="#ffffff" />
+              <Ionicons name="funnel" size={15} color={colors.primaryContrast} />
             </Pressable>
           </View>
 
           <View style={styles.metaFilterRow}>
             <Pressable style={styles.metaFilterChip}>
-              <Ionicons name="calendar-outline" size={11} color="#6b7280" />
+              <Ionicons name="calendar-outline" size={11} color={colors.textMuted} />
               <Text style={styles.metaFilterText}>Any Date</Text>
-              <Ionicons name="chevron-down" size={11} color="#6b7280" />
+              <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
             </Pressable>
             <Pressable style={styles.metaFilterChip}>
-              <Ionicons name="location-outline" size={11} color="#6b7280" />
+              <Ionicons name="location-outline" size={11} color={colors.textMuted} />
               <Text style={styles.metaFilterText}>Any Venue</Text>
-              <Ionicons name="chevron-down" size={11} color="#6b7280" />
+              <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
             </Pressable>
           </View>
 
@@ -125,7 +127,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   );
 }
 
-function ExploreCard({ event, index, viewMode, onPress, colors }) {
+function ExploreCard({ event, index, viewMode, onPress, colors, styles }) {
   const status = getStatus(index);
   const disabled = status.label === "CLOSED";
 
@@ -144,11 +146,13 @@ function ExploreCard({ event, index, viewMode, onPress, colors }) {
         <Image source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
         <View style={styles.badgeOverlay}>
           <Text style={[styles.badgeTag, status.type === "closed" && styles.badgeGray]}>{status.label}</Text>
-          <Text style={styles.badgeTagSecondary}>{toCategoryLabel(event.category)}</Text>
+          <Text style={styles.badgeTagSecondary} numberOfLines={1}>
+            {toCategoryLabel(event.category)}
+          </Text>
         </View>
         {index === 1 && (
           <View style={styles.bookmarkBadge}>
-            <Ionicons name="bookmark" size={12} color="#ffffff" />
+            <Ionicons name="bookmark" size={12} color={colors.primaryContrast} />
           </View>
         )}
       </View>
@@ -159,14 +163,14 @@ function ExploreCard({ event, index, viewMode, onPress, colors }) {
         </Text>
 
         <View style={styles.metaLine}>
-          <Ionicons name="calendar-outline" size={11} color="#7c8d84" />
+          <Ionicons name="calendar-outline" size={11} color={colors.textSubtle} />
           <Text style={styles.metaText}>{formatDate(event.date)}</Text>
-          <Ionicons name="time-outline" size={11} color="#7c8d84" style={styles.timeIcon} />
+          <Ionicons name="time-outline" size={11} color={colors.textSubtle} style={styles.timeIcon} />
           <Text style={styles.metaText}>{event.time}</Text>
         </View>
 
         <View style={styles.metaLine}>
-          <Ionicons name="location-outline" size={11} color="#7c8d84" />
+          <Ionicons name="location-outline" size={11} color={colors.textSubtle} />
           <Text style={styles.metaText} numberOfLines={1}>
             {event.venue}
           </Text>
@@ -221,9 +225,10 @@ function formatDate(dateText) {
   return `${month} ${parsed.getDate()}`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   contentContainer: {
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
     paddingHorizontal: scale(14),
     paddingTop: scale(8),
     paddingBottom: scale(22),
@@ -243,7 +248,7 @@ const styles = StyleSheet.create({
     gap: scale(6),
   },
   brandText: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(18),
     fontWeight: "800",
   },
@@ -251,7 +256,7 @@ const styles = StyleSheet.create({
     width: scale(26),
     height: scale(26),
     borderRadius: scale(13),
-    backgroundColor: "#dce8df",
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -263,9 +268,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: scale(38),
     borderRadius: scale(19),
-    backgroundColor: "#e4ebe6",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#d3ddd6",
+    borderColor: colors.border,
     paddingHorizontal: scale(12),
     flexDirection: "row",
     alignItems: "center",
@@ -273,7 +278,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(13),
     fontWeight: "500",
     paddingVertical: 0,
@@ -282,7 +287,7 @@ const styles = StyleSheet.create({
     width: scale(38),
     height: scale(38),
     borderRadius: scale(19),
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -294,16 +299,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: scale(30),
     borderRadius: scale(15),
-    backgroundColor: "#f1f4f2",
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: "#d8dfdb",
+    borderColor: colors.borderSoft,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: scale(4),
   },
   metaFilterText: {
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: ms(11),
     fontWeight: "600",
   },
@@ -319,10 +324,10 @@ const styles = StyleSheet.create({
   switchText: {
     fontSize: ms(13),
     fontWeight: "700",
-    color: "#8ea09a",
+    color: colors.textSubtle,
   },
   switchTextActive: {
-    color: "#166534",
+    color: colors.accent,
     textDecorationLine: "underline",
   },
   categoryRow: {
@@ -331,29 +336,29 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     borderRadius: 999,
-    backgroundColor: "#d8e3da",
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: scale(14),
     paddingVertical: scale(6),
   },
   categoryChipActive: {
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
   },
   categoryChipText: {
-    color: "#45664f",
+    color: colors.textMuted,
     fontSize: ms(11),
     fontWeight: "800",
   },
   categoryChipTextActive: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
   },
   gridRow: {
     justifyContent: "space-between",
   },
   card: {
     borderRadius: scale(14),
-    backgroundColor: "#f2f5f3",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#dbe2de",
+    borderColor: colors.borderSoft,
     overflow: "hidden",
     marginBottom: scale(10),
   },
@@ -376,12 +381,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: scale(8),
     top: scale(8),
+    right: scale(38),
     flexDirection: "row",
     gap: scale(4),
   },
   badgeTag: {
-    backgroundColor: "#ef4444",
-    color: "#ffffff",
+    backgroundColor: colors.error,
+    color: colors.primaryContrast,
     fontSize: ms(9),
     fontWeight: "900",
     paddingHorizontal: scale(6),
@@ -390,17 +396,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   badgeTagSecondary: {
-    backgroundColor: "#ecfdf3",
-    color: "#1f2937",
+    backgroundColor: colors.surfaceAlt,
+    color: colors.text,
     fontSize: ms(9),
     fontWeight: "900",
     paddingHorizontal: scale(6),
     paddingVertical: scale(2),
     borderRadius: 999,
     letterSpacing: 0.3,
+    flexShrink: 1,
   },
   badgeGray: {
-    backgroundColor: "#6b7280",
+    backgroundColor: colors.textMuted,
   },
   bookmarkBadge: {
     position: "absolute",
@@ -409,7 +416,7 @@ const styles = StyleSheet.create({
     width: scale(24),
     height: scale(24),
     borderRadius: scale(12),
-    backgroundColor: "rgba(17, 24, 39, 0.65)",
+    backgroundColor: colors.overlayStronger,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -420,13 +427,13 @@ const styles = StyleSheet.create({
     gap: scale(5),
   },
   eventTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(13),
     fontWeight: "800",
     lineHeight: ms(18),
   },
   textMuted: {
-    color: "#6b7280",
+    color: colors.textMuted,
   },
   metaLine: {
     flexDirection: "row",
@@ -437,7 +444,7 @@ const styles = StyleSheet.create({
     marginLeft: scale(6),
   },
   metaText: {
-    color: "#64748b",
+    color: colors.textSubtle,
     fontSize: ms(11),
     fontWeight: "600",
     flexShrink: 1,
@@ -449,27 +456,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   attendingText: {
-    color: "#94a3b8",
+    color: colors.textSubtle,
     fontSize: ms(10),
     fontWeight: "700",
   },
   actionButton: {
     minHeight: scale(28),
     borderRadius: scale(14),
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     paddingHorizontal: scale(12),
     alignItems: "center",
     justifyContent: "center",
   },
   actionButtonDisabled: {
-    backgroundColor: "#e5e7eb",
+    backgroundColor: colors.borderSoft,
   },
   actionButtonText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(11),
     fontWeight: "800",
   },
   actionButtonTextDisabled: {
-    color: "#9ca3af",
+    color: colors.textSubtle,
   },
-});
+  });

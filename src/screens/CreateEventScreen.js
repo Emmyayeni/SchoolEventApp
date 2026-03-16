@@ -7,6 +7,7 @@ import { ms, scale } from "../utils/responsive";
 
 export default function CreateEventScreen({ values, errors, onChange, onSubmit, onBack }) {
   const { colors } = useAppTheme();
+  const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
   const [targetAudience, setTargetAudience] = useState("All");
   const [capacity, setCapacity] = useState("");
@@ -27,7 +28,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
     >
       <View style={styles.topRow}>
         <Pressable onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={18} color="#166534" />
+          <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
         <Text style={styles.title}>Create Event</Text>
       </View>
@@ -35,13 +36,13 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       <Text style={styles.sectionLabel}>Event Banner</Text>
       <Pressable style={[styles.bannerUpload, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
         <View style={styles.bannerIconWrap}>
-          <Ionicons name="camera" size={20} color="#0b7a24" />
+          <Ionicons name="camera" size={20} color={colors.primary} />
         </View>
         <Text style={styles.bannerText}>Click to upload image</Text>
         <Text style={styles.bannerHint}>Recommended: 1200 x 675 pixels</Text>
       </Pressable>
 
-      <FormCard title="BASIC DETAILS" icon="ellipse" iconColor="#0b7a24">
+      <FormCard title="BASIC DETAILS" icon="ellipse" iconColor={colors.primary} styles={styles}>
         <Field
           label="Event Title"
           value={values.title}
@@ -69,7 +70,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
         />
       </FormCard>
 
-      <FormCard title="LOGISTICS" icon="location" iconColor="#0b7a24">
+      <FormCard title="LOGISTICS" icon="location" iconColor={colors.primary} styles={styles}>
         <Field
           label="Venue"
           value={values.venue}
@@ -102,7 +103,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
         </View>
       </FormCard>
 
-      <FormCard title="ADMINISTRATION" icon="people" iconColor="#0b7a24">
+      <FormCard title="ADMINISTRATION" icon="people" iconColor={colors.primary} styles={styles}>
         <Field
           label="Organizer Name"
           value={values.organizer}
@@ -132,7 +133,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       </FormCard>
 
       <Pressable style={styles.publishButton} onPress={handleSubmit}>
-        <Ionicons name="play" size={13} color="#ffffff" />
+        <Ionicons name="play" size={13} color={colors.primaryContrast} />
         <Text style={styles.publishText}>Publish Event</Text>
       </Pressable>
 
@@ -143,7 +144,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
   );
 }
 
-function FormCard({ title, icon, iconColor, children }) {
+function FormCard({ title, icon, iconColor, children, styles }) {
   const { colors } = useAppTheme();
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
@@ -166,16 +167,18 @@ function Field({
   leftIcon,
   rightIcon,
 }) {
+  const { colors } = useAppTheme();
+  const styles = getStyles(colors);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={[styles.inputWrap, multiline && styles.inputWrapMultiline, error && styles.inputWrapError]}>
-        {!!leftIcon && <Ionicons name={leftIcon} size={15} color="#94a3b8" style={styles.leftIcon} />}
+        {!!leftIcon && <Ionicons name={leftIcon} size={15} color={colors.textSubtle} style={styles.leftIcon} />}
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.textSubtle}
           style={[
             styles.input,
             !!leftIcon && styles.inputWithLeftIcon,
@@ -184,17 +187,18 @@ function Field({
           ]}
           multiline={multiline}
         />
-        {!!rightIcon && <Ionicons name={rightIcon} size={15} color="#6b7280" style={styles.rightIcon} />}
+        {!!rightIcon && <Ionicons name={rightIcon} size={15} color={colors.textMuted} style={styles.rightIcon} />}
       </View>
       {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) =>
+  StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
   },
   pageContent: {
     paddingHorizontal: scale(14),
@@ -214,53 +218,53 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(18),
     fontWeight: "800",
   },
   sectionLabel: {
     marginTop: scale(6),
     marginBottom: scale(5),
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(11),
     fontWeight: "800",
   },
   bannerUpload: {
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: "#9fc7a6",
+    borderColor: colors.border,
     borderRadius: scale(14),
     minHeight: scale(110),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: scale(12),
-    backgroundColor: "#e8efea",
+    backgroundColor: colors.surface,
   },
   bannerIconWrap: {
     width: scale(34),
     height: scale(34),
     borderRadius: scale(17),
-    backgroundColor: "#d5e7d9",
+    backgroundColor: colors.borderSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: scale(6),
   },
   bannerText: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(12),
     fontWeight: "700",
   },
   bannerHint: {
     marginTop: scale(3),
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: ms(10),
     fontWeight: "500",
   },
   card: {
     borderRadius: scale(14),
     borderWidth: 1,
-    borderColor: "#dfe5e2",
-    backgroundColor: "#f1f4f2",
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: scale(12),
     paddingTop: scale(10),
     paddingBottom: scale(8),
@@ -273,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(10),
   },
   cardTitle: {
-    color: "#14532d",
+    color: colors.accent,
     fontSize: ms(10),
     letterSpacing: 1,
     fontWeight: "900",
@@ -282,7 +286,7 @@ const styles = StyleSheet.create({
     marginBottom: scale(10),
   },
   fieldLabel: {
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(12),
     fontWeight: "700",
     marginBottom: scale(5),
@@ -290,9 +294,9 @@ const styles = StyleSheet.create({
   inputWrap: {
     minHeight: scale(42),
     borderWidth: 1,
-    borderColor: "#cfd8d1",
+    borderColor: colors.border,
     borderRadius: scale(12),
-    backgroundColor: "#edf2ee",
+    backgroundColor: colors.surface,
     justifyContent: "center",
   },
   inputWrapMultiline: {
@@ -300,10 +304,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   inputWrapError: {
-    borderColor: "#ef4444",
+    borderColor: colors.error,
   },
   input: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(13),
     paddingHorizontal: scale(12),
     paddingVertical: scale(10),
@@ -328,7 +332,7 @@ const styles = StyleSheet.create({
     top: scale(12),
   },
   errorText: {
-    color: "#b91c1c",
+    color: colors.error,
     fontSize: ms(11),
     marginTop: scale(3),
   },
@@ -343,14 +347,14 @@ const styles = StyleSheet.create({
     marginTop: scale(2),
     minHeight: scale(46),
     borderRadius: scale(23),
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: scale(6),
   },
   publishText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(14),
     fontWeight: "800",
   },
@@ -359,14 +363,14 @@ const styles = StyleSheet.create({
     minHeight: scale(42),
     borderRadius: scale(21),
     borderWidth: 1,
-    borderColor: "#c5d3c8",
-    backgroundColor: "#eef3ef",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   draftText: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(14),
     fontWeight: "700",
   },
-});
+  });

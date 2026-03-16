@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
-import { ms, scale, hp } from "../utils/responsive";
+import { ms, scale } from "../utils/responsive";
 
 export default function LoginScreen({
   email,
@@ -62,7 +62,7 @@ export default function LoginScreen({
             style={styles.passwordInput}
           />
           <Pressable onPress={onTogglePassword} style={styles.eyeBtn}>
-            <Ionicons name={showPassword ? "eye-off" : "eye"} size={18} color="#0b7a24" />
+            <Ionicons name={showPassword ? "eye-off" : "eye"} size={18} color={colors.primary} />
           </Pressable>
         </View>
         {!!errors.password && <Text style={styles.error}>{errors.password}</Text>}
@@ -85,7 +85,7 @@ export default function LoginScreen({
       </View>
 
       <Pressable style={styles.googleBtn}>
-        <Ionicons name="logo-google" size={18} color="#ea4335" />
+        <Ionicons name="logo-google" size={18} color={colors.error} />
         <Text style={styles.googleText}>Sign in with Google</Text>
       </Pressable>
 
@@ -103,7 +103,7 @@ const getStyles = (colors, isDark, insets) =>
   StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: isDark ? colors.background : "#f2f5f3",
+    backgroundColor: colors.background,
     paddingHorizontal: scale(20),
     paddingTop: (insets?.top ?? 0) + scale(16),
     paddingBottom: Math.max(insets?.bottom ?? 0, scale(20)),
@@ -143,7 +143,7 @@ const getStyles = (colors, isDark, insets) =>
     marginTop: scale(6),
     fontSize: ms(15),
     fontWeight: "700",
-    color: "#0b7a24",
+    color: colors.primary,
   },
   fieldWrap: {
     marginBottom: scale(12),
@@ -156,24 +156,24 @@ const getStyles = (colors, isDark, insets) =>
   },
   input: {
     borderWidth: 1,
-    borderColor: "#c9d8cc",
+    borderColor: colors.borderSoft,
     color: colors.text,
     borderRadius: 999,
     height: scale(50),
     paddingHorizontal: scale(16),
     fontSize: ms(15),
-    backgroundColor: isDark ? colors.surface : "#f8faf9",
+    backgroundColor: isDark ? colors.surface : colors.surfaceAlt,
   },
   passwordRow: {
     borderWidth: 1,
-    borderColor: "#c9d8cc",
+    borderColor: colors.borderSoft,
     borderRadius: 999,
     height: scale(50),
     paddingHorizontal: scale(16),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: isDark ? colors.surface : "#f8faf9",
+    backgroundColor: isDark ? colors.surface : colors.surfaceAlt,
   },
   passwordInput: {
     flex: 1,
@@ -197,7 +197,7 @@ const getStyles = (colors, isDark, insets) =>
     alignSelf: "flex-end",
   },
   forgotLink: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontWeight: "700",
     fontSize: ms(13),
   },
@@ -205,17 +205,17 @@ const getStyles = (colors, isDark, insets) =>
     height: scale(52),
     borderRadius: 999,
     marginTop: scale(16),
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
+    shadowColor: colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
   loginBtnText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(17),
     fontWeight: "800",
   },
@@ -228,7 +228,7 @@ const getStyles = (colors, isDark, insets) =>
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#d8e0da",
+    backgroundColor: colors.surfaceAlt,
   },
   dividerText: {
     color: colors.textSubtle,
@@ -240,7 +240,7 @@ const getStyles = (colors, isDark, insets) =>
     height: scale(50),
     borderRadius: scale(22),
     borderWidth: 1,
-    borderColor: "#d5dce0",
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
@@ -248,7 +248,7 @@ const getStyles = (colors, isDark, insets) =>
     gap: scale(10),
   },
   googleText: {
-    color: "#334155",
+    color: colors.border,
     fontWeight: "700",
     fontSize: ms(14),
   },
@@ -265,7 +265,7 @@ const getStyles = (colors, isDark, insets) =>
     fontWeight: "500",
   },
   signupLink: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontWeight: "800",
     fontSize: ms(14),
   },

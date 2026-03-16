@@ -66,7 +66,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
       {isThirdSlide ? (
         <View style={styles.topRowThird}>
           <Pressable onPress={onPrev} style={styles.backTopBtn}>
-            <Ionicons name="arrow-back" size={scale(18)} color="#0f172a" />
+            <Ionicons name="arrow-back" size={scale(18)} color={colors.text} />
           </Pressable>
           <Text style={styles.stepTopText}>STEP 3 OF 3</Text>
           <View style={styles.topSpacer} />
@@ -75,7 +75,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
         <View style={styles.topRow}>
           <View style={styles.brandRow}>
             <View style={styles.brandIconWrap}>
-              <Ionicons name="school" size={scale(12)} color="#ffffff" />
+              <Ionicons name="school" size={scale(12)} color={colors.primaryContrast} />
             </View>
             <Text style={styles.brandText}>UniHub</Text>
           </View>
@@ -89,7 +89,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
         <Image source={slide.image} style={[styles.image]} />
         {showBellBadge && (
           <View style={styles.bellBadge}>
-            <Ionicons name="notifications" size={scale(16)} color="#ffffff" />
+            <Ionicons name="notifications" size={scale(16)} color={colors.primaryContrast} />
           </View>
         )}
       </View>
@@ -127,7 +127,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
 
       <Pressable style={styles.ctaButton} onPress={isLast ? onGetStarted : onNext}>
         <Text style={styles.ctaText}>{isLast || isFirstSlide ? "Get Started" : "Next"}</Text>
-        <Ionicons name={isLast ? "rocket" : "arrow-forward"} size={scale(18)} color="#ffffff" />
+        <Ionicons name={isLast ? "rocket" : "arrow-forward"} size={scale(18)} color={colors.primaryContrast} />
       </Pressable>
 
       {isThirdSlide ? (
@@ -156,7 +156,7 @@ const getStyles = (colors, isDark, insets) =>
     paddingTop: (insets?.top || 0) + scale(8),
     paddingBottom: Math.max(insets?.bottom || 0, scale(18)),
     justifyContent: "space-between",
-    backgroundColor: isDark ? colors.background : "#f2f5f3",
+    backgroundColor: isDark ? colors.background : colors.surface,
   },
   topRow: {
     flexDirection: "row",
@@ -175,7 +175,7 @@ const getStyles = (colors, isDark, insets) =>
     justifyContent: "center",
   },
   stepTopText: {
-    color: "#4b5563",
+    color: colors.textMuted,
     fontSize: ms(12),
     fontWeight: "900",
     letterSpacing: 1.8,
@@ -193,17 +193,17 @@ const getStyles = (colors, isDark, insets) =>
     width: scale(28),
     height: scale(28),
     borderRadius: scale(14),
-    backgroundColor: "#0b7a24",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   brandText: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontSize: ms(20),
     fontWeight: "800",
   },
   skipTop: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontSize: ms(15),
     fontWeight: "700",
   },
@@ -216,7 +216,7 @@ const getStyles = (colors, isDark, insets) =>
     maxHeight: scale(320),
     borderRadius: scale(22),
     padding: scale(4),
-    backgroundColor: "#d8e8dc",
+    backgroundColor: colors.surfaceAlt,
     overflow: "hidden",
   },
   imageWrapFirst: {
@@ -225,7 +225,7 @@ const getStyles = (colors, isDark, insets) =>
     minHeight: scale(210),
     maxHeight: scale(300),
     borderRadius: scale(22),
-    backgroundColor: "#e3eae5",
+    backgroundColor: colors.surface,
   },
   imageWrapThird: {
     width: "98%",
@@ -233,7 +233,7 @@ const getStyles = (colors, isDark, insets) =>
     minHeight: scale(340),
     maxHeight: scale(460),
     borderRadius: scale(24),
-    backgroundColor: "#e7ece8",
+    backgroundColor: colors.surfaceAlt,
   },
   image: {
     width: "100%",
@@ -252,25 +252,25 @@ const getStyles = (colors, isDark, insets) =>
     lineHeight: ms(46),
     letterSpacing: 0.2,
     textAlign: "center",
-    color: "#0b7a24",
+    color: colors.primary,
   },
   titleFirst: {
-    color: "#0f172a",
+    color: colors.text,
     fontSize: ms(30),
     lineHeight: ms(38),
     letterSpacing: 0,
   },
   titleSecond: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontSize: ms(30),
     lineHeight: ms(38),
     letterSpacing: 0,
   },
   titleAccent: {
-    color: "#0b7a24",
+    color: colors.primary,
   },
   titleThird: {
-    color: "#0f172a",
+    color: colors.text,
     fontSize: ms(44),
     lineHeight: ms(52),
     letterSpacing: 0,
@@ -283,10 +283,10 @@ const getStyles = (colors, isDark, insets) =>
     width: scale(44),
     height: scale(44),
     borderRadius: scale(14),
-    backgroundColor: "#caa62d",
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
+    shadowColor: colors.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.16,
     shadowRadius: 6,
@@ -303,19 +303,19 @@ const getStyles = (colors, isDark, insets) =>
   descriptionFirst: {
     fontSize: ms(16),
     lineHeight: ms(24),
-    color: "#475569",
+    color: colors.textMuted,
     maxWidth: "96%",
     fontWeight: "700",
   },
   descriptionSecond: {
     fontSize: ms(16),
     lineHeight: ms(24),
-    color: "#475569",
+    color: colors.textMuted,
     maxWidth: "92%",
     fontWeight: "700",
   },
   descriptionThird: {
-    color: "#475569",
+    color: colors.textMuted,
     fontSize: ms(16),
     lineHeight: ms(24),
     maxWidth: "95%",
@@ -323,8 +323,8 @@ const getStyles = (colors, isDark, insets) =>
   },
   slideBadge: {
     borderRadius: 999,
-    backgroundColor: "#efe8c8",
-    color: "#b38b20",
+    backgroundColor: colors.surfaceAlt,
+    color: colors.accent,
     fontSize: ms(10),
     fontWeight: "900",
     letterSpacing: 1.2,
@@ -342,29 +342,29 @@ const getStyles = (colors, isDark, insets) =>
     width: scale(10),
     height: scale(10),
     borderRadius: 999,
-    backgroundColor: "#cde0d1",
+    backgroundColor: colors.borderSoft,
   },
   dotActive: {
     width: scale(30),
-    backgroundColor: "#0b7a24",
+    backgroundColor: colors.primary,
   },
   ctaButton: {
     marginTop: scale(12),
     minHeight: scale(52),
     borderRadius: 999,
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: scale(8),
-    shadowColor: "#000000",
+    shadowColor: colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.14,
     shadowRadius: 8,
     elevation: 4,
   },
   ctaText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(18),
     fontWeight: "800",
   },
@@ -386,12 +386,12 @@ const getStyles = (colors, isDark, insets) =>
     minHeight: scale(22),
   },
   remindText: {
-    color: "#64748b",
+    color: colors.textSubtle,
     fontSize: ms(13),
     fontWeight: "700",
   },
   stepBottomText: {
-    color: "#94a3b8",
+    color: colors.textSubtle,
     fontSize: ms(12),
     fontWeight: "700",
   },

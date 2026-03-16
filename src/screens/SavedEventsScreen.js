@@ -26,7 +26,7 @@ export default function SavedEventsScreen({
         ListHeaderComponent={
           <View style={styles.headerRow}>
             <Pressable style={styles.backBtn} onPress={onBack}>
-              <Ionicons name="arrow-back" size={18} color="#166534" />
+              <Ionicons name="arrow-back" size={18} color={colors.accent} />
             </Pressable>
             <Text style={[styles.title, { color: colors.text }]}>Saved Events</Text>
             <View style={styles.backBtn} />
@@ -34,7 +34,7 @@ export default function SavedEventsScreen({
         }
         ListEmptyComponent={
           <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-            <Ionicons name="bookmark-outline" size={24} color="#64748b" />
+            <Ionicons name="bookmark-outline" size={24} color={colors.textSubtle} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookmarked events yet</Text>
             <Text style={[styles.emptyText, { color: colors.textSubtle }]}>Open an event and tap the bookmark icon to save it here.</Text>
           </View>
@@ -49,12 +49,12 @@ export default function SavedEventsScreen({
               <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
                 {item.title}
               </Text>
-              <Text style={styles.metaText} numberOfLines={1}>
+              <Text style={[styles.metaText, { color: colors.textSubtle }]} numberOfLines={1}>
                 {item.category} • {item.time}
               </Text>
             </View>
-            <Pressable style={styles.iconWrap} onPress={() => onToggleBookmark(item.id)}>
-              <Ionicons name="bookmark" size={16} color="#0b7a24" />
+            <Pressable style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]} onPress={() => onToggleBookmark(item.id)}>
+              <Ionicons name="bookmark" size={16} color={colors.primary} />
             </Pressable>
           </Pressable>
         )}
@@ -66,7 +66,6 @@ export default function SavedEventsScreen({
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#e9ecea",
   },
   content: {
     paddingHorizontal: scale(14),
@@ -120,7 +119,7 @@ const styles = StyleSheet.create({
     width: scale(64),
     height: scale(64),
     borderRadius: scale(10),
-    backgroundColor: "#d1d5db",
+    backgroundColor: "transparent",
   },
   cardBody: {
     flex: 1,
@@ -131,7 +130,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   metaText: {
-    color: "#64748b",
     fontSize: ms(12),
     fontWeight: "600",
   },
@@ -141,6 +139,6 @@ const styles = StyleSheet.create({
     borderRadius: scale(15),
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#dcfce7",
+    backgroundColor: "transparent",
   },
 });

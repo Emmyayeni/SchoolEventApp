@@ -16,11 +16,13 @@ export default function HomeScreen({
   onToggleBookmark,
   onOpenNotifications,
   onOpenEvent,
+  onOpenProfile,
 }) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const firstName = (user?.fullName || "John").trim().split(" ")[0] || "John";
   const isStudent = dashboardType !== "staff";
@@ -70,7 +72,9 @@ export default function HomeScreen({
     >
       <View style={styles.headerRow}>
         <View style={styles.userWrap}>
-          <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+          <Pressable onPress={onOpenProfile}>
+            <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+          </Pressable>
           <View>
             <Text style={[styles.welcomeText, { color: colors.textSubtle }]}>Welcome back,</Text>
             <Text style={styles.nameText}>Hello, {firstName}</Text>
@@ -79,24 +83,24 @@ export default function HomeScreen({
         </View>
 
         <Pressable style={styles.iconBtn} onPress={onOpenNotifications}>
-          <Ionicons name="notifications" size={16} color="#0b7a24" />
+          <Ionicons name="notifications" size={16} color={colors.primary} />
         </Pressable>
       </View>
 
       <View style={styles.searchRow}>
         <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <Ionicons name="search" size={16} color="#94a3a0" />
+          <Ionicons name="search" size={16} color={colors.textSubtle} />
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
             placeholder="Search events, venues..."
-            placeholderTextColor="#94a3a0"
+            placeholderTextColor={colors.textSubtle}
             style={[styles.searchInput, { color: colors.text }]}
           />
         </View>
 
         <Pressable style={styles.filterBtn}>
-          <Ionicons name="options" size={16} color="#ffffff" />
+          <Ionicons name="options" size={16} color={colors.primaryContrast} />
         </Pressable>
       </View>
 
@@ -109,14 +113,14 @@ export default function HomeScreen({
               onPress={() => setActiveCategory(category)}
               style={[styles.categoryChip, active && styles.categoryChipActive]}
             >
-              {!active && <Ionicons name="leaf" size={11} color="#5f8370" />}
+              {!active && <Ionicons name="leaf" size={11} color={colors.accent} />}
               <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{category}</Text>
             </Pressable>
           );
         })}
       </ScrollView>
 
-      <SectionTitle title="Featured Events" action="View all" />
+      <SectionTitle title="Featured Events" action="View all" styles={styles} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
         {featured.map((item, index) => (
           <Pressable
@@ -132,7 +136,7 @@ export default function HomeScreen({
                 <Ionicons
                   name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"}
                   size={13}
-                  color="#ffffff"
+                  color={colors.primaryContrast}
                 />
               </Pressable>
             )}
@@ -148,7 +152,7 @@ export default function HomeScreen({
                 {item.title}
               </Text>
               <View style={styles.featuredMetaRow}>
-                <Ionicons name="calendar-outline" size={11} color="#e5e7eb" />
+                <Ionicons name="calendar-outline" size={11} color={colors.borderSoft} />
                 <Text style={styles.featuredMeta}>
                   {formatDate(item.date)}, {item.time}
                 </Text>
@@ -158,7 +162,7 @@ export default function HomeScreen({
         ))}
       </ScrollView>
 
-      <SectionTitle title="Upcoming Events" action="See all" />
+      <SectionTitle title="Upcoming Events" action="See all" styles={styles} />
       <View style={styles.upcomingWrap}>
         {upcoming.map((item, index) => (
           <Pressable
@@ -171,15 +175,17 @@ export default function HomeScreen({
                 <Ionicons
                   name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"}
                   size={13}
-                  color="#166534"
+                  color={colors.accent}
                 />
               </Pressable>
             )}
             <Image source={{ uri: item.image }} style={styles.upcomingImage} />
 
-            <View style={styles.upcomingBody}>
+            <View style={[styles.upcomingBody, isStudent && styles.upcomingBodyWithBookmark]}>
               <View style={styles.upcomingTop}>
-                <Text style={styles.upcomingCategory}>{item.category.toUpperCase()}</Text>
+                <Text style={styles.upcomingCategory} numberOfLines={1}>
+                  {item.category.toUpperCase()}
+                </Text>
                 <Text style={styles.upcomingDate}>{formatShortDate(item.date)}</Text>
               </View>
 
@@ -188,7 +194,7 @@ export default function HomeScreen({
               </Text>
 
               <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={11} color="#6b7280" />
+                <Ionicons name="location-outline" size={11} color={colors.textMuted} />
                 <Text style={styles.locationText} numberOfLines={1}>
                   {item.venue}
                 </Text>
@@ -205,7 +211,7 @@ export default function HomeScreen({
         ))}
       </View>
 
-      <SectionTitle title="Trending This Week" />
+      <SectionTitle title="Trending This Week" styles={styles} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
         {trending.map((item) => (
           <Pressable
@@ -218,7 +224,7 @@ export default function HomeScreen({
                 <Ionicons
                   name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"}
                   size={13}
-                  color="#166534"
+                  color={colors.accent}
                 />
               </Pressable>
             )}
@@ -241,7 +247,7 @@ export default function HomeScreen({
   );
 }
 
-function SectionTitle({ title, action }) {
+function SectionTitle({ title, action, styles }) {
   return (
     <View style={styles.sectionRow}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -274,10 +280,11 @@ function formatWeekday(dateText) {
   return date.toLocaleDateString("en-US", { weekday: "short" });
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#ebefeb",
+    backgroundColor: colors.surfaceAlt,
   },
   content: {
     paddingHorizontal: scale(14),
@@ -300,12 +307,12 @@ const styles = StyleSheet.create({
     borderRadius: scale(21),
   },
   welcomeText: {
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: ms(12),
     fontWeight: "600",
   },
   nameText: {
-    color: "#15803d",
+    color: colors.accent,
     fontSize: ms(24),
     fontWeight: "900",
   },
@@ -318,7 +325,7 @@ const styles = StyleSheet.create({
     width: scale(32),
     height: scale(32),
     borderRadius: scale(16),
-    backgroundColor: "#d8eddd",
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -331,9 +338,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: scale(40),
     borderRadius: 999,
-    backgroundColor: "#f6f8f6",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e0e7e1",
+    borderColor: colors.border,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: scale(12),
@@ -341,14 +348,14 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(13),
   },
   filterBtn: {
     width: scale(40),
     height: scale(40),
     borderRadius: scale(20),
-    backgroundColor: "#0b7a24",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -360,24 +367,24 @@ const styles = StyleSheet.create({
     height: scale(34),
     borderRadius: scale(17),
     borderWidth: 1,
-    borderColor: "#d9e3dc",
-    backgroundColor: "#f5f7f5",
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: scale(12),
     flexDirection: "row",
     alignItems: "center",
     gap: scale(4),
   },
   categoryChipActive: {
-    backgroundColor: "#0a7a1d",
-    borderColor: "#0a7a1d",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   categoryText: {
-    color: "#4b5563",
+    color: colors.textMuted,
     fontSize: ms(12),
     fontWeight: "700",
   },
   categoryTextActive: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
   },
   sectionRow: {
     flexDirection: "row",
@@ -385,12 +392,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(21),
     fontWeight: "900",
   },
   sectionAction: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(13),
     fontWeight: "800",
   },
@@ -404,7 +411,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(16),
     borderWidth: 1,
     overflow: "hidden",
-    backgroundColor: "#d9dfda",
+    backgroundColor: colors.surfaceAlt,
   },
   featuredImage: {
     width: "100%",
@@ -412,7 +419,7 @@ const styles = StyleSheet.create({
   },
   featuredOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.36)",
+    backgroundColor: colors.overlay,
   },
   featuredTagWrap: {
     position: "absolute",
@@ -428,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    backgroundColor: colors.overlayStrong,
   },
   featuredTag: {
     paddingHorizontal: scale(8),
@@ -436,14 +443,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     fontSize: ms(9),
     fontWeight: "900",
-    color: "#1f2937",
+    color: colors.text,
     overflow: "hidden",
   },
   tagPrimary: {
-    backgroundColor: "#fef08a",
+    backgroundColor: colors.surfaceAlt,
   },
   tagSecondary: {
-    backgroundColor: "#fde68a",
+    backgroundColor: colors.surface,
   },
   featuredBody: {
     position: "absolute",
@@ -452,7 +459,7 @@ const styles = StyleSheet.create({
     bottom: scale(10),
   },
   featuredTitle: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(18),
     fontWeight: "900",
   },
@@ -463,7 +470,7 @@ const styles = StyleSheet.create({
     gap: scale(5),
   },
   featuredMeta: {
-    color: "#e5e7eb",
+    color: colors.borderSoft,
     fontSize: ms(11),
     fontWeight: "700",
   },
@@ -474,8 +481,8 @@ const styles = StyleSheet.create({
     position: "relative",
     borderRadius: scale(14),
     borderWidth: 1,
-    borderColor: "#dfe7e2",
-    backgroundColor: "#f5f7f5",
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
     padding: scale(10),
     flexDirection: "row",
     gap: scale(10),
@@ -484,20 +491,25 @@ const styles = StyleSheet.create({
     width: scale(62),
     height: scale(62),
     borderRadius: scale(12),
-    backgroundColor: "#dce8df",
+    backgroundColor: colors.surfaceAlt,
   },
   upcomingBody: {
     flex: 1,
     gap: scale(4),
   },
+  upcomingBodyWithBookmark: {
+    paddingRight: scale(28),
+  },
   upcomingTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: scale(6),
   },
   upcomingCategory: {
-    color: "#166534",
-    backgroundColor: "#d8f0de",
+    flexShrink: 1,
+    color: colors.accent,
+    backgroundColor: colors.surface,
     borderRadius: 999,
     overflow: "hidden",
     paddingHorizontal: scale(8),
@@ -506,12 +518,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   upcomingDate: {
-    color: "#9ca3af",
+    color: colors.textSubtle,
     fontSize: ms(10),
     fontWeight: "800",
   },
   upcomingTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(16),
     fontWeight: "800",
   },
@@ -522,7 +534,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     flex: 1,
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: ms(11),
     fontWeight: "600",
   },
@@ -532,18 +544,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeText: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontSize: ms(14),
     fontWeight: "900",
   },
   rsvpBtn: {
     borderRadius: 999,
-    backgroundColor: "#0a7a1d",
+    backgroundColor: colors.accent,
     paddingHorizontal: scale(12),
     paddingVertical: scale(5),
   },
   rsvpText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(10),
     fontWeight: "900",
   },
@@ -555,26 +567,26 @@ const styles = StyleSheet.create({
     width: scale(150),
     borderRadius: scale(14),
     borderWidth: 1,
-    borderColor: "#e2e8e3",
-    backgroundColor: "#f8faf8",
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
     overflow: "hidden",
   },
   trendingImage: {
     width: "100%",
     height: scale(74),
-    backgroundColor: "#e5ebe7",
+    backgroundColor: colors.surfaceAlt,
   },
   trendingBody: {
     padding: scale(9),
     gap: scale(4),
   },
   trendingTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(12),
     fontWeight: "800",
   },
   trendingMeta: {
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: ms(10),
     fontWeight: "600",
   },
@@ -582,13 +594,13 @@ const styles = StyleSheet.create({
     marginTop: scale(6),
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#22a33e",
+    borderColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     height: scale(26),
   },
   detailsBtnText: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontSize: ms(10),
     fontWeight: "800",
   },
@@ -601,7 +613,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#dcfce7",
+    backgroundColor: colors.surfaceAlt,
     zIndex: 5,
   },
-});
+  });

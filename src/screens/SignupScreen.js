@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
@@ -7,6 +7,7 @@ import { ms, scale } from "../utils/responsive";
 
 export default function SignupScreen({ values, errors, loading, onChange, onRegister, onSwitchToLogin }) {
   const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [showPassword, setShowPassword] = useState(false);
   const accountType = values?.accountType || "student";
@@ -32,7 +33,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
     >
       <View style={styles.topRow}>
         <Pressable style={styles.backButton} onPress={onSwitchToLogin}>
-          <Ionicons name="arrow-back" size={18} color="#166534" />
+          <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
         <Text style={[styles.brand, { color: colors.text }]}>NSUK Events</Text>
         <View style={styles.topSpacer} />
@@ -59,6 +60,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       </View>
 
       <Field
+        colors={colors}
+        styles={styles}
         label="Full Name"
         value={values.fullName}
         onChangeText={(v) => onChange("fullName", v)}
@@ -68,6 +71,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       />
 
       <Field
+        colors={colors}
+        styles={styles}
         label="Email Address"
         value={values.email}
         onChangeText={(v) => onChange("email", v)}
@@ -78,6 +83,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       />
 
       <Field
+        colors={colors}
+        styles={styles}
         label="Password"
         value={values.password}
         onChangeText={(v) => onChange("password", v)}
@@ -86,7 +93,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
         secureTextEntry={!showPassword}
         rightNode={
           <Pressable onPress={() => setShowPassword((p) => !p)} style={styles.eyeButton}>
-            <Ionicons name={showPassword ? "eye-off" : "eye"} size={16} color="#78a172" />
+            <Ionicons name={showPassword ? "eye-off" : "eye"} size={16} color={colors.textSubtle} />
           </Pressable>
         }
         error={errors.password}
@@ -95,6 +102,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       {accountType === "student" ? (
         <>
           <Field
+            colors={colors}
+            styles={styles}
             label="Matric Number"
             value={values.matricNumber}
             onChangeText={(v) => onChange("matricNumber", v)}
@@ -102,6 +111,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
             error={errors.matricNumber}
           />
           <Field
+            colors={colors}
+            styles={styles}
             label="Faculty"
             value={values.faculty}
             onChangeText={(v) => onChange("faculty", v)}
@@ -109,6 +120,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
             error={errors.faculty}
           />
           <Field
+            colors={colors}
+            styles={styles}
             label="Department"
             value={values.department}
             onChangeText={(v) => onChange("department", v)}
@@ -116,6 +129,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
             error={errors.department}
           />
           <Field
+            colors={colors}
+            styles={styles}
             label="Level"
             value={values.level}
             onChangeText={(v) => onChange("level", v)}
@@ -126,6 +141,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       ) : (
         <>
           <Field
+            colors={colors}
+            styles={styles}
             label="Staff ID"
             value={values.staffId}
             onChangeText={(v) => onChange("staffId", v)}
@@ -133,6 +150,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
             error={errors.staffId}
           />
           <Field
+            colors={colors}
+            styles={styles}
             label="Department / Unit"
             value={values.department}
             onChangeText={(v) => onChange("department", v)}
@@ -140,6 +159,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
             error={errors.department}
           />
           <Field
+            colors={colors}
+            styles={styles}
             label="Role / Designation"
             value={values.roleDesignation}
             onChangeText={(v) => onChange("roleDesignation", v)}
@@ -152,7 +173,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       {!!errors.general && <Text style={styles.errorText}>{errors.general}</Text>}
 
       <Pressable style={[styles.cta, loading && styles.ctaDisabled]} onPress={onRegister} disabled={loading}>
-        {loading ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.ctaText}>Create Account</Text>}
+        {loading ? <ActivityIndicator color={colors.primaryContrast} size="small" /> : <Text style={styles.ctaText}>Create Account</Text>}
       </Pressable>
 
       <View style={styles.footerRow}>
@@ -170,6 +191,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
 }
 
 function Field({
+  colors,
+  styles,
   label,
   value,
   onChangeText,
@@ -186,18 +209,18 @@ function Field({
     <View style={[styles.field, compact && styles.fieldCompact]}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.inputWrap}>
-        {!!icon && <Ionicons name={icon} size={15} color="#78a172" style={styles.leftIcon} />}
+        {!!icon && <Ionicons name={icon} size={15} color={colors.textSubtle} style={styles.leftIcon} />}
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#8ea0b3"
+          placeholderTextColor={colors.textSubtle}
           style={[styles.input, !!icon && styles.inputWithIcon, (!!rightIcon || !!rightNode) && styles.inputWithRight]}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize="none"
         />
-        {!!rightIcon && <Ionicons name={rightIcon} size={16} color="#78a172" style={styles.rightIcon} />}
+        {!!rightIcon && <Ionicons name={rightIcon} size={16} color={colors.textSubtle} style={styles.rightIcon} />}
         {!!rightNode && rightNode}
       </View>
       {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -205,10 +228,11 @@ function Field({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) =>
+  StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
   },
   content: {
     paddingHorizontal: scale(16),
@@ -227,7 +251,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   brand: {
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(15),
     fontWeight: "800",
   },
@@ -235,7 +259,7 @@ const styles = StyleSheet.create({
     width: scale(26),
   },
   title: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(28),
     fontWeight: "900",
     lineHeight: ms(34),
@@ -243,14 +267,14 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: scale(4),
     marginBottom: scale(12),
-    color: "#2f9b59",
+    color: colors.accent,
     fontSize: ms(13),
     fontWeight: "500",
   },
   segmentWrap: {
     height: scale(40),
     borderRadius: scale(20),
-    backgroundColor: "#c7d4c8",
+    backgroundColor: colors.border,
     padding: scale(3),
     flexDirection: "row",
     marginBottom: scale(12),
@@ -262,15 +286,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   segmentButtonActive: {
-    backgroundColor: "#f1f4f2",
+    backgroundColor: colors.surface,
   },
   segmentText: {
-    color: "#517160",
+    color: colors.textMuted,
     fontSize: ms(14),
     fontWeight: "700",
   },
   segmentTextActive: {
-    color: "#0b7a24",
+    color: colors.primary,
   },
   field: {
     marginBottom: scale(10),
@@ -280,7 +304,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: scale(5),
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(12),
     fontWeight: "700",
   },
@@ -288,8 +312,8 @@ const styles = StyleSheet.create({
     height: scale(46),
     borderRadius: scale(23),
     borderWidth: 1,
-    borderColor: "#c7d4c8",
-    backgroundColor: "#f1f4f2",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingHorizontal: scale(12),
     flexDirection: "row",
     alignItems: "center",
@@ -302,7 +326,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(13),
     paddingVertical: 0,
   },
@@ -325,13 +349,13 @@ const styles = StyleSheet.create({
   },
   errorText: {
     marginTop: scale(4),
-    color: "#ef4444",
+    color: colors.error,
     fontSize: ms(11),
   },
   cta: {
     height: scale(50),
     borderRadius: scale(25),
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     marginTop: scale(14),
@@ -341,7 +365,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   ctaText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(16),
     fontWeight: "800",
   },
@@ -352,19 +376,19 @@ const styles = StyleSheet.create({
     marginBottom: scale(6),
   },
   footerText: {
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: ms(13),
     fontWeight: "500",
   },
   loginLink: {
-    color: "#0b7a24",
+    color: colors.primary,
     fontSize: ms(13),
     fontWeight: "800",
   },
   terms: {
     textAlign: "center",
-    color: "#9ca3af",
+    color: colors.textSubtle,
     fontSize: ms(10),
     lineHeight: ms(14),
   },
-});
+  });

@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
-import { scale } from "../utils/responsive";
+import { ms, scale } from "../utils/responsive";
 export default function SettingsScreen({ onBack, onLogout }) {
   const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(false);
@@ -19,35 +20,39 @@ export default function SettingsScreen({ onBack, onLogout }) {
     >
       <View style={styles.headerRow}>
         <Pressable onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={20} color="#1f2937" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
         <View style={styles.headerBadge}>
-          <Ionicons name="settings" size={10} color="#0b7a24" />
+          <Ionicons name="settings" size={10} color={colors.primary} />
         </View>
       </View>
 
-      <SectionTitle title="ACCOUNT" />
+      <SectionTitle title="ACCOUNT" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-        <SettingsRow icon="lock-closed" label="Password change" />
-        <Divider />
-        <SettingsRow icon="shield-checkmark" label="Privacy settings" />
+        <SettingsRow icon="lock-closed" label="Password change" colors={colors} styles={styles} />
+        <Divider styles={styles} />
+        <SettingsRow icon="shield-checkmark" label="Privacy settings" colors={colors} styles={styles} />
       </View>
 
-      <SectionTitle title="NOTIFICATIONS" />
+      <SectionTitle title="NOTIFICATIONS" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
         <ToggleRow
           icon="notifications"
           label="Push Notifications"
           value={pushEnabled}
           onValueChange={setPushEnabled}
+          colors={colors}
+          styles={styles}
         />
-        <Divider />
+        <Divider styles={styles} />
         <ToggleRow
           icon="mail"
           label="Email Updates"
           value={emailEnabled}
           onValueChange={setEmailEnabled}
+          colors={colors}
+          styles={styles}
         />
 
         <View style={styles.reminderSection}>
@@ -73,16 +78,16 @@ export default function SettingsScreen({ onBack, onLogout }) {
         </View>
       </View>
 
-      <SectionTitle title="APP INFO" />
+      <SectionTitle title="APP INFO" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-        <SettingsRow icon="document-text" label="Terms and conditions" />
-        <Divider />
-        <SettingsRow icon="code-slash" label="About developers" />
-        <Divider />
+        <SettingsRow icon="document-text" label="Terms and conditions" colors={colors} styles={styles} />
+        <Divider styles={styles} />
+        <SettingsRow icon="code-slash" label="About developers" colors={colors} styles={styles} />
+        <Divider styles={styles} />
         <View style={styles.row}>
           <View style={styles.rowLeft}>
             <View style={styles.iconWrap}>
-              <Ionicons name="information-circle" size={15} color="#0b7a24" />
+              <Ionicons name="information-circle" size={15} color={colors.primary} />
             </View>
             <Text style={styles.rowText}>Version</Text>
           </View>
@@ -93,109 +98,110 @@ export default function SettingsScreen({ onBack, onLogout }) {
       </View>
 
       <Pressable style={styles.logoutBtn} onPress={onLogout}>
-        <Ionicons name="log-out-outline" size={16} color="#ef4444" />
+        <Ionicons name="log-out-outline" size={16} color={colors.error} />
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
-function SectionTitle({ title }) {
+function SectionTitle({ title, colors, styles }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function SettingsRow({ icon, label }) {
+function SettingsRow({ icon, label, colors, styles }) {
   return (
     <Pressable style={styles.row}>
       <View style={styles.rowLeft}>
         <View style={styles.iconWrap}>
-          <Ionicons name={icon} size={15} color="#0b7a24" />
+          <Ionicons name={icon} size={15} color={colors.primary} />
         </View>
         <Text style={styles.rowText}>{label}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={17} color="#94a3b8" />
+      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
 }
 
-function ToggleRow({ icon, label, value, onValueChange }) {
+function ToggleRow({ icon, label, value, onValueChange, colors, styles }) {
   return (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
         <View style={styles.iconWrap}>
-          <Ionicons name={icon} size={15} color="#0b7a24" />
+          <Ionicons name={icon} size={15} color={colors.primary} />
         </View>
         <Text style={styles.rowText}>{label}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#d5dbe2", true: "#0b7a24" }}
-        thumbColor="#ffffff"
-        ios_backgroundColor="#d5dbe2"
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.primaryContrast}
+        ios_backgroundColor={colors.border}
       />
     </View>
   );
 }
 
-function Divider() {
+function Divider({ styles }) {
   return <View style={styles.divider} />;
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
   },
   content: {
-    paddingHorizontal: scale(14),
-    paddingTop: 8,
-    paddingBottom: 30,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(8),
+    paddingBottom: scale(28),
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
+    gap: scale(12),
+    marginBottom: scale(14),
   },
   backButton: {
-    width: 26,
-    height: 26,
+    width: scale(30),
+    height: scale(30),
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     flex: 1,
-    fontSize: 28,
+    fontSize: ms(24),
     fontWeight: "800",
-    color: "#1f2937",
+    color: colors.text,
   },
   headerBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#d8e9dc",
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(12),
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
   sectionTitle: {
-    marginTop: 8,
-    marginBottom: 8,
-    fontSize: 18,
+    marginTop: scale(14),
+    marginBottom: scale(8),
+    fontSize: ms(11),
     fontWeight: "900",
-    color: "#166534",
-    letterSpacing: 0.8,
+    color: colors.accent,
+    letterSpacing: 1,
   },
   groupCard: {
-    borderRadius: 16,
-    backgroundColor: "#f2f4f3",
+    borderRadius: scale(16),
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#dfe5e2",
+    borderColor: colors.borderSoft,
     overflow: "hidden",
   },
   row: {
-    minHeight: 58,
-    paddingHorizontal: 12,
+    minHeight: scale(56),
+    paddingHorizontal: scale(14),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -203,86 +209,87 @@ const styles = StyleSheet.create({
   rowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: scale(10),
     flex: 1,
   },
   iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#dbe9df",
+    width: scale(30),
+    height: scale(30),
+    borderRadius: scale(15),
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
   rowText: {
-    fontSize: 23,
+    fontSize: ms(14),
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text,
   },
   divider: {
     height: 1,
-    marginLeft: 54,
-    backgroundColor: "#dde3e0",
+    marginLeft: scale(58),
+    backgroundColor: colors.borderSoft,
   },
   reminderSection: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    paddingTop: 4,
+    paddingHorizontal: scale(14),
+    paddingBottom: scale(14),
+    paddingTop: scale(6),
   },
   reminderLabel: {
-    fontSize: 12,
+    fontSize: ms(11),
     fontWeight: "800",
-    color: "#94a3b8",
+    color: colors.textSubtle,
     letterSpacing: 0.8,
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   pillRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: scale(8),
+    flexWrap: "wrap",
   },
   pill: {
     borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: "#dce7dd",
+    paddingVertical: scale(7),
+    paddingHorizontal: scale(12),
+    backgroundColor: colors.surfaceAlt,
   },
   pillActive: {
-    backgroundColor: "#0b7a24",
+    backgroundColor: colors.primary,
   },
   pillText: {
-    fontSize: 12,
-    color: "#51705b",
+    fontSize: ms(11),
+    color: colors.textMuted,
     fontWeight: "800",
   },
   pillTextActive: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
   },
   versionTag: {
     borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: "#dce7dd",
+    paddingVertical: scale(5),
+    paddingHorizontal: scale(8),
+    backgroundColor: colors.surfaceAlt,
   },
   versionText: {
-    color: "#166534",
-    fontSize: 11,
+    color: colors.accent,
+    fontSize: ms(10),
     fontWeight: "800",
   },
   logoutBtn: {
-    marginTop: 20,
-    minHeight: 52,
-    borderRadius: 16,
+    marginTop: scale(18),
+    minHeight: scale(50),
+    borderRadius: scale(16),
     borderWidth: 1,
-    borderColor: "#f4bcc2",
-    backgroundColor: "#f6edee",
+    borderColor: colors.error,
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 8,
+    gap: scale(8),
   },
   logoutText: {
-    color: "#ef4444",
-    fontSize: 22,
+    color: colors.error,
+    fontSize: ms(14),
     fontWeight: "800",
   },
-});
+  });

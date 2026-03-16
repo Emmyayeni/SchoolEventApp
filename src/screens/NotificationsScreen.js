@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
@@ -6,6 +7,7 @@ import { ms, scale } from "../utils/responsive";
 
 export default function NotificationsScreen({ notifications, onPressItem, onMarkAllRead, onBack }) {
   const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const sections = {
     today: notifications.filter((item, index) => index < 2),
@@ -42,7 +44,7 @@ export default function NotificationsScreen({ notifications, onPressItem, onMark
     >
       <View style={styles.headerRow}>
         <Pressable style={styles.backBtn} onPress={onBack}>
-          <Ionicons name="arrow-back" size={18} color="#166534" />
+          <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
         <Pressable onPress={onMarkAllRead}>
@@ -50,14 +52,14 @@ export default function NotificationsScreen({ notifications, onPressItem, onMark
         </Pressable>
       </View>
 
-      <Section title="TODAY" items={todayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} />
-      <Section title="YESTERDAY" items={yesterdayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} />
-      <Section title="EARLIER" items={earlierItems} onPressItem={onPressItem} colors={colors} isDark={isDark} />
+      <Section title="TODAY" items={todayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
+      <Section title="YESTERDAY" items={yesterdayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
+      <Section title="EARLIER" items={earlierItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
     </ScrollView>
   );
 }
 
-function Section({ title, items, onPressItem, colors, isDark }) {
+function Section({ title, items, onPressItem, colors, isDark, styles }) {
   if (!items || items.length === 0) {
     return null;
   }
@@ -67,15 +69,15 @@ function Section({ title, items, onPressItem, colors, isDark }) {
       <Text style={styles.sectionTitle}>{title}</Text>
       {items.map((item) => (
         <Pressable key={String(item.id)} style={[styles.row, { borderBottomColor: colors.borderSoft }]} onPress={() => onPressItem?.(item)}>
-          <View style={[styles.iconWrap, getToneWrap(item)]}>
-            <Ionicons name={getIcon(item)} size={16} color={getToneColor(item)} />
+          <View style={[styles.iconWrap, getToneWrap(item, colors)]}>
+            <Ionicons name={getIcon(item)} size={16} color={getToneColor(item, colors)} />
           </View>
           <View style={styles.rowBody}>
             <View style={styles.rowTop}>
-              <Text style={[styles.itemTitle, { color: getToneColor(item) }]}>{item.title}</Text>
+              <Text style={[styles.itemTitle, { color: getToneColor(item, colors) }]}>{item.title}</Text>
               <Text style={styles.itemTime}>{item.time}</Text>
             </View>
-            <Text style={[styles.itemMessage, { color: isDark ? colors.textMuted : "#1f2937" }]}>{item.message}</Text>
+            <Text style={[styles.itemMessage, { color: isDark ? colors.textMuted : colors.text }]}>{item.message}</Text>
           </View>
         </Pressable>
       ))}
@@ -100,28 +102,29 @@ function getIcon(item) {
   return "information-circle";
 }
 
-function getToneColor(item) {
+function getToneColor(item, colors) {
   const title = (item.title || "").toLowerCase();
   const tone = item.tone || "";
   if (tone === "red" || title.includes("notice")) {
-    return "#ef4444";
+    return colors.error;
   }
-  return "#166534";
+  return colors.accent;
 }
 
-function getToneWrap(item) {
+function getToneWrap(item, colors) {
   const title = (item.title || "").toLowerCase();
   const tone = item.tone || "";
   if (tone === "red" || title.includes("notice")) {
-    return { backgroundColor: "#fee2e2" };
+    return { backgroundColor: colors.surfaceAlt };
   }
-  return { backgroundColor: "#dceadd" };
+  return { backgroundColor: colors.surfaceAlt };
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
   },
   content: {
     paddingHorizontal: scale(14),
@@ -141,12 +144,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(22),
     fontWeight: "900",
   },
   markRead: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(12),
     fontWeight: "800",
   },
@@ -154,7 +157,7 @@ const styles = StyleSheet.create({
     marginTop: scale(8),
   },
   sectionTitle: {
-    color: "#64748b",
+    color: colors.textSubtle,
     fontSize: ms(13),
     fontWeight: "900",
     letterSpacing: 1,
@@ -189,15 +192,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   itemTime: {
-    color: "#64748b",
+    color: colors.textSubtle,
     fontSize: ms(10),
     fontWeight: "700",
   },
   itemMessage: {
     marginTop: scale(2),
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(13),
     fontWeight: "600",
     lineHeight: ms(19),
   },
-});
+  });

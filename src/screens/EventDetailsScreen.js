@@ -13,6 +13,7 @@ export default function EventDetailsScreen({
   onBack,
 }) {
   const { colors } = useAppTheme();
+  const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
   const registerLabel = isRegistered ? "Registered" : registering ? "Registering..." : "Register Now";
 
@@ -24,18 +25,18 @@ export default function EventDetailsScreen({
     >
       <View style={styles.topBar}>
         <Pressable onPress={onBack} style={styles.topIconBtn}>
-          <Ionicons name="arrow-back" size={18} color="#166534" />
+          <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
         <Text style={[styles.topTitle, { color: colors.text }]}>Event Details</Text>
         <View style={styles.topActions}>
           <Pressable style={styles.topIconBtn} onPress={onToggleBookmark}>
-            <Ionicons name={isBookmarked ? "bookmark" : "bookmark-outline"} size={14} color="#0b7a24" />
+            <Ionicons name={isBookmarked ? "bookmark" : "bookmark-outline"} size={14} color={colors.primary} />
           </Pressable>
           <Pressable
             style={styles.topIconBtn}
             onPress={() => Alert.alert("Share", "Share feature will be connected to native share API later.")}
           >
-            <Ionicons name="share-social" size={14} color="#0b7a24" />
+            <Ionicons name="share-social" size={14} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -51,7 +52,7 @@ export default function EventDetailsScreen({
         <Text style={styles.eventTitle}>{event.title}</Text>
 
         <View style={styles.organizerRow}>
-          <Ionicons name="person-circle-outline" size={14} color="#94a3b8" />
+          <Ionicons name="person-circle-outline" size={14} color={colors.textSubtle} />
           <View>
             <Text style={styles.organizerLabel}>Organized by</Text>
             <Text style={styles.organizerName}>{event.organizer}</Text>
@@ -60,7 +61,7 @@ export default function EventDetailsScreen({
 
         <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.infoIconWrap}>
-            <Ionicons name="calendar" size={14} color="#166534" />
+            <Ionicons name="calendar" size={14} color={colors.accent} />
           </View>
           <View>
             <Text style={styles.infoLabel}>Date & Time</Text>
@@ -70,7 +71,7 @@ export default function EventDetailsScreen({
 
         <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.infoIconWrap}>
-            <Ionicons name="location" size={14} color="#166534" />
+            <Ionicons name="location" size={14} color={colors.accent} />
           </View>
           <View>
             <Text style={styles.infoValue}>{event.venue}</Text>
@@ -80,9 +81,9 @@ export default function EventDetailsScreen({
 
         <View style={[styles.registeredBar, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.avatarsWrap}>
-            <View style={[styles.avatarDot, { backgroundColor: "#dbeafe" }]} />
-            <View style={[styles.avatarDot, { backgroundColor: "#fde68a" }]} />
-            <View style={[styles.avatarDot, { backgroundColor: "#fecaca" }]} />
+            <View style={[styles.avatarDot, { backgroundColor: colors.surfaceAlt }]} />
+            <View style={[styles.avatarDot, { backgroundColor: colors.surface }]} />
+            <View style={[styles.avatarDot, { backgroundColor: colors.unreadBg }]} />
           </View>
           <Text style={styles.registeredText}>150+ registered</Text>
           <Text style={styles.statusText}>RSVP OPEN</Text>
@@ -110,16 +111,19 @@ export default function EventDetailsScreen({
             time="10:00 AM - 10:30 AM"
             title="Opening Ceremony"
             subtitle="Welcome address by the Vice Chancellor."
+            styles={styles}
           />
           <AgendaItem
             time="10:30 AM - 12:00 PM"
             title="Keynote: Future of AI"
             subtitle="Expert talk on Artificial General Intelligence."
+            styles={styles}
           />
           <AgendaItem
             time="12:00 PM - 01:00 PM"
             title="Networking & Exhibition"
             subtitle="Interactive session and product showcases."
+            styles={styles}
           />
         </View>
       </View>
@@ -135,14 +139,14 @@ export default function EventDetailsScreen({
           disabled={isRegistered || registering}
         >
           <Text style={styles.registerText}>{registerLabel}</Text>
-          <Ionicons name="arrow-forward" size={14} color="#ffffff" />
+          <Ionicons name="arrow-forward" size={14} color={colors.primaryContrast} />
         </Pressable>
       </View>
     </ScrollView>
   );
 }
 
-function AgendaItem({ time, title, subtitle }) {
+function AgendaItem({ time, title, subtitle, styles }) {
   return (
     <View style={styles.agendaItem}>
       <Text style={styles.agendaTime}>{time}</Text>
@@ -163,10 +167,11 @@ function formatEventDate(dateText) {
   return `${month} ${day}, ${year}`;
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) =>
+  StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
   },
   pageContent: {
     paddingBottom: scale(18),
@@ -177,7 +182,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#e9ecea",
+    backgroundColor: colors.background,
   },
   topIconBtn: {
     width: scale(28),
@@ -186,7 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   topTitle: {
-    color: "#1f2937",
+    color: colors.text,
     fontSize: ms(14),
     fontWeight: "800",
   },
@@ -197,7 +202,7 @@ const styles = StyleSheet.create({
   heroImage: {
     width: "100%",
     height: scale(160),
-    backgroundColor: "#cbd5e1",
+    backgroundColor: colors.border,
   },
   contentCard: {
     paddingHorizontal: scale(14),
@@ -217,15 +222,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   badgeGreen: {
-    backgroundColor: "#dcfce7",
-    color: "#14532d",
+    backgroundColor: colors.surfaceAlt,
+    color: colors.accent,
   },
   badgeYellow: {
-    backgroundColor: "#fef08a",
-    color: "#854d0e",
+    backgroundColor: colors.surface,
+    color: colors.textMuted,
   },
   eventTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(24),
     fontWeight: "900",
     lineHeight: ms(30),
@@ -238,20 +243,20 @@ const styles = StyleSheet.create({
     marginBottom: scale(8),
   },
   organizerLabel: {
-    color: "#94a3b8",
+    color: colors.textSubtle,
     fontSize: ms(11),
     fontWeight: "600",
   },
   organizerName: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(12),
     fontWeight: "800",
   },
   infoCard: {
     borderRadius: scale(12),
     borderWidth: 1,
-    borderColor: "#dbe3de",
-    backgroundColor: "#f3f5f4",
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
     paddingHorizontal: scale(12),
     paddingVertical: scale(10),
     flexDirection: "row",
@@ -263,32 +268,32 @@ const styles = StyleSheet.create({
     width: scale(28),
     height: scale(28),
     borderRadius: scale(14),
-    backgroundColor: "#e2ebe4",
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
   infoLabel: {
-    color: "#94a3b8",
+    color: colors.textSubtle,
     fontSize: ms(10),
     fontWeight: "700",
   },
   infoValue: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(13),
     fontWeight: "800",
   },
   locationLink: {
     marginTop: scale(1),
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(11),
     fontWeight: "800",
   },
   registeredBar: {
     borderRadius: 999,
     minHeight: scale(36),
-    backgroundColor: "#f0f3f1",
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: "#dbe3de",
+    borderColor: colors.borderSoft,
     paddingHorizontal: scale(12),
     flexDirection: "row",
     alignItems: "center",
@@ -304,28 +309,28 @@ const styles = StyleSheet.create({
     borderRadius: scale(9),
     marginRight: -scale(6),
     borderWidth: 1,
-    borderColor: "#ffffff",
+    borderColor: colors.primaryContrast,
   },
   registeredText: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(11),
     fontWeight: "800",
   },
   statusText: {
     marginLeft: "auto",
-    color: "#94a3b8",
+    color: colors.textSubtle,
     fontSize: ms(9),
     fontWeight: "900",
     letterSpacing: 1,
   },
   sectionTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(16),
     fontWeight: "900",
     marginBottom: scale(5),
   },
   aboutText: {
-    color: "#475569",
+    color: colors.textMuted,
     fontSize: ms(13),
     lineHeight: ms(20),
     marginBottom: scale(10),
@@ -341,9 +346,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(10),
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#d1d9d4",
-    backgroundColor: "#eef2ef",
-    color: "#374151",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    color: colors.textMuted,
     fontSize: ms(11),
     fontWeight: "700",
   },
@@ -354,40 +359,40 @@ const styles = StyleSheet.create({
   agendaItem: {
     paddingLeft: scale(10),
     borderLeftWidth: 2,
-    borderLeftColor: "#d3ddd6",
+    borderLeftColor: colors.border,
   },
   agendaTime: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(11),
     fontWeight: "900",
   },
   agendaTitle: {
-    color: "#111827",
+    color: colors.text,
     fontSize: ms(13),
     fontWeight: "800",
     marginTop: scale(1),
   },
   agendaSubtitle: {
-    color: "#64748b",
+    color: colors.textSubtle,
     fontSize: ms(11),
     marginTop: scale(1),
   },
   footerBar: {
     marginHorizontal: scale(14),
     borderTopWidth: 1,
-    borderTopColor: "#d5ddd8",
+    borderTopColor: colors.border,
     paddingTop: scale(10),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   priceLabel: {
-    color: "#94a3b8",
+    color: colors.textSubtle,
     fontSize: ms(10),
     fontWeight: "700",
   },
   priceValue: {
-    color: "#166534",
+    color: colors.accent,
     fontSize: ms(18),
     fontWeight: "900",
     marginTop: scale(1),
@@ -395,7 +400,7 @@ const styles = StyleSheet.create({
   registerButton: {
     minHeight: scale(40),
     borderRadius: scale(20),
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     paddingHorizontal: scale(18),
     flexDirection: "row",
     alignItems: "center",
@@ -405,8 +410,8 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   registerText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(14),
     fontWeight: "800",
   },
-});
+  });

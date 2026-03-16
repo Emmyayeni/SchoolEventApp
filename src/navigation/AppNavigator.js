@@ -10,6 +10,7 @@ import BottomTabs from "./BottomTabs";
 export default function AppNavigator({
   activeTab,
   onTabChange,
+  isStaff = false,
   homeProps,
   searchProps,
   myEventsProps,
@@ -41,7 +42,7 @@ export default function AppNavigator({
         <View style={styles.content}>{renderActiveScreen()}</View>
       </View>
       <View style={styles.tabBarWrap}>
-        <BottomTabs activeTab={activeTab} onChange={onTabChange} />
+        <BottomTabs activeTab={activeTab} onChange={onTabChange} isStaff={isStaff} />
       </View>
     </View>
   );
@@ -64,11 +65,10 @@ const getStyles = (colors) =>
     },
     tabBarWrap: {
       width: "100%",
-      alignSelf: "center",
-      maxWidth: 760,
-      paddingHorizontal: 12,
-      paddingTop: 6,
-      paddingBottom: 10,
+      alignSelf: "stretch",
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
       backgroundColor: colors.background,
     },
   });

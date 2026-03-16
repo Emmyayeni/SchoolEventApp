@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 
 const tabs = [
@@ -15,14 +16,18 @@ const tabs = [
   { key: "profile", label: "Profile", icon: "person-outline", activeIcon: "person" },
 ];
 
-export default function BottomTabs({ activeTab, onChange }) {
-  const { colors } = useAppTheme();
-  const styles = getStyles(colors);
+export default function BottomTabs({ activeTab, onChange, isStaff = false }) {
+  const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(colors, isDark);
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 7) }]}>
       {tabs.map((tab) => {
         const active = activeTab === tab.key;
+        const label = tab.key === "my-events" && isStaff ? "Events" : tab.label;
+        const iconName = tab.key === "my-events" && isStaff ? "calendar-outline" : tab.icon;
+        const activeIconName = tab.key === "my-events" && isStaff ? "calendar" : tab.activeIcon;
         return (
           <Pressable
             key={tab.key}
@@ -31,11 +36,11 @@ export default function BottomTabs({ activeTab, onChange }) {
             hitSlop={6}
           >
             <Ionicons
-              name={active ? tab.activeIcon : tab.icon}
+              name={active ? activeIconName : iconName}
               size={18}
-              color={active ? "#0b7a24" : colors.textSubtle}
+              color={active ? (isDark ? colors.accent : colors.primary) : colors.textSubtle}
             />
-            <Text style={[styles.label, active && styles.activeLabel]}>{tab.label}</Text>
+            <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
           </Pressable>
         );
       })}
@@ -43,25 +48,16 @@ export default function BottomTabs({ activeTab, onChange }) {
   );
 }
 
-const getStyles = (colors) =>
+const getStyles = (colors, isDark) =>
   StyleSheet.create({
     wrapper: {
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
+      width: "100%",
+      borderRadius: 0,
       backgroundColor: colors.surface,
       flexDirection: "row",
       justifyContent: "space-around",
       paddingVertical: 7,
       paddingHorizontal: 2,
-      shadowColor: "#000000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      elevation: 2,
     },
     item: {
       alignItems: "center",
@@ -69,10 +65,11 @@ const getStyles = (colors) =>
       gap: 3,
       flex: 1,
       minHeight: 48,
-      borderRadius: 10,
+      borderRadius: 0,
     },
     itemActive: {
-      backgroundColor: "#ecfdf3",
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 12,
     },
     label: {
       fontSize: 10,
@@ -80,7 +77,7 @@ const getStyles = (colors) =>
       fontWeight: "700",
     },
     activeLabel: {
-      color: "#0b7a24",
+      color: isDark ? colors.accent : colors.primary,
       fontWeight: "800",
     },
   });

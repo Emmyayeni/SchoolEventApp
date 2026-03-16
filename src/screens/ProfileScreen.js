@@ -43,7 +43,7 @@ export default function ProfileScreen({
             style={styles.avatar}
           />
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark" size={12} color="#ffffff" />
+            <Ionicons name="checkmark" size={12} color={colors.primaryContrast} />
           </View>
         </View>
         <Text style={styles.name}>{user.fullName}</Text>
@@ -52,24 +52,24 @@ export default function ProfileScreen({
         <Text style={styles.roleBadge}>{isStaff ? "Staff / Organizer" : "Student / Attendee"}</Text>
 
         <Pressable style={styles.editButton} onPress={onEditProfile}>
-          <Ionicons name="create-outline" size={15} color="#ffffff" />
+          <Ionicons name="create-outline" size={15} color={colors.primaryContrast} />
           <Text style={styles.editButtonText}>Edit Profile</Text>
         </Pressable>
 
         <Pressable style={styles.manageButton} onPress={isStaff ? onCreateEvent : onOpenMyEvents}>
-          <Ionicons name={isStaff ? "add-circle-outline" : "compass-outline"} size={15} color="#ffffff" />
+          <Ionicons name={isStaff ? "add-circle-outline" : "compass-outline"} size={15} color={colors.primaryContrast} />
           <Text style={styles.manageButtonText}>{isStaff ? "Create Event" : "Discover Events"}</Text>
         </Pressable>
       </View>
 
-      <SectionTitle title="ACCOUNT ACTIVITY" />
+      <SectionTitle title="ACCOUNT ACTIVITY" colors={colors} />
       <View style={styles.groupCard}>
         <ActionRow
           icon="ticket"
           label="My Registrations"
           value={`${totalRegistered}`}
-          iconBg="#e9f7ed"
-          iconColor="#0b7a24"
+          iconBg={colors.surfaceAlt}
+          iconColor={colors.primary}
           onPress={onOpenMyEvents}
         />
         <Divider colors={colors} />
@@ -77,55 +77,55 @@ export default function ProfileScreen({
           icon="bookmark"
           label="Saved Events"
           value={favoriteCategory || "Campus Picks"}
-          iconBg="#edf6ef"
-          iconColor="#0b7a24"
+          iconBg={colors.surfaceAlt}
+          iconColor={colors.primary}
           onPress={onOpenSavedEvents}
         />
         <Divider colors={colors} />
         <ActionRow
           icon="notifications"
           label="Notification Settings"
-          iconBg="#edf6ef"
-          iconColor="#0b7a24"
+          iconBg={colors.surfaceAlt}
+          iconColor={colors.primary}
           onPress={onOpenNotifications}
         />
       </View>
 
-      <SectionTitle title="PREFERENCES" />
+      <SectionTitle title="PREFERENCES" colors={colors} />
       <View style={styles.groupCard}>
         <View style={styles.preferenceRow}>
           <View style={styles.rowLeft}>
-            <View style={[styles.rowIconWrap, { backgroundColor: "#edf6ef" }]}>
-              <Ionicons name="moon" size={14} color="#0b7a24" />
+            <View style={[styles.rowIconWrap, { backgroundColor: colors.surfaceAlt }]}>
+              <Ionicons name="moon" size={14} color={colors.primary} />
             </View>
-            <Text style={styles.rowLabel}>Dark Mode</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>Dark Mode</Text>
           </View>
           <Switch
             value={themeMode === "dark"}
             onValueChange={onToggleTheme}
-            trackColor={{ false: "#d5dbe2", true: "#91d7a2" }}
-            thumbColor="#ffffff"
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={colors.primaryContrast}
           />
         </View>
       </View>
 
-      <SectionTitle title="SUPPORT & INFO" />
+      <SectionTitle title="SUPPORT & INFO" colors={colors} />
       <View style={styles.groupCard}>
-        <ActionRow icon="help-circle" label="Help & Support" iconBg="#edf6ef" iconColor="#0b7a24" onPress={onOpenSettings} />
+        <ActionRow icon="help-circle" label="Help & Support" iconBg={colors.surfaceAlt} iconColor={colors.primary} onPress={onOpenSettings} />
         <Divider colors={colors} />
-        <ActionRow icon="code-slash" label="About Developers" iconBg="#edf6ef" iconColor="#0b7a24" onPress={onOpenSettings} />
+        <ActionRow icon="code-slash" label="About Developers" iconBg={colors.surfaceAlt} iconColor={colors.primary} onPress={onOpenSettings} />
       </View>
 
       <Pressable style={styles.logoutBtn} onPress={onLogout}>
-        <Ionicons name="log-out-outline" size={16} color="#ef4444" />
+        <Ionicons name="log-out-outline" size={16} color={colors.error} />
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
-function SectionTitle({ title }) {
-  return <Text style={stylesStatic.sectionTitle}>{title}</Text>;
+function SectionTitle({ title, colors }) {
+  return <Text style={[stylesStatic.sectionTitle, { color: colors.textSubtle }]}>{title}</Text>;
 }
 
 function Divider({ colors }) {
@@ -155,7 +155,7 @@ const getStyles = (colors, isDark) =>
   StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: isDark ? colors.background : "#f0f2f1",
+    backgroundColor: isDark ? colors.background : colors.surfaceAlt,
   },
   content: {
     paddingHorizontal: scale(14),
@@ -171,7 +171,7 @@ const getStyles = (colors, isDark) =>
   title: {
     fontSize: ms(22),
     fontWeight: "800",
-    color: "#0b7a24",
+    color: colors.primary,
   },
   settingsBtn: {
     width: scale(32),
@@ -182,7 +182,7 @@ const getStyles = (colors, isDark) =>
   },
   profileCard: {
     borderRadius: scale(18),
-    backgroundColor: isDark ? colors.surface : "#eef1ef",
+    backgroundColor: isDark ? colors.surface : colors.surface,
     alignItems: "center",
     paddingVertical: scale(14),
     paddingHorizontal: scale(12),
@@ -193,7 +193,7 @@ const getStyles = (colors, isDark) =>
     marginBottom: scale(4),
     borderRadius: 999,
     borderWidth: 3,
-    borderColor: "#b7d6c0",
+    borderColor: colors.border,
     padding: scale(3),
   },
   avatar: {
@@ -209,11 +209,11 @@ const getStyles = (colors, isDark) =>
     width: scale(22),
     height: scale(22),
     borderRadius: scale(11),
-    backgroundColor: "#0b7a24",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#ffffff",
+    borderColor: colors.primaryContrast,
   },
   name: {
     fontSize: ms(22),
@@ -227,7 +227,7 @@ const getStyles = (colors, isDark) =>
   },
   level: {
     fontSize: ms(13),
-    color: "#0b7a24",
+    color: colors.primary,
     fontWeight: "800",
   },
   roleBadge: {
@@ -235,8 +235,8 @@ const getStyles = (colors, isDark) =>
     paddingHorizontal: scale(10),
     paddingVertical: scale(4),
     borderRadius: 999,
-    color: "#14532d",
-    backgroundColor: "#dcfce7",
+    color: colors.accent,
+    backgroundColor: colors.surfaceAlt,
     fontSize: ms(11),
     fontWeight: "800",
     overflow: "hidden",
@@ -245,7 +245,7 @@ const getStyles = (colors, isDark) =>
     marginTop: scale(8),
     width: "100%",
     borderRadius: 999,
-    backgroundColor: "#0b7a24",
+    backgroundColor: colors.primary,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -253,7 +253,7 @@ const getStyles = (colors, isDark) =>
     paddingVertical: scale(11),
   },
   editButtonText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(14),
     fontWeight: "800",
   },
@@ -261,7 +261,7 @@ const getStyles = (colors, isDark) =>
     marginTop: scale(8),
     width: "100%",
     borderRadius: 999,
-    backgroundColor: "#166534",
+    backgroundColor: colors.accent,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -269,7 +269,7 @@ const getStyles = (colors, isDark) =>
     paddingVertical: scale(10),
   },
   manageButtonText: {
-    color: "#ffffff",
+    color: colors.primaryContrast,
     fontSize: ms(13),
     fontWeight: "800",
   },
@@ -301,7 +301,7 @@ const getStyles = (colors, isDark) =>
   },
   logoutBtn: {
     borderRadius: scale(14),
-    backgroundColor: "#fef2f2",
+    backgroundColor: colors.surfaceAlt,
     minHeight: scale(48),
     marginTop: scale(6),
     flexDirection: "row",
@@ -310,7 +310,7 @@ const getStyles = (colors, isDark) =>
     gap: scale(6),
   },
   logoutText: {
-    color: "#ef4444",
+    color: colors.error,
     fontSize: ms(14),
     fontWeight: "800",
   },
@@ -321,7 +321,6 @@ const stylesStatic = StyleSheet.create({
     fontSize: ms(11),
     letterSpacing: 1,
     fontWeight: "800",
-    color: "#94a3b8",
     marginTop: scale(2),
     marginBottom: scale(2),
   },

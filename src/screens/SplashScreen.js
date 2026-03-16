@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppTheme } from "../theme/theme";
 import { APP_NAME } from "../utils/constants";
 import { hp, ms, scale } from "../utils/responsive";
 
 export default function SplashScreen() {
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [progress, setProgress] = useState(0);
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -57,10 +60,11 @@ export default function SplashScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#007a08",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: scale(20),
@@ -72,7 +76,7 @@ const styles = StyleSheet.create({
     height: scale(200),
     borderRadius: scale(100),
     borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.10)",
+    borderColor: colors.alphaWhite10,
     top: scale(-36),
     left: scale(-28),
   },
@@ -82,7 +86,7 @@ const styles = StyleSheet.create({
     height: scale(340),
     borderRadius: scale(170),
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.10)",
+    borderColor: colors.alphaWhite10,
     bottom: scale(-140),
     left: scale(-48),
   },
@@ -91,7 +95,7 @@ const styles = StyleSheet.create({
     width: scale(84),
     height: scale(84),
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: colors.alphaWhite12,
     transform: [{ rotate: "45deg" }],
     top: hp(28),
     right: scale(70),
@@ -106,12 +110,12 @@ const styles = StyleSheet.create({
     width: scale(166),
     height: scale(166),
     borderRadius: scale(30),
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    backgroundColor: colors.alphaWhite14,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.24)",
+    borderColor: colors.alphaWhite24,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
+    shadowColor: colors.text,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
     shadowRadius: 16,
@@ -121,7 +125,7 @@ const styles = StyleSheet.create({
     width: scale(126),
     height: scale(126),
     borderRadius: scale(22),
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -132,13 +136,13 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: scale(28),
-    color: "#f8fafc",
+    color: colors.primaryContrast,
     fontSize: ms(38),
     fontWeight: "900",
   },
   subtitle: {
     marginTop: scale(6),
-    color: "rgba(241, 245, 249, 0.95)",
+    color: colors.alphaTextHigh,
     fontSize: ms(14),
     fontWeight: "500",
   },
@@ -153,31 +157,31 @@ const styles = StyleSheet.create({
     marginBottom: scale(8),
   },
   loaderLabel: {
-    color: "rgba(241, 245, 249, 0.95)",
+    color: colors.alphaTextHigh,
     fontSize: ms(12),
     fontWeight: "700",
   },
   loaderPercent: {
-    color: "#facc15",
+    color: colors.accent,
     fontSize: ms(12),
     fontWeight: "900",
   },
   loaderTrack: {
     height: scale(6),
     borderRadius: 999,
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    backgroundColor: colors.alphaWhite18,
     overflow: "hidden",
   },
   loaderFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#eab308",
+    backgroundColor: colors.accent,
   },
   footerText: {
-    color: "rgba(226, 232, 240, 0.55)",
+    color: colors.alphaTextLow,
     fontSize: ms(9),
     fontWeight: "700",
     letterSpacing: 2,
     marginBottom: scale(4),
   },
-});
+  });
