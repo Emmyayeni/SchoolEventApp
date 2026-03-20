@@ -15,7 +15,7 @@ export default function LoginScreen({
   onTogglePassword,
   onLogin,
   onSwitchToSignup,
-  onBack,
+  onBack = () => {},
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();

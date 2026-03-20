@@ -1,15 +1,39 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-export default function EditProfileScreen({ values, onChange, onSave, onBack }) {
+export default function EditProfileScreen({ values, onChange, onSave, onSaveSuccess, onBack }) {
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    onSave();
-    Alert.alert("Success", "Profile updated successfully");
+  const handleSave = async () => {
+    if (saving) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await onSave?.();
+      if (result?.ok) {
+        onSaveSuccess?.();
+        if (result.mode === "local") {
+          Alert.alert("Saved locally", `${result.message || "Could not sync to server."} Your changes are visible on this device.`);
+          return;
+        }
+
+        Alert.alert("Success", "Profile updated successfully");
+        return;
+      }
+
+      Alert.alert("Save failed", "Could not save profile changes. Please try again.");
+    } catch (error) {
+      Alert.alert("Save failed", "Could not save profile changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -17,6 +41,7 @@ export default function EditProfileScreen({ values, onChange, onSave, onBack }) 
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerRow}>
         <Pressable style={styles.backBtn} onPress={onBack}>
@@ -88,8 +113,8 @@ export default function EditProfileScreen({ values, onChange, onSave, onBack }) 
           </View>
         </View>
 
-        <Pressable style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveText}>Save Changes</Text>
+        <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleSave} disabled={saving}>
+          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
         </Pressable>
 
         <Pressable style={styles.discardBtn} onPress={onBack}>
@@ -248,6 +273,9 @@ const getStyles = (colors, isDark) =>
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+  saveBtnDisabled: {
+    opacity: 0.7,
   },
   saveText: {
     color: colors.primaryContrast,

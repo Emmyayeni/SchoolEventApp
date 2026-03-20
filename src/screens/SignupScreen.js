@@ -10,6 +10,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
   const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const accountType = values?.accountType || "student";
 
   const switchAccountType = (type) => {
@@ -97,6 +98,23 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
           </Pressable>
         }
         error={errors.password}
+      />
+
+      <Field
+        colors={colors}
+        styles={styles}
+        label="Confirm Password"
+        value={values.confirmPassword}
+        onChangeText={(v) => onChange("confirmPassword", v)}
+        placeholder="Re-enter password"
+        icon="lock-closed"
+        secureTextEntry={!showConfirmPassword}
+        rightNode={
+          <Pressable onPress={() => setShowConfirmPassword((p) => !p)} style={styles.eyeButton}>
+            <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={16} color={colors.textSubtle} />
+          </Pressable>
+        }
+        error={errors.confirmPassword}
       />
 
       {accountType === "student" ? (

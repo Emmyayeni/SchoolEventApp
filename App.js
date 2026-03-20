@@ -1,9 +1,19 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AppState, Platform, StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import {
+  getAuthErrorMessage,
+  getCurrentAppUser,
+  onAuthStateChange,
+  signInWithEmailPassword,
+  signOutCurrentUser,
+  signUpWithEmailPassword,
+  updateCurrentUserProfile,
+} from "./lib/Auth";
 import { events as seedEvents } from "./src/data/events";
 import { notifications as seedNotifications } from "./src/data/notifications";
 import { registrations as seedRegistrations } from "./src/data/registrations";
@@ -20,13 +30,11 @@ import SignupScreen from "./src/screens/SignupScreen";
 import SplashScreen from "./src/screens/SplashScreen";
 import { ThemeProvider, getThemeColors } from "./src/theme/theme";
 import {
-    CATEGORIES,
-    DUMMY_STAFF_LOGIN,
-    DUMMY_STAFF_PROFILE,
-    DUMMY_STUDENT_LOGIN,
-    DUMMY_STUDENT_PROFILE,
+  CATEGORIES,
 } from "./src/utils/constants";
 import { filterByCategory, searchEvents } from "./src/utils/helpers";
+
+const PROFILE_CACHE_KEY = "@nsuk/profile_cache";
 
 export default function App() {
   const [themeMode, setThemeMode] = useState("light");
@@ -38,6 +46,7 @@ export default function App() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [authScreen, setAuthScreen] = useState("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authInitializing, setAuthInitializing] = useState(true);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
 
   const [activeTab, setActiveTab] = useState("home");
@@ -99,17 +108,104 @@ export default function App() {
   });
   const [createEventErrors, setCreateEventErrors] = useState({});
 
+  const cacheProfileLocally = async (profile) => {
+    try {
+      await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    } catch (error) {
+      console.log("Profile cache save error:", error?.message || error);
+    }
+  };
+
+  const getCachedProfile = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+      if (!raw) {
+        return null;
+      }
+      return JSON.parse(raw);
+    } catch (error) {
+      console.log("Profile cache read error:", error?.message || error);
+      return null;
+    }
+  };
+
   useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const cachedProfile = await getCachedProfile();
+        if (isMounted && cachedProfile) {
+          setUser((prev) => ({ ...prev, ...cachedProfile }));
+          setProfileDraft((prev) => ({ ...prev, ...cachedProfile }));
+        }
+
+        const currentUser = await getCurrentAppUser();
+        if (!isMounted || !currentUser) {
+          return;
+        }
+
+        setUser((prev) => ({ ...prev, ...currentUser }));
+        setProfileDraft((prev) => ({ ...prev, ...currentUser }));
+        await cacheProfileLocally(currentUser);
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.log("Session restore error:", error?.message || error);
+      } finally {
+        if (isMounted) {
+          setAuthInitializing(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    const {
+      data: { subscription },
+    } = onAuthStateChange((event, nextUser) => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (!nextUser) {
+        if (event === "SIGNED_OUT") {
+          setIsAuthenticated(false);
+        }
+        return;
+      }
+
+      setUser((prev) => ({ ...prev, ...nextUser }));
+      setProfileDraft((prev) => ({ ...prev, ...nextUser }));
+      setIsAuthenticated(true);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authInitializing) {
+      return;
+    }
+
     const timer = setTimeout(() => {
+      if (isAuthenticated) {
+        setPhase("main");
+        return;
+      }
+
       if (!hasSeenOnboarding) {
         setPhase("onboarding");
         return;
       }
-      setPhase(isAuthenticated ? "main" : "auth");
+
+      setPhase("auth");
     }, 2400);
 
     return () => clearTimeout(timer);
-  }, [hasSeenOnboarding, isAuthenticated]);
+  }, [hasSeenOnboarding, isAuthenticated, authInitializing]);
 
   useEffect(() => {
     if (Platform.OS !== "android") {
@@ -197,10 +293,13 @@ export default function App() {
     }, 800);
   };
 
-  const submitLogin = () => {
+  const submitLogin = async () => {
     const errors = {};
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!loginForm.email.trim()) {
       errors.email = "Email is required";
+    } else if (!emailPattern.test(loginForm.email.trim())) {
+      errors.email = "Enter a valid email";
     }
     if (!loginForm.password.trim()) {
       errors.password = "Password is required";
@@ -212,31 +311,25 @@ export default function App() {
     }
 
     setLoginLoading(true);
-    setTimeout(() => {
-      const normalizedEmail = loginForm.email.trim().toLowerCase();
-      const normalizedPassword = loginForm.password.trim();
-      const matchedCredential = [DUMMY_STUDENT_LOGIN, DUMMY_STAFF_LOGIN].find(
-        (credential) => normalizedEmail === credential.email && normalizedPassword === credential.password
-      );
+    try {
+      const { appUser } = await signInWithEmailPassword({
+        email: loginForm.email.trim().toLowerCase(),
+        password: loginForm.password,
+      });
 
-      if (
-        matchedCredential
-      ) {
-        const nextProfile =
-          matchedCredential.email === DUMMY_STAFF_LOGIN.email ? DUMMY_STAFF_PROFILE : DUMMY_STUDENT_PROFILE;
-        setUser(nextProfile);
-        setProfileDraft(nextProfile);
-        setIsAuthenticated(true);
-        setPhase("main");
-        setLoginErrors({});
-      } else {
-        setLoginErrors({ general: "Invalid login credentials." });
-      }
+      setUser((prev) => ({ ...prev, ...appUser }));
+      setProfileDraft((prev) => ({ ...prev, ...appUser }));
+      setIsAuthenticated(true);
+      setPhase("main");
+      setLoginErrors({});
+    } catch (error) {
+      setLoginErrors({ general: getAuthErrorMessage(error) });
+    } finally {
       setLoginLoading(false);
-    }, 900);
+    }
   };
 
-  const submitSignup = () => {
+  const submitSignup = async () => {
     const errors = {};
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isStaffSignup = signupForm.accountType === "staff";
@@ -272,37 +365,48 @@ export default function App() {
     } else if (signupForm.confirmPassword !== signupForm.password) {
       errors.confirmPassword = "Passwords do not match";
     }
-
     setSignupErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
 
     setSignupLoading(true);
-    setTimeout(() => {
-      const roleLevel = isStaffSignup ? signupForm.roleDesignation : signupForm.level;
+    try {
+      const { appUser, requiresEmailConfirmation } = await signUpWithEmailPassword({
+        email: signupForm.email.trim().toLowerCase(),
+        password: signupForm.password,
+        profile: {
+          accountType: signupForm.accountType,
+          fullName: signupForm.fullName,
+          department: signupForm.department,
+          level: signupForm.level,
+          faculty: signupForm.faculty,
+          matricNumber: signupForm.matricNumber,
+          staffId: signupForm.staffId,
+          roleDesignation: signupForm.roleDesignation,
+        },
+      });
 
-      setUser((prev) => ({
-        ...prev,
-        accountType: signupForm.accountType,
-        fullName: signupForm.fullName,
-        email: signupForm.email,
-        department: signupForm.department,
-        level: roleLevel,
-      }));
-      setProfileDraft((prev) => ({
-        ...prev,
-        accountType: signupForm.accountType,
-        fullName: signupForm.fullName,
-        email: signupForm.email,
-        department: signupForm.department,
-        level: roleLevel,
-      }));
-      setIsAuthenticated(true);
-      setPhase("main");
-      setSignupLoading(false);
       setSignupErrors({});
-    }, 1000);
+
+      if (requiresEmailConfirmation) {
+        setAuthScreen("login");
+        setLoginForm((prev) => ({ ...prev, email: signupForm.email.trim().toLowerCase(), password: "" }));
+        setLoginErrors({ general: "Account created. Check your email to verify, then log in." });
+        return;
+      }
+
+      if (appUser) {
+        setUser((prev) => ({ ...prev, ...appUser }));
+        setProfileDraft((prev) => ({ ...prev, ...appUser }));
+        setIsAuthenticated(true);
+        setPhase("main");
+      }
+    } catch (error) {
+      setSignupErrors({ general: getAuthErrorMessage(error) });
+    } finally {
+      setSignupLoading(false);
+    }
   };
 
   const submitCreateEvent = () => {
@@ -336,15 +440,52 @@ export default function App() {
     return true;
   };
 
-  const saveProfile = () => {
-    setUser(profileDraft);
-    setEditingProfile(false);
+  const saveProfile = async () => {
+    const localDraft = { ...profileDraft };
+
+    try {
+      const updatedUser = await updateCurrentUserProfile(localDraft);
+      const mergedUser = {
+        ...localDraft,
+        ...updatedUser,
+        phoneNumber: localDraft.phoneNumber || localDraft.phone || "",
+      };
+
+      setUser((prev) => ({ ...prev, ...mergedUser }));
+      setProfileDraft((prev) => ({ ...prev, ...mergedUser }));
+      await cacheProfileLocally(mergedUser);
+      return { ok: true, mode: "remote" };
+    } catch (error) {
+      // Keep edits locally if remote update fails so user work is never lost.
+      const localOnlyProfile = {
+        ...localDraft,
+        phoneNumber: localDraft.phoneNumber || localDraft.phone || "",
+      };
+
+      setUser((prev) => ({ ...prev, ...localOnlyProfile }));
+      setProfileDraft((prev) => ({ ...prev, ...localOnlyProfile }));
+      await cacheProfileLocally(localOnlyProfile);
+      return {
+        ok: true,
+        mode: "local",
+        message: getAuthErrorMessage(error),
+      };
+    }
   };
 
   const isStaffUser = user?.accountType === "staff";
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await signOutCurrentUser();
+      await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
+    } catch (error) {
+      console.log("Logout error:", error?.message || error);
+    }
+
     setIsAuthenticated(false);
+    setUser(seedUser);
+    setProfileDraft(seedUser);
     setPhase("auth");
     setAuthScreen("login");
     setSelectedEventId(null);
@@ -433,7 +574,7 @@ export default function App() {
   );
 
   if (phase === "splash") {
-    return renderInShell(<SplashScreen />, ["bottom", "left", "right"]);
+    return renderInShell(<SplashScreen />, ["left", "right"]);
   }
 
   if (phase === "onboarding") {
@@ -477,6 +618,9 @@ export default function App() {
         values={profileDraft}
         onChange={(field, value) => setProfileDraft((prev) => ({ ...prev, [field]: value }))}
         onSave={saveProfile}
+        onSaveSuccess={() => {
+          setEditingProfile(false);
+        }}
         onBack={() => {
           setProfileDraft(user);
           setEditingProfile(false);

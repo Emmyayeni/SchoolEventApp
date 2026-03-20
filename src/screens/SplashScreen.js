@@ -29,7 +29,7 @@ export default function SplashScreen() {
   const progressWidth = useMemo(() => `${Math.max(progress, 4)}%`, [progress]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + scale(8), paddingBottom: insets.bottom + scale(12) }]}>
+    <View style={[styles.container, { paddingTop: insets.top + scale(8), paddingBottom: Math.max(insets.bottom, scale(8)) }]}>
       <View style={styles.ringTopLeft} />
       <View style={styles.ringBottom} />
       <View style={styles.diamondOutline} />
