@@ -1,21 +1,160 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-export default function CreateEventScreen({ values, errors, onChange, onSubmit, onBack }) {
+export default function CreateEventScreen({ values, errors, onChange, onSubmit, onUploadEventImage, onBack }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
   const [targetAudience, setTargetAudience] = useState("All");
   const [capacity, setCapacity] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const formBusy = submitting || uploadingBanner;
+
+  const parseDateValue = () => {
+    const parsed = values.date ? new Date(values.date) : null;
+    if (parsed && !Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    return new Date();
+  };
+
+  const parseTimeValue = () => {
+    const now = new Date();
+    const raw = String(values.time || "").trim();
+    if (!raw) {
+      return now;
+    }
+
+    const twelveHour = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (twelveHour) {
+      let hour = Number(twelveHour[1]);
+      const minute = Number(twelveHour[2]);
+      const period = twelveHour[3].toUpperCase();
+      if (period === "PM" && hour < 12) {
+        hour += 12;
+      }
+      if (period === "AM" && hour === 12) {
+        hour = 0;
+      }
+
+      const date = new Date(now);
+      date.setHours(hour, minute, 0, 0);
+      return date;
+    }
+
+    const twentyFourHour = raw.match(/^(\d{1,2}):(\d{2})$/);
+    if (twentyFourHour) {
+      const hour = Number(twentyFourHour[1]);
+      const minute = Number(twentyFourHour[2]);
+      const date = new Date(now);
+      date.setHours(hour, minute, 0, 0);
+      return date;
+    }
+
+    return now;
+  };
+
+  const formatDateForField = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatTimeForField = (date) => {
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const suffix = hours >= 12 ? "PM" : "AM";
+    const hour12 = ((hours + 11) % 12) + 1;
+    return `${hour12}:${minutes} ${suffix}`;
+  };
+
+  const onDatePicked = (_event, selectedDate) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    if (!selectedDate) {
+      return;
+    }
+    onChange("date", formatDateForField(selectedDate));
+  };
+
+  const onTimePicked = (_event, selectedTime) => {
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
+    if (!selectedTime) {
+      return;
+    }
+    onChange("time", formatTimeForField(selectedTime));
+  };
+
+  const handleUploadBanner = async () => {
+    if (formBusy) {
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Please allow photo library access to upload an event banner.");
+      return;
+    }
+
+    const pickResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.9,
+    });
+
+    if (pickResult.canceled || !pickResult.assets?.[0]?.uri) {
+      return;
+    }
+
+    if (!onUploadEventImage) {
+      Alert.alert("Upload unavailable", "Event image upload is not connected yet.");
+      return;
+    }
+
+    setUploadingBanner(true);
+    try {
+      const uploadResult = await onUploadEventImage(pickResult.assets[0].uri);
+      if (!uploadResult?.ok) {
+        Alert.alert("Upload failed", uploadResult?.message || "Could not upload event image.");
+        return;
+      }
+
+      onChange("image", uploadResult.path);
+      Alert.alert("Uploaded", "Event banner uploaded successfully.");
+    } catch (_error) {
+      Alert.alert("Upload failed", "Could not upload event image.");
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
 
   const handleSubmit = async () => {
+    if (formBusy) {
+      return;
+    }
+
+    setSubmitting(true);
     const success = await onSubmit();
-    if (success) {
-      Alert.alert("Success", "Event created successfully");
+    try {
+      if (success) {
+        Alert.alert("Success", "Event created successfully");
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -27,19 +166,25 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.topRow}>
-        <Pressable onPress={onBack} style={styles.backButton}>
+        <Pressable onPress={onBack} style={styles.backButton} disabled={formBusy}>
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
         <Text style={styles.title}>Create Event</Text>
       </View>
 
       <Text style={styles.sectionLabel}>Event Banner</Text>
-      <Pressable style={[styles.bannerUpload, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+      <Pressable
+        style={[styles.bannerUpload, formBusy && styles.bannerUploadDisabled, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={handleUploadBanner}
+        disabled={formBusy}
+      >
         <View style={styles.bannerIconWrap}>
-          <Ionicons name="camera" size={20} color={colors.primary} />
+          {uploadingBanner ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="camera" size={20} color={colors.primary} />}
         </View>
-        <Text style={styles.bannerText}>Click to upload image</Text>
-        <Text style={styles.bannerHint}>Recommended: 1200 x 675 pixels</Text>
+        <Text style={styles.bannerText}>{uploadingBanner ? "Uploading image..." : "Click to upload image"}</Text>
+        <Text style={styles.bannerHint}>
+          {values.image?.trim() ? "Image selected and ready" : "Recommended: 1200 x 675 pixels"}
+        </Text>
       </Pressable>
 
       <FormCard title="BASIC DETAILS" icon="ellipse" iconColor={colors.primary} styles={styles}>
@@ -81,26 +226,58 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
 
         <View style={styles.doubleRow}>
           <View style={styles.halfField}>
-            <Field
+            <PickerField
               label="Date"
               value={values.date}
-              onChangeText={(value) => onChange("date", value)}
-              placeholder="DD/MM/YY"
+              placeholder="Select date"
               error={errors.date}
-              leftIcon="calendar"
+              icon="calendar"
+              onPress={() => {
+                if (!formBusy) {
+                  setShowDatePicker(true);
+                }
+              }}
+              disabled={formBusy}
             />
           </View>
           <View style={styles.halfField}>
-            <Field
+            <PickerField
               label="Time"
               value={values.time}
-              onChangeText={(value) => onChange("time", value)}
-              placeholder="00:00 AM"
+              placeholder="Select time"
               error={errors.time}
-              leftIcon="time"
+              icon="time"
+              onPress={() => {
+                if (!formBusy) {
+                  setShowTimePicker(true);
+                }
+              }}
+              disabled={formBusy}
             />
           </View>
         </View>
+
+        {showDatePicker && (
+          <View style={styles.inlinePickerWrap}>
+            <DateTimePicker
+              value={parseDateValue()}
+              mode="date"
+              display={Platform.OS === "ios" ? "inline" : "default"}
+              onChange={onDatePicked}
+            />
+          </View>
+        )}
+
+        {showTimePicker && (
+          <View style={styles.inlinePickerWrap}>
+            <DateTimePicker
+              value={parseTimeValue()}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onTimePicked}
+            />
+          </View>
+        )}
       </FormCard>
 
       <FormCard title="ADMINISTRATION" icon="people" iconColor={colors.primary} styles={styles}>
@@ -132,12 +309,12 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
         </View>
       </FormCard>
 
-      <Pressable style={styles.publishButton} onPress={handleSubmit}>
-        <Ionicons name="play" size={13} color={colors.primaryContrast} />
-        <Text style={styles.publishText}>Publish Event</Text>
+      <Pressable style={[styles.publishButton, formBusy && styles.buttonDisabled]} onPress={handleSubmit} disabled={formBusy}>
+        {submitting ? <ActivityIndicator size="small" color={colors.primaryContrast} /> : <Ionicons name="play" size={13} color={colors.primaryContrast} />}
+        <Text style={styles.publishText}>{submitting ? "Publishing..." : "Publish Event"}</Text>
       </Pressable>
 
-      <Pressable style={styles.draftButton} onPress={onBack}>
+      <Pressable style={[styles.draftButton, formBusy && styles.buttonDisabled]} onPress={onBack} disabled={formBusy}>
         <Text style={styles.draftText}>Save as Draft</Text>
       </Pressable>
     </ScrollView>
@@ -194,6 +371,28 @@ function Field({
   );
 }
 
+function PickerField({ label, value, placeholder, error, icon, onPress, disabled }) {
+  const { colors } = useAppTheme();
+  const styles = getStyles(colors);
+
+  return (
+    <View style={styles.fieldWrap}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable
+        style={[styles.inputWrap, error && styles.inputWrapError, disabled && styles.inputWrapDisabled]}
+        onPress={onPress}
+        disabled={disabled}
+      >
+        <Ionicons name={icon} size={15} color={colors.textSubtle} style={styles.leftIcon} />
+        <Text style={[styles.input, styles.inputWithLeftIcon, !value && styles.inputPlaceholder]}>
+          {value || placeholder}
+        </Text>
+      </Pressable>
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+}
+
 const getStyles = (colors) =>
   StyleSheet.create({
   page: {
@@ -239,6 +438,9 @@ const getStyles = (colors) =>
     justifyContent: "center",
     marginBottom: scale(12),
     backgroundColor: colors.surface,
+  },
+  bannerUploadDisabled: {
+    opacity: 0.75,
   },
   bannerIconWrap: {
     width: scale(34),
@@ -299,6 +501,9 @@ const getStyles = (colors) =>
     backgroundColor: colors.surface,
     justifyContent: "center",
   },
+  inputWrapDisabled: {
+    opacity: 0.65,
+  },
   inputWrapMultiline: {
     minHeight: scale(84),
     justifyContent: "flex-start",
@@ -311,6 +516,9 @@ const getStyles = (colors) =>
     fontSize: ms(13),
     paddingHorizontal: scale(12),
     paddingVertical: scale(10),
+  },
+  inputPlaceholder: {
+    color: colors.textSubtle,
   },
   inputWithLeftIcon: {
     paddingLeft: scale(34),
@@ -335,6 +543,15 @@ const getStyles = (colors) =>
     color: colors.error,
     fontSize: ms(11),
     marginTop: scale(3),
+  },
+  inlinePickerWrap: {
+    marginTop: scale(2),
+    marginBottom: scale(8),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: scale(12),
+    backgroundColor: colors.surface,
+    overflow: "hidden",
   },
   doubleRow: {
     flexDirection: "row",
@@ -372,5 +589,8 @@ const getStyles = (colors) =>
     color: colors.accent,
     fontSize: ms(14),
     fontWeight: "700",
+  },
+  buttonDisabled: {
+    opacity: 0.75,
   },
   });

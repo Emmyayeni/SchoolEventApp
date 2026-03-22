@@ -73,12 +73,14 @@ export default function HomeScreen({
       <View style={styles.headerRow}>
         <View style={styles.userWrap}>
           <Pressable onPress={onOpenProfile}>
-            <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+            <View style={styles.avatarRing}>
+              <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+            </View>
           </Pressable>
           <View>
-            <Text style={[styles.welcomeText, { color: colors.textSubtle }]}>Welcome back,</Text>
+            <Text style={styles.welcomeText}>Welcome back,</Text>
             <Text style={styles.nameText}>Hello, {firstName}</Text>
-            <Text style={[styles.roleHint, { color: colors.textSubtle }]}>{dashboardLabel}</Text>
+            <Text style={styles.roleHint}>{dashboardLabel}</Text>
           </View>
         </View>
 
@@ -306,20 +308,36 @@ const createStyles = (colors) =>
     height: scale(42),
     borderRadius: scale(21),
   },
+  avatarRing: {
+    width: scale(50),
+    height: scale(50),
+    borderRadius: scale(25),
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
   welcomeText: {
-    color: colors.textMuted,
+    color: colors.text,
     fontSize: ms(12),
-    fontWeight: "600",
+    fontWeight: "700",
   },
   nameText: {
-    color: colors.accent,
+    color: colors.primary,
     fontSize: ms(24),
     fontWeight: "900",
   },
   roleHint: {
     marginTop: scale(2),
+    color: colors.text,
     fontSize: ms(10),
-    fontWeight: "700",
+    fontWeight: "800",
   },
   iconBtn: {
     width: scale(32),

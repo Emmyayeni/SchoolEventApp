@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -15,6 +16,41 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   const [selectedAudience, setSelectedAudience] = useState(["All Students", "Faculty of Science", "Staff Only"]);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [scheduleMode, setScheduleMode] = useState("now");
+  const [scheduledAt, setScheduledAt] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const scheduledLabel = `${scheduledAt.toLocaleDateString()} ${scheduledAt.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+
+  const handleScheduledDateChange = (_event, date) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    if (!date) {
+      return;
+    }
+
+    const next = new Date(scheduledAt);
+    next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+    setScheduledAt(next);
+  };
+
+  const handleScheduledTimeChange = (_event, time) => {
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
+    if (!time) {
+      return;
+    }
+
+    const next = new Date(scheduledAt);
+    next.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    setScheduledAt(next);
+  };
 
   const toggleAudience = (item) => {
     setSelectedAudience((prev) => {
@@ -43,13 +79,18 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         subject,
         message,
         targetAudience: selectedAudience,
+        scheduledAt: scheduleMode === "later" ? scheduledAt.toISOString() : null,
       });
 
       if (!result?.ok) {
         return;
       }
     } else {
-      Alert.alert("Announcement saved", "Announcement flow is local for now.");
+      if (scheduleMode === "later") {
+        Alert.alert("Announcement scheduled", `This announcement is set for ${scheduledLabel}.`);
+      } else {
+        Alert.alert("Announcement saved", "Announcement flow is local for now.");
+      }
     }
 
     setSubject("");
@@ -110,6 +151,63 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         multiline
         textAlignVertical="top"
       />
+
+      <Text style={styles.sectionTitle}>DELIVERY</Text>
+      <View style={styles.scheduleRow}>
+        <Pressable
+          style={[styles.scheduleChip, scheduleMode === "now" && styles.scheduleChipActive]}
+          onPress={() => setScheduleMode("now")}
+        >
+          <Text style={[styles.scheduleChipText, scheduleMode === "now" && styles.scheduleChipTextActive]}>Send Now</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.scheduleChip, scheduleMode === "later" && styles.scheduleChipActive]}
+          onPress={() => setScheduleMode("later")}
+        >
+          <Text style={[styles.scheduleChipText, scheduleMode === "later" && styles.scheduleChipTextActive]}>Schedule</Text>
+        </Pressable>
+      </View>
+
+      {scheduleMode === "later" && (
+        <View style={styles.schedulePanel}>
+          <Text style={styles.scheduleLabel}>Scheduled For</Text>
+          <Text style={styles.scheduleValue}>{scheduledLabel}</Text>
+
+          <View style={styles.scheduleActions}>
+            <Pressable style={styles.scheduleBtn} onPress={() => setShowDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={14} color={colors.accent} />
+              <Text style={styles.scheduleBtnText}>Pick Date</Text>
+            </Pressable>
+
+            <Pressable style={styles.scheduleBtn} onPress={() => setShowTimePicker(true)}>
+              <Ionicons name="time-outline" size={14} color={colors.accent} />
+              <Text style={styles.scheduleBtnText}>Pick Time</Text>
+            </Pressable>
+          </View>
+
+          {showDatePicker && (
+            <View style={styles.inlinePickerWrap}>
+              <DateTimePicker
+                value={scheduledAt}
+                mode="date"
+                display={Platform.OS === "ios" ? "inline" : "default"}
+                onChange={handleScheduledDateChange}
+              />
+            </View>
+          )}
+
+          {showTimePicker && (
+            <View style={styles.inlinePickerWrap}>
+              <DateTimePicker
+                value={scheduledAt}
+                mode="time"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={handleScheduledTimeChange}
+              />
+            </View>
+          )}
+        </View>
+      )}
 
       <Text style={styles.label}>Attachments (Optional)</Text>
       <Pressable
@@ -194,6 +292,80 @@ const getStyles = (colors, isDark) =>
     },
     audienceTextActive: {
       color: colors.primaryContrast,
+    },
+    scheduleRow: {
+      flexDirection: "row",
+      gap: scale(8),
+      marginBottom: scale(8),
+    },
+    scheduleChip: {
+      minHeight: scale(32),
+      borderRadius: 999,
+      backgroundColor: colors.borderSoft,
+      paddingHorizontal: scale(14),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    scheduleChipActive: {
+      backgroundColor: colors.primary,
+    },
+    scheduleChipText: {
+      color: colors.accent,
+      fontSize: ms(12),
+      fontWeight: "700",
+    },
+    scheduleChipTextActive: {
+      color: colors.primaryContrast,
+    },
+    schedulePanel: {
+      marginBottom: scale(8),
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: scale(14),
+      backgroundColor: colors.surface,
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(10),
+    },
+    scheduleLabel: {
+      color: colors.textMuted,
+      fontSize: ms(11),
+      fontWeight: "700",
+    },
+    scheduleValue: {
+      marginTop: scale(2),
+      color: colors.text,
+      fontSize: ms(13),
+      fontWeight: "800",
+    },
+    scheduleActions: {
+      marginTop: scale(8),
+      flexDirection: "row",
+      gap: scale(8),
+    },
+    scheduleBtn: {
+      minHeight: scale(34),
+      borderRadius: scale(12),
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      paddingHorizontal: scale(10),
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: scale(6),
+    },
+    scheduleBtnText: {
+      color: colors.accent,
+      fontSize: ms(12),
+      fontWeight: "700",
+    },
+    inlinePickerWrap: {
+      marginTop: scale(8),
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: scale(12),
+      backgroundColor: colors.surface,
+      overflow: "hidden",
     },
     label: {
       marginTop: scale(8),

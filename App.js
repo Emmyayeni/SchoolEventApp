@@ -543,7 +543,13 @@ export default function App() {
   };
 
   const saveProfile = async () => {
+    const startedAt = Date.now();
     const localDraft = { ...profileDraft, themeMode };
+    console.log("[profile-save] started", {
+      hasAvatar: !!localDraft.avatar,
+      hasPhoneNumber: !!(localDraft.phoneNumber || localDraft.phone),
+      themeMode: localDraft.themeMode,
+    });
 
     try {
       const updatedUser = await updateCurrentUserProfile(localDraft);
@@ -556,7 +562,9 @@ export default function App() {
       setUser((prev) => ({ ...prev, ...mergedUser }));
       setProfileDraft((prev) => ({ ...prev, ...mergedUser }));
       await cacheProfileLocally(mergedUser);
-      return { ok: true, mode: "remote" };
+      const durationMs = Date.now() - startedAt;
+      console.log("[profile-save] success", { durationMs });
+      return { ok: true, mode: "remote", durationMs };
     } catch (error) {
       // Keep edits locally if remote update fails so user work is never lost.
       const localOnlyProfile = {
@@ -567,15 +575,26 @@ export default function App() {
       setUser((prev) => ({ ...prev, ...localOnlyProfile }));
       setProfileDraft((prev) => ({ ...prev, ...localOnlyProfile }));
       await cacheProfileLocally(localOnlyProfile);
+      const durationMs = Date.now() - startedAt;
+      console.log("[profile-save] local-fallback", {
+        durationMs,
+        message: error?.message || String(error),
+      });
       return {
         ok: false,
         mode: "local",
         message: getAuthErrorMessage(error),
+        durationMs,
       };
     }
   };
 
   const handleUploadAvatar = async (localUri) => {
+    const startedAt = Date.now();
+    console.log("[avatar-upload] started", {
+      uriPrefix: String(localUri || "").slice(0, 40),
+    });
+
     try {
       const uploaded = await uploadImageToBucket({
         bucket: STORAGE_BUCKETS.avatars,
@@ -588,9 +607,44 @@ export default function App() {
         avatar: uploaded.path,
       }));
 
+      console.log("[avatar-upload] success", {
+        durationMs: Date.now() - startedAt,
+        path: uploaded.path,
+      });
       return { ok: true, ...uploaded };
     } catch (error) {
+      console.log("[avatar-upload] failed", {
+        durationMs: Date.now() - startedAt,
+        message: error?.message || String(error),
+      });
       return { ok: false, message: error?.message || "Could not upload avatar. Check your storage policy and session." };
+    }
+  };
+
+  const handleUploadEventImage = async (localUri) => {
+    const startedAt = Date.now();
+    console.log("[event-image-upload] started", {
+      uriPrefix: String(localUri || "").slice(0, 40),
+    });
+
+    try {
+      const uploaded = await uploadImageToBucket({
+        bucket: STORAGE_BUCKETS.eventImages,
+        userId: user?.id,
+        localUri,
+      });
+
+      console.log("[event-image-upload] success", {
+        durationMs: Date.now() - startedAt,
+        path: uploaded.path,
+      });
+      return { ok: true, ...uploaded };
+    } catch (error) {
+      console.log("[event-image-upload] failed", {
+        durationMs: Date.now() - startedAt,
+        message: error?.message || String(error),
+      });
+      return { ok: false, message: error?.message || "Could not upload event image." };
     }
   };
 
@@ -746,8 +800,11 @@ export default function App() {
         onChange={(field, value) => setProfileDraft((prev) => ({ ...prev, [field]: value }))}
         onUploadAvatar={handleUploadAvatar}
         onSave={saveProfile}
-        onSaveSuccess={() => {
+        onSaveSuccess={(message) => {
           setEditingProfile(false);
+          setTimeout(() => {
+            Alert.alert("Success", message || "Profile updated successfully");
+          }, 0);
         }}
         onBack={() => {
           setProfileDraft(user);
@@ -767,6 +824,7 @@ export default function App() {
           setCreateEventForm((prev) => ({ ...prev, [field]: value }));
           setCreateEventErrors((prev) => ({ ...prev, [field]: undefined }));
         }}
+        onUploadEventImage={handleUploadEventImage}
         onSubmit={submitCreateEvent}
         onBack={() => setCreatingEvent(false)}
       />,

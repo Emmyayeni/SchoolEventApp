@@ -89,6 +89,7 @@ function contentTypeForExtension(extension) {
 }
 
 export async function uploadImageToBucket({ bucket, userId, localUri }) {
+  const totalStartedAt = Date.now();
   const ownerId = await getAuthenticatedUserId();
   const safeUserId = ownerId || userId;
 
@@ -96,15 +97,28 @@ export async function uploadImageToBucket({ bucket, userId, localUri }) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const filePath = `${safeUserId}/${fileName}`;
 
+  const blobStartedAt = Date.now();
   const response = await fetch(localUri);
   const fileArrayBuffer = await response.arrayBuffer();
+  console.log("[storage.upload] local file prepared", {
+    bucket,
+    filePath,
+    durationMs: Date.now() - blobStartedAt,
+  });
 
+  const uploadStartedAt = Date.now();
   const { error } = await supabase.storage
     .from(bucket)
     .upload(filePath, fileArrayBuffer, {
       contentType: contentTypeForExtension(extension),
       upsert: false,
     });
+
+  console.log("[storage.upload] upload request done", {
+    bucket,
+    filePath,
+    durationMs: Date.now() - uploadStartedAt,
+  });
 
   if (error) {
     const message = String(error?.message || "").toLowerCase();
@@ -115,6 +129,12 @@ export async function uploadImageToBucket({ bucket, userId, localUri }) {
     }
     throw error;
   }
+
+  console.log("[storage.upload] success", {
+    bucket,
+    filePath,
+    durationMs: Date.now() - totalStartedAt,
+  });
 
   return {
     path: filePath,

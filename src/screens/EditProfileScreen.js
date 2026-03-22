@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "../services/storage";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -14,6 +14,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
   const styles = getStyles(colors, isDark);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const formBusy = saving || uploadingAvatar;
 
   const avatarUri = resolveStoragePublicUrl(values.avatar, STORAGE_BUCKETS.avatars, DEFAULT_EDIT_AVATAR);
 
@@ -62,7 +63,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
   };
 
   const handleSave = async () => {
-    if (saving || uploadingAvatar) {
+    if (formBusy) {
       return;
     }
 
@@ -70,8 +71,8 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
     try {
       const result = await onSave?.();
       if (result?.ok && result.mode !== "local") {
-        onSaveSuccess?.();
-        Alert.alert("Success", "Profile updated successfully");
+        const seconds = Math.max(0.1, (result.durationMs || 0) / 1000).toFixed(1);
+        onSaveSuccess?.(`Profile updated successfully in ${seconds}s`);
         return;
       }
 
@@ -91,12 +92,12 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, formBusy && styles.contentBusy]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={onBack}>
+        <Pressable style={styles.backBtn} onPress={onBack} disabled={formBusy}>
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>Edit Profile</Text>
@@ -111,12 +112,12 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
             }}
             style={styles.avatar}
           />
-          <Pressable style={styles.cameraBtn} onPress={handlePickAvatar} disabled={uploadingAvatar}>
+          <Pressable style={styles.cameraBtn} onPress={handlePickAvatar} disabled={formBusy}>
             <Ionicons name="camera" size={13} color={colors.primaryContrast} />
           </Pressable>
         </View>
         <Text style={styles.photoTitle}>Update Photo</Text>
-        <Pressable style={[styles.uploadBtn, uploadingAvatar && styles.uploadBtnDisabled]} onPress={handlePickAvatar} disabled={uploadingAvatar}>
+        <Pressable style={[styles.uploadBtn, formBusy && styles.uploadBtnDisabled]} onPress={handlePickAvatar} disabled={formBusy}>
           <Text style={styles.uploadText}>{uploadingAvatar ? "Uploading..." : "Upload New"}</Text>
         </Pressable>
       </View>
@@ -129,6 +130,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           placeholder="Full name"
           placeholderTextColor={colors.textSubtle}
           style={styles.input}
+          editable={!formBusy}
         />
 
         <Text style={styles.label}>Email (Read Only)</Text>
@@ -145,6 +147,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           placeholderTextColor={colors.textSubtle}
           style={styles.input}
           keyboardType="phone-pad"
+          editable={!formBusy}
         />
 
         <View style={styles.rowLabels}>
@@ -163,11 +166,14 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           </View>
         </View>
 
-        <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleSave} disabled={saving}>
-          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
+        <Pressable style={[styles.saveBtn, formBusy && styles.saveBtnDisabled]} onPress={handleSave} disabled={formBusy}>
+          <View style={styles.saveBtnContent}>
+            {saving && <ActivityIndicator size="small" color={colors.primaryContrast} />}
+            <Text style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
+          </View>
         </Pressable>
 
-        <Pressable style={styles.discardBtn} onPress={onBack}>
+        <Pressable style={styles.discardBtn} onPress={onBack} disabled={formBusy}>
           <Text style={styles.discardText}>Discard Changes</Text>
         </Pressable>
       </View>
@@ -184,6 +190,9 @@ const getStyles = (colors, isDark) =>
     paddingHorizontal: scale(12),
     paddingTop: scale(8),
     paddingBottom: scale(20),
+  },
+  contentBusy: {
+    opacity: 0.74,
   },
   headerRow: {
     flexDirection: "row",
@@ -329,6 +338,12 @@ const getStyles = (colors, isDark) =>
   },
   saveBtnDisabled: {
     opacity: 0.7,
+  },
+  saveBtnContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: scale(8),
   },
   saveText: {
     color: colors.primaryContrast,
