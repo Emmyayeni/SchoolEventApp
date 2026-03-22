@@ -12,8 +12,8 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
   const [targetAudience, setTargetAudience] = useState("All");
   const [capacity, setCapacity] = useState("");
 
-  const handleSubmit = () => {
-    const success = onSubmit();
+  const handleSubmit = async () => {
+    const success = await onSubmit();
     if (success) {
       Alert.alert("Success", "Event created successfully");
     }

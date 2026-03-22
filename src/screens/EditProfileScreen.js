@@ -1,35 +1,87 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "../services/storage";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-export default function EditProfileScreen({ values, onChange, onSave, onSaveSuccess, onBack }) {
+const DEFAULT_EDIT_AVATAR =
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80";
+
+export default function EditProfileScreen({ values, onChange, onUploadAvatar, onSave, onSaveSuccess, onBack }) {
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const avatarUri = resolveStoragePublicUrl(values.avatar, STORAGE_BUCKETS.avatars, DEFAULT_EDIT_AVATAR);
+
+  const handlePickAvatar = async () => {
+    if (uploadingAvatar) {
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Please allow photo library access to upload an avatar.");
+      return;
+    }
+
+    const pickResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (pickResult.canceled || !pickResult.assets?.[0]?.uri) {
+      return;
+    }
+
+    if (!onUploadAvatar) {
+      Alert.alert("Upload unavailable", "Avatar upload is not connected yet.");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const uploadResult = await onUploadAvatar(pickResult.assets[0].uri);
+      if (!uploadResult?.ok) {
+        Alert.alert("Upload failed", uploadResult?.message || "Could not upload avatar.");
+        return;
+      }
+
+      onChange("avatar", uploadResult.path);
+      Alert.alert("Uploaded", "Avatar uploaded. Tap Save Changes to persist it.");
+    } catch (_error) {
+      Alert.alert("Upload failed", "Could not upload avatar.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async () => {
-    if (saving) {
+    if (saving || uploadingAvatar) {
       return;
     }
 
     setSaving(true);
     try {
       const result = await onSave?.();
-      if (result?.ok) {
+      if (result?.ok && result.mode !== "local") {
         onSaveSuccess?.();
-        if (result.mode === "local") {
-          Alert.alert("Saved locally", `${result.message || "Could not sync to server."} Your changes are visible on this device.`);
-          return;
-        }
-
         Alert.alert("Success", "Profile updated successfully");
         return;
       }
 
-      Alert.alert("Save failed", "Could not save profile changes. Please try again.");
-    } catch (error) {
+      if (result?.mode === "local") {
+        Alert.alert("Saved locally", `${result.message || "Could not sync to server."} Your changes are visible on this device.`);
+        return;
+      }
+
+      Alert.alert("Save failed", result?.message || "Could not save profile changes. Please try again.");
+    } catch (_error) {
       Alert.alert("Save failed", "Could not save profile changes. Please try again.");
     } finally {
       setSaving(false);
@@ -55,19 +107,17 @@ export default function EditProfileScreen({ values, onChange, onSave, onSaveSucc
         <View style={styles.avatarWrap}>
           <Image
             source={{
-              uri:
-                values.avatar ||
-                "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
+              uri: avatarUri,
             }}
             style={styles.avatar}
           />
-          <Pressable style={styles.cameraBtn} onPress={() => Alert.alert("Photo update", "Upload flow coming soon") }>
+          <Pressable style={styles.cameraBtn} onPress={handlePickAvatar} disabled={uploadingAvatar}>
             <Ionicons name="camera" size={13} color={colors.primaryContrast} />
           </Pressable>
         </View>
         <Text style={styles.photoTitle}>Update Photo</Text>
-        <Pressable style={styles.uploadBtn} onPress={() => Alert.alert("Photo update", "Upload flow coming soon") }>
-          <Text style={styles.uploadText}>Upload New</Text>
+        <Pressable style={[styles.uploadBtn, uploadingAvatar && styles.uploadBtnDisabled]} onPress={handlePickAvatar} disabled={uploadingAvatar}>
+          <Text style={styles.uploadText}>{uploadingAvatar ? "Uploading..." : "Upload New"}</Text>
         </Pressable>
       </View>
 
@@ -202,6 +252,9 @@ const getStyles = (colors, isDark) =>
     alignItems: "center",
     justifyContent: "center",
   },
+  uploadBtnDisabled: {
+    opacity: 0.6,
+  },
   uploadText: {
     color: isDark ? colors.accent : colors.accent,
     fontWeight: "700",
@@ -269,10 +322,10 @@ const getStyles = (colors, isDark) =>
     alignItems: "center",
     justifyContent: "center",
     shadowColor: isDark ? colors.text : colors.accent,
-    shadowOpacity: isDark ? 0.3 : 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: isDark ? 0.16 : 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   saveBtnDisabled: {
     opacity: 0.7,

@@ -2,8 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, AppState, Platform, StyleSheet } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, AppState, Platform, StyleSheet, useColorScheme } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import {
   getAuthErrorMessage,
@@ -14,9 +14,6 @@ import {
   signUpWithEmailPassword,
   updateCurrentUserProfile,
 } from "./lib/Auth";
-import { events as seedEvents } from "./src/data/events";
-import { notifications as seedNotifications } from "./src/data/notifications";
-import { registrations as seedRegistrations } from "./src/data/registrations";
 import { user as seedUser } from "./src/data/user";
 import AppNavigator from "./src/navigation/AppNavigator";
 import CreateEventScreen from "./src/screens/CreateEventScreen";
@@ -28,19 +25,30 @@ import SendAnnouncementScreen from "./src/screens/SendAnnouncementScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import SignupScreen from "./src/screens/SignupScreen";
 import SplashScreen from "./src/screens/SplashScreen";
-import { ThemeProvider, getThemeColors } from "./src/theme/theme";
+import { STORAGE_BUCKETS, uploadImageToBucket } from "./src/services/storage";
 import {
-  CATEGORIES,
-} from "./src/utils/constants";
+  createEventFromForm,
+  fetchEventBookmarks,
+  fetchEventRegistrations,
+  fetchEvents,
+  fetchNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  registerForEvent,
+  toggleEventBookmark,
+} from "./src/services/supabaseData";
+import { ThemeProvider, getThemeColors } from "./src/theme/theme";
 import { filterByCategory, searchEvents } from "./src/utils/helpers";
 
 const PROFILE_CACHE_KEY = "@nsuk/profile_cache";
 
 export default function App() {
-  const [themeMode, setThemeMode] = useState("light");
-  const colors = getThemeColors(themeMode);
+  const systemScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState("system");
+  const resolvedThemeMode = themeMode === "system" ? (systemScheme === "dark" ? "dark" : "light") : themeMode;
+  const colors = getThemeColors(resolvedThemeMode);
   const systemBarBackground = colors.background;
-  const systemBarStyle = themeMode === "dark" ? "light" : "dark";
+  const systemBarStyle = resolvedThemeMode === "dark" ? "light" : "dark";
 
   const [phase, setPhase] = useState("splash");
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -56,12 +64,11 @@ export default function App() {
   const [openingAnnouncement, setOpeningAnnouncement] = useState(false);
   const [openingSettings, setOpeningSettings] = useState(false);
 
-  const [events, setEvents] = useState(seedEvents);
+  const [events, setEvents] = useState([]);
   const [user, setUser] = useState(seedUser);
-  const [notifications, setNotifications] = useState(seedNotifications);
-  const [registeredEventIds, setRegisteredEventIds] = useState(
-    seedRegistrations.filter((item) => item.userId === seedUser.id).map((item) => item.eventId)
-  );
+  const [notifications, setNotifications] = useState([]);
+  const [registeredEventIds, setRegisteredEventIds] = useState([]);
+  const [bookmarkedEventIds, setBookmarkedEventIds] = useState([]);
 
   const [homeSearch, setHomeSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -129,6 +136,28 @@ export default function App() {
     }
   };
 
+  const loadAppData = useCallback(async (currentUserId) => {
+    if (!currentUserId) {
+      return;
+    }
+
+    const [eventRows, registrationRows, bookmarkIds, notificationRows] = await Promise.all([
+      fetchEvents(),
+      fetchEventRegistrations(currentUserId),
+      fetchEventBookmarks(currentUserId),
+      fetchNotifications(currentUserId),
+    ]);
+
+    setEvents(eventRows);
+    setRegisteredEventIds(
+      registrationRows
+        .filter((item) => item.status === "registered")
+        .map((item) => item.event_id)
+    );
+    setBookmarkedEventIds(bookmarkIds);
+    setNotifications(notificationRows);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -147,6 +176,7 @@ export default function App() {
 
         setUser((prev) => ({ ...prev, ...currentUser }));
         setProfileDraft((prev) => ({ ...prev, ...currentUser }));
+        setThemeMode(currentUser.themeMode || "system");
         await cacheProfileLocally(currentUser);
         setIsAuthenticated(true);
       } catch (error) {
@@ -176,6 +206,7 @@ export default function App() {
 
       setUser((prev) => ({ ...prev, ...nextUser }));
       setProfileDraft((prev) => ({ ...prev, ...nextUser }));
+      setThemeMode(nextUser.themeMode || "system");
       setIsAuthenticated(true);
     });
 
@@ -184,6 +215,31 @@ export default function App() {
       subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      return;
+    }
+
+    let active = true;
+
+    const hydrateData = async () => {
+      try {
+        await loadAppData(user.id);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        Alert.alert("Sync error", "Could not load latest events and notifications.");
+      }
+    };
+
+    hydrateData();
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, user?.id, loadAppData]);
 
   useEffect(() => {
     if (authInitializing) {
@@ -246,10 +302,12 @@ export default function App() {
 
   const searchResults = useMemo(() => searchEvents(events, searchQuery), [events, searchQuery]);
 
-  const myEvents = useMemo(
-    () => events.filter((event) => registeredEventIds.includes(event.id)),
-    [events, registeredEventIds]
-  );
+  const myEvents = useMemo(() => {
+    if (user?.accountType === "staff") {
+      return events.filter((event) => event.createdBy === user?.id);
+    }
+    return events.filter((event) => registeredEventIds.includes(event.id));
+  }, [events, registeredEventIds, user?.accountType, user?.id]);
 
   const favoriteCategory = useMemo(() => {
     if (myEvents.length === 0) {
@@ -266,31 +324,70 @@ export default function App() {
     setSelectedEventId(id);
   };
 
-  const handleNotificationPress = (item) => {
-    setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, isRead: true } : entry)));
+  const handleNotificationPress = async (item) => {
+    try {
+      await markNotificationAsRead({ notificationId: item.id, userId: user.id });
+      setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, isRead: true } : entry)));
+    } catch (error) {
+      Alert.alert("Error", "Could not mark notification as read.");
+    }
+
     if (item.eventId) {
       setSelectedEventId(item.eventId);
     }
   };
 
-  const markAllNotificationsRead = () => {
-    setNotifications((prev) => prev.map((entry) => ({ ...entry, isRead: true })));
+  const markAllNotificationsRead = async () => {
+    try {
+      await markAllNotificationsAsRead(user.id);
+      setNotifications((prev) => prev.map((entry) => ({ ...entry, isRead: true })));
+    } catch (error) {
+      Alert.alert("Error", "Could not mark all notifications as read.");
+    }
   };
 
-  const handleRegisterEvent = () => {
+  const handleToggleBookmark = async (eventId) => {
+    try {
+      const isBookmarked = bookmarkedEventIds.includes(eventId);
+      const nowBookmarked = await toggleEventBookmark({ eventId, userId: user.id, isBookmarked });
+      setBookmarkedEventIds((prev) => {
+        if (nowBookmarked) {
+          return prev.includes(eventId) ? prev : [...prev, eventId];
+        }
+        return prev.filter((id) => id !== eventId);
+      });
+    } catch (error) {
+      Alert.alert("Error", "Could not update bookmark.");
+    }
+  };
+
+  const handleRegisterEvent = async () => {
     if (!selectedEvent) {
       return;
     }
     if (registeredEventIds.includes(selectedEvent.id)) {
       return;
     }
-
     setRegistering(true);
-    setTimeout(() => {
-      setRegisteredEventIds((prev) => [...prev, selectedEvent.id]);
+    try {
+      const result = await registerForEvent({ eventId: selectedEvent.id, userId: user.id });
+      const latestRegistrations = await fetchEventRegistrations(user.id);
+      setRegisteredEventIds(
+        latestRegistrations
+          .filter((item) => item.status === "registered")
+          .map((item) => item.event_id)
+      );
+
+      if (result?.status === "waitlisted") {
+        Alert.alert("Waitlisted", "This event is full. You have been added to the waitlist.");
+      } else {
+        Alert.alert("Success", "You have successfully registered for this event.");
+      }
+    } catch (error) {
+      Alert.alert("Registration failed", error?.message || "Could not register for this event.");
+    } finally {
       setRegistering(false);
-      Alert.alert("Success", "You have successfully registered for this event.");
-    }, 800);
+    }
   };
 
   const submitLogin = async () => {
@@ -409,7 +506,7 @@ export default function App() {
     }
   };
 
-  const submitCreateEvent = () => {
+  const submitCreateEvent = async () => {
     const errors = {};
     ["title", "category", "description", "date", "time", "venue", "organizer", "image"].forEach((field) => {
       if (!createEventForm[field]?.trim()) {
@@ -422,26 +519,31 @@ export default function App() {
       return false;
     }
 
-    const nextId = Math.max(...events.map((item) => item.id)) + 1;
-    setEvents((prev) => [{ id: nextId, isFeatured: false, ...createEventForm }, ...prev]);
-    setCreatingEvent(false);
-    setActiveTab("home");
-    setCreateEventForm({
-      title: "",
-      category: "",
-      description: "",
-      date: "",
-      time: "",
-      venue: "",
-      organizer: "",
-      image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
-    });
-    setCreateEventErrors({});
-    return true;
+    try {
+      const created = await createEventFromForm({ form: createEventForm, userId: user.id });
+      setEvents((prev) => [created, ...prev]);
+      setCreatingEvent(false);
+      setActiveTab("home");
+      setCreateEventForm({
+        title: "",
+        category: "",
+        description: "",
+        date: "",
+        time: "",
+        venue: "",
+        organizer: "",
+        image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
+      });
+      setCreateEventErrors({});
+      return true;
+    } catch (error) {
+      Alert.alert("Create failed", error?.message || "Could not create event.");
+      return false;
+    }
   };
 
   const saveProfile = async () => {
-    const localDraft = { ...profileDraft };
+    const localDraft = { ...profileDraft, themeMode };
 
     try {
       const updatedUser = await updateCurrentUserProfile(localDraft);
@@ -466,10 +568,29 @@ export default function App() {
       setProfileDraft((prev) => ({ ...prev, ...localOnlyProfile }));
       await cacheProfileLocally(localOnlyProfile);
       return {
-        ok: true,
+        ok: false,
         mode: "local",
         message: getAuthErrorMessage(error),
       };
+    }
+  };
+
+  const handleUploadAvatar = async (localUri) => {
+    try {
+      const uploaded = await uploadImageToBucket({
+        bucket: STORAGE_BUCKETS.avatars,
+        userId: user?.id,
+        localUri,
+      });
+
+      setProfileDraft((prev) => ({
+        ...prev,
+        avatar: uploaded.path,
+      }));
+
+      return { ok: true, ...uploaded };
+    } catch (error) {
+      return { ok: false, message: error?.message || "Could not upload avatar. Check your storage policy and session." };
     }
   };
 
@@ -493,6 +614,10 @@ export default function App() {
     setCreatingEvent(false);
     setOpeningAnnouncement(false);
     setOpeningSettings(false);
+    setEvents([]);
+    setNotifications([]);
+    setRegisteredEventIds([]);
+    setBookmarkedEventIds([]);
   };
 
   const onSearchChange = (value) => {
@@ -604,8 +729,10 @@ export default function App() {
       <EventDetailsScreen
         event={selectedEvent}
         isRegistered={registeredEventIds.includes(selectedEvent.id)}
+        isBookmarked={bookmarkedEventIds.includes(selectedEvent.id)}
         registering={registering}
         onRegister={handleRegisterEvent}
+        onToggleBookmark={() => handleToggleBookmark(selectedEvent.id)}
         onBack={() => setSelectedEventId(null)}
       />,
       ["bottom", "left", "right"]
@@ -617,6 +744,7 @@ export default function App() {
       <EditProfileScreen
         values={profileDraft}
         onChange={(field, value) => setProfileDraft((prev) => ({ ...prev, [field]: value }))}
+        onUploadAvatar={handleUploadAvatar}
         onSave={saveProfile}
         onSaveSuccess={() => {
           setEditingProfile(false);
@@ -668,17 +796,13 @@ export default function App() {
       homeProps={{
         user,
         dashboardType: isStaffUser ? "staff" : "student",
-        categories: CATEGORIES,
-        selectedCategory,
-        searchText: homeSearch,
+        bookmarkedEventIds,
         featuredEvents,
         events: filteredHomeEvents,
-        onChangeSearch: setHomeSearch,
-        onSelectCategory: setSelectedCategory,
+        onToggleBookmark: handleToggleBookmark,
         onOpenEvent: openEvent,
         onOpenNotifications: () => setActiveTab("notifications"),
         onOpenProfile: () => setActiveTab("profile"),
-        onOpenSettings: () => setOpeningSettings(true),
       }}
       searchProps={{
         value: searchQuery,
@@ -712,11 +836,14 @@ export default function App() {
         totalRegistered: registeredEventIds.length,
         favoriteCategory,
         themeMode,
-        onToggleTheme: () => setThemeMode((prev) => (prev === "light" ? "dark" : "light")),
+        onToggleTheme: () => setThemeMode((prev) => (prev === "dark" ? "light" : "dark")),
         onEditProfile: () => {
           setProfileDraft(user);
           setEditingProfile(true);
         },
+        onOpenMyEvents: () => setActiveTab("my-events"),
+        onOpenSavedEvents: () => setActiveTab("home"),
+        onOpenNotifications: () => setActiveTab("notifications"),
         onOpenSettings: () => setOpeningSettings(true),
         onCreateEvent: () => setCreatingEvent(true),
         onLogout: logout,

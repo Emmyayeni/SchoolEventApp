@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo } from "react";
+import { useColorScheme } from "react-native";
 
 const palette = {
   light: {
@@ -56,7 +57,8 @@ const palette = {
 };
 
 const ThemeContext = createContext({
-  mode: "light",
+  mode: "system",
+  resolvedMode: "light",
   isDark: false,
   colors: palette.light,
   setMode: () => {},
@@ -68,16 +70,19 @@ export function getThemeColors(mode) {
 }
 
 export function ThemeProvider({ mode, setMode, children }) {
+  const systemScheme = useColorScheme();
   const value = useMemo(() => {
-    const isDark = mode === "dark";
+    const resolvedMode = mode === "system" ? (systemScheme === "dark" ? "dark" : "light") : mode;
+    const isDark = resolvedMode === "dark";
     return {
       mode,
+      resolvedMode,
       isDark,
-      colors: getThemeColors(mode),
+      colors: getThemeColors(resolvedMode),
       setMode,
-      toggleMode: () => setMode((prev) => (prev === "light" ? "dark" : "light")),
+      toggleMode: () => setMode((prev) => (prev === "dark" ? "light" : "dark")),
     };
-  }, [mode, setMode]);
+  }, [mode, setMode, systemScheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

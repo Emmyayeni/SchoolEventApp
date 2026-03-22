@@ -7,7 +7,7 @@ import { ms, scale } from "../utils/responsive";
 
 const TARGET_AUDIENCE = ["All Students", "Faculty of Science", "Staff Only"];
 
-export default function SendAnnouncementScreen({ onBack }) {
+export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark);
@@ -28,7 +28,7 @@ export default function SendAnnouncementScreen({ onBack }) {
     });
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!subject.trim()) {
       Alert.alert("Required", "Please enter announcement title.");
       return;
@@ -38,7 +38,20 @@ export default function SendAnnouncementScreen({ onBack }) {
       return;
     }
 
-    Alert.alert("Announcement sent", "Your announcement has been sent to selected audience.");
+    if (onSendAnnouncement) {
+      const result = await onSendAnnouncement({
+        subject,
+        message,
+        targetAudience: selectedAudience,
+      });
+
+      if (!result?.ok) {
+        return;
+      }
+    } else {
+      Alert.alert("Announcement saved", "Announcement flow is local for now.");
+    }
+
     setSubject("");
     setMessage("");
   };
@@ -247,10 +260,10 @@ const getStyles = (colors, isDark) =>
       justifyContent: "center",
       gap: scale(7),
       shadowColor: colors.accent,
-      shadowOpacity: 0.16,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
     },
     sendText: {
       color: colors.primaryContrast,
