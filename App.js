@@ -6,16 +6,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, AppState, Platform, StyleSheet, useColorScheme } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import {
-  getAuthErrorMessage,
-  getCurrentAppUser,
-  onAuthStateChange,
-  signInWithEmailPassword,
-  signOutCurrentUser,
-  signUpWithEmailPassword,
-  updateCurrentUserProfile,
+    getAuthErrorMessage,
+    getCurrentAppUser,
+    onAuthStateChange,
+    signInWithEmailPassword,
+    signOutCurrentUser,
+    signUpWithEmailPassword,
+    updateCurrentUserProfile,
 } from "./lib/Auth";
 import { user as seedUser } from "./src/data/user";
 import AppNavigator from "./src/navigation/AppNavigator";
+import AnnouncementDetailsScreen from "./src/screens/AnnouncementDetailsScreen";
 import CreateEventScreen from "./src/screens/CreateEventScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
 import EventDetailsScreen from "./src/screens/EventDetailsScreen";
@@ -27,15 +28,15 @@ import SignupScreen from "./src/screens/SignupScreen";
 import SplashScreen from "./src/screens/SplashScreen";
 import { STORAGE_BUCKETS, uploadImageToBucket } from "./src/services/storage";
 import {
-  createEventFromForm,
-  fetchEventBookmarks,
-  fetchEventRegistrations,
-  fetchEvents,
-  fetchNotifications,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-  registerForEvent,
-  toggleEventBookmark,
+    createEventFromForm,
+    fetchEventBookmarks,
+    fetchEventRegistrations,
+    fetchEvents,
+    fetchNotifications,
+    markAllNotificationsAsRead,
+    markNotificationAsRead,
+    registerForEvent,
+    toggleEventBookmark,
 } from "./src/services/supabaseData";
 import { ThemeProvider, getThemeColors } from "./src/theme/theme";
 import { filterByCategory, searchEvents } from "./src/utils/helpers";
@@ -62,6 +63,7 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [openingAnnouncement, setOpeningAnnouncement] = useState(false);
+  const [openingAnnouncementDetails, setOpeningAnnouncementDetails] = useState(false);
   const [openingSettings, setOpeningSettings] = useState(false);
 
   const [events, setEvents] = useState([]);
@@ -258,7 +260,7 @@ export default function App() {
       }
 
       setPhase("auth");
-    }, 2400);
+    }, 1800);
 
     return () => clearTimeout(timer);
   }, [hasSeenOnboarding, isAuthenticated, authInitializing]);
@@ -667,6 +669,7 @@ export default function App() {
     setEditingProfile(false);
     setCreatingEvent(false);
     setOpeningAnnouncement(false);
+    setOpeningAnnouncementDetails(false);
     setOpeningSettings(false);
     setEvents([]);
     setNotifications([]);
@@ -846,6 +849,13 @@ export default function App() {
     );
   }
 
+  if (openingAnnouncementDetails) {
+    return renderInShell(
+      <AnnouncementDetailsScreen onBack={() => setOpeningAnnouncementDetails(false)} />,
+      ["bottom", "left", "right"]
+    );
+  }
+
   return renderInShell(
     <AppNavigator
       activeTab={activeTab}
@@ -861,6 +871,14 @@ export default function App() {
         onOpenEvent: openEvent,
         onOpenNotifications: () => setActiveTab("notifications"),
         onOpenProfile: () => setActiveTab("profile"),
+        onOpenAnnouncementDetails: () => setOpeningAnnouncementDetails(true),
+        onActivateSearch: (value) => {
+          const input = String(value || "").trim();
+          if (input) {
+            onSearchChange(input);
+          }
+          setActiveTab("search");
+        },
       }}
       searchProps={{
         value: searchQuery,
@@ -904,6 +922,7 @@ export default function App() {
         onOpenNotifications: () => setActiveTab("notifications"),
         onOpenSettings: () => setOpeningSettings(true),
         onCreateEvent: () => setCreatingEvent(true),
+        onOpenAnnouncement: () => setOpeningAnnouncement(true),
         onLogout: logout,
       }}
     />,

@@ -12,7 +12,12 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   const [activeCategory, setActiveCategory] = useState("All Events");
   const [viewMode, setViewMode] = useState("list");
 
-  const categories = ["All Events", "Academic", "Social", "Sports"];
+  const categories = [
+    { label: "All Events", icon: "apps" },
+    { label: "Academic", icon: "school" },
+    { label: "Social", icon: "people" },
+    { label: "Sports", icon: "football" },
+  ];
 
   const filtered = useMemo(() => {
     if (activeCategory === "All Events") {
@@ -106,17 +111,19 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
           <FlatList
             data={categories}
             horizontal
-            keyExtractor={(item) => item}
+            keyExtractor={(item) => item.label}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryRow}
             renderItem={({ item }) => {
-              const active = activeCategory === item;
+              const active = activeCategory === item.label;
+              const iconColor = active ? colors.primaryContrast : colors.accent;
               return (
                 <Pressable
                   style={[styles.categoryChip, active && styles.categoryChipActive]}
-                  onPress={() => setActiveCategory(item)}
+                  onPress={() => setActiveCategory(item.label)}
                 >
-                  <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{item}</Text>
+                  <Ionicons name={item.icon} size={12} color={iconColor} />
+                  <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{item.label}</Text>
                 </Pressable>
               );
             }}
@@ -339,6 +346,9 @@ const createStyles = (colors) =>
     backgroundColor: colors.surfaceAlt,
     paddingHorizontal: scale(14),
     paddingVertical: scale(6),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(4),
   },
   categoryChipActive: {
     backgroundColor: colors.primary,

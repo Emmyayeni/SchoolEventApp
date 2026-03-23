@@ -5,7 +5,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-const HOME_CATEGORIES = ["All", "Academic", "Social", "Sports", "Workshop"];
+const HOME_CATEGORIES = [
+  { label: "All", icon: "apps" },
+  { label: "Academic", icon: "school" },
+  { label: "Social", icon: "people" },
+  { label: "Sports", icon: "football" },
+  { label: "Workshop", icon: "construct" },
+];
+
+const DUMMY_ANNOUNCEMENTS = [
+  {
+    id: "dummy-announcement-1",
+    title: "Important: New Exam Schedule Released",
+    message: "View the revised dates for the 2026 session.",
+  },
+];
 
 export default function HomeScreen({
   user,
@@ -17,6 +31,8 @@ export default function HomeScreen({
   onOpenNotifications,
   onOpenEvent,
   onOpenProfile,
+  onActivateSearch,
+  onOpenAnnouncementDetails,
 }) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -26,8 +42,6 @@ export default function HomeScreen({
 
   const firstName = (user?.fullName || "John").trim().split(" ")[0] || "John";
   const isStudent = dashboardType !== "staff";
-  const dashboardLabel =
-    dashboardType === "staff" ? "Staff dashboard: create and manage events" : "Student dashboard: discover and join events";
 
   const filteredEvents = useMemo(() => {
     const byCategory = events.filter((item) => {
@@ -62,7 +76,7 @@ export default function HomeScreen({
   }, [featuredEvents, filteredEvents]);
 
   const upcoming = useMemo(() => filteredEvents.slice(0, 3), [filteredEvents]);
-  const trending = useMemo(() => filteredEvents.slice(0, 6), [filteredEvents]);
+  const announcement = DUMMY_ANNOUNCEMENTS[0];
 
   return (
     <ScrollView
@@ -80,43 +94,63 @@ export default function HomeScreen({
           <View>
             <Text style={styles.welcomeText}>Welcome back,</Text>
             <Text style={styles.nameText}>Hello, {firstName}</Text>
-            <Text style={styles.roleHint}>{dashboardLabel}</Text>
           </View>
         </View>
 
         <Pressable style={styles.iconBtn} onPress={onOpenNotifications}>
-          <Ionicons name="notifications" size={16} color={colors.primary} />
+          <Ionicons name="notifications-outline" size={16} color={colors.primary} />
         </Pressable>
       </View>
 
       <View style={styles.searchRow}>
-        <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+        <Pressable
+          style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={() => onActivateSearch?.(searchText)}
+        >
           <Ionicons name="search" size={16} color={colors.textSubtle} />
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
+            onFocus={() => onActivateSearch?.(searchText)}
             placeholder="Search events, venues..."
             placeholderTextColor={colors.textSubtle}
             style={[styles.searchInput, { color: colors.text }]}
           />
-        </View>
+        </Pressable>
 
-        <Pressable style={styles.filterBtn}>
+        <Pressable style={styles.filterBtn} onPress={() => onActivateSearch?.(searchText)}>
           <Ionicons name="options" size={16} color={colors.primaryContrast} />
         </Pressable>
       </View>
 
+      <Pressable
+        style={styles.announcementCard}
+        onPress={() => onOpenAnnouncementDetails?.()}
+      >
+        <View style={styles.announcementIconWrap}>
+          <Ionicons name="megaphone" size={14} color={colors.accent} />
+        </View>
+        <View style={styles.announcementBody}>
+          <Text style={styles.announcementTitle} numberOfLines={2}>{announcement.title}</Text>
+          <View style={styles.announcementBottomRow}>
+            <Text style={styles.announcementMessage} numberOfLines={2}>{announcement.message}</Text>
+            <Text style={styles.announcementLink}>Read More</Text>
+          </View>
+        </View>
+      </Pressable>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-        {HOME_CATEGORIES.map((category) => {
-          const active = category === activeCategory;
+        {HOME_CATEGORIES.map((categoryItem) => {
+          const active = categoryItem.label === activeCategory;
+          const iconColor = active ? colors.primaryContrast : colors.accent;
           return (
             <Pressable
-              key={category}
-              onPress={() => setActiveCategory(category)}
+              key={categoryItem.label}
+              onPress={() => setActiveCategory(categoryItem.label)}
               style={[styles.categoryChip, active && styles.categoryChipActive]}
             >
-              {!active && <Ionicons name="leaf" size={11} color={colors.accent} />}
-              <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{category}</Text>
+              <Ionicons name={categoryItem.icon} size={11} color={iconColor} />
+              <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{categoryItem.label}</Text>
             </Pressable>
           );
         })}
@@ -150,14 +184,10 @@ export default function HomeScreen({
             </View>
 
             <View style={styles.featuredBody}>
-              <Text style={styles.featuredTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
+              <Text style={styles.featuredTitle} numberOfLines={1}>{item.title}</Text>
               <View style={styles.featuredMetaRow}>
                 <Ionicons name="calendar-outline" size={11} color={colors.borderSoft} />
-                <Text style={styles.featuredMeta}>
-                  {formatDate(item.date)}, {item.time}
-                </Text>
+                <Text style={styles.featuredMeta}>{formatDate(item.date)}, {item.time}</Text>
               </View>
             </View>
           </Pressable>
@@ -166,7 +196,7 @@ export default function HomeScreen({
 
       <SectionTitle title="Upcoming Events" action="See all" styles={styles} />
       <View style={styles.upcomingWrap}>
-        {upcoming.map((item, index) => (
+        {upcoming.map((item) => (
           <Pressable
             key={String(item.id)}
             style={[styles.upcomingCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
@@ -181,25 +211,20 @@ export default function HomeScreen({
                 />
               </Pressable>
             )}
+
             <Image source={{ uri: item.image }} style={styles.upcomingImage} />
 
             <View style={[styles.upcomingBody, isStudent && styles.upcomingBodyWithBookmark]}>
               <View style={styles.upcomingTop}>
-                <Text style={styles.upcomingCategory} numberOfLines={1}>
-                  {item.category.toUpperCase()}
-                </Text>
+                <Text style={styles.upcomingCategory} numberOfLines={1}>{item.category.toUpperCase()}</Text>
                 <Text style={styles.upcomingDate}>{formatShortDate(item.date)}</Text>
               </View>
 
-              <Text style={styles.upcomingTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
+              <Text style={styles.upcomingTitle} numberOfLines={1}>{item.title}</Text>
 
               <View style={styles.locationRow}>
                 <Ionicons name="location-outline" size={11} color={colors.textMuted} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {item.venue}
-                </Text>
+                <Text style={styles.locationText} numberOfLines={1}>{item.venue}</Text>
               </View>
 
               <View style={styles.upcomingBottom}>
@@ -212,39 +237,6 @@ export default function HomeScreen({
           </Pressable>
         ))}
       </View>
-
-      <SectionTitle title="Trending This Week" styles={styles} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
-        {trending.map((item) => (
-          <Pressable
-            key={`trend-${item.id}`}
-            style={[styles.trendingCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
-            onPress={() => onOpenEvent?.(item.id)}
-          >
-            {isStudent && (
-              <Pressable style={styles.bookmarkBtnInline} onPress={() => onToggleBookmark?.(item.id)}>
-                <Ionicons
-                  name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"}
-                  size={13}
-                  color={colors.accent}
-                />
-              </Pressable>
-            )}
-            <Image source={{ uri: item.image }} style={styles.trendingImage} />
-            <View style={styles.trendingBody}>
-              <Text style={styles.trendingTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.trendingMeta} numberOfLines={1}>
-                {formatWeekday(item.date)}, {item.time}
-              </Text>
-              <View style={styles.detailsBtn}>
-                <Text style={styles.detailsBtnText}>Details</Text>
-              </View>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
     </ScrollView>
   );
 }
@@ -274,364 +266,348 @@ function formatShortDate(dateText) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
 }
 
-function formatWeekday(dateText) {
-  const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) {
-    return "Date TBD";
-  }
-  return date.toLocaleDateString("en-US", { weekday: "short" });
-}
-
 const createStyles = (colors) =>
   StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: colors.surfaceAlt,
-  },
-  content: {
-    paddingHorizontal: scale(14),
-    paddingBottom: scale(28),
-    gap: scale(12),
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  userWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(10),
-  },
-  avatar: {
-    width: scale(42),
-    height: scale(42),
-    borderRadius: scale(21),
-  },
-  avatarRing: {
-    width: scale(50),
-    height: scale(50),
-    borderRadius: scale(25),
-    borderWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  welcomeText: {
-    color: colors.text,
-    fontSize: ms(12),
-    fontWeight: "700",
-  },
-  nameText: {
-    color: colors.primary,
-    fontSize: ms(24),
-    fontWeight: "900",
-  },
-  roleHint: {
-    marginTop: scale(2),
-    color: colors.text,
-    fontSize: ms(10),
-    fontWeight: "800",
-  },
-  iconBtn: {
-    width: scale(32),
-    height: scale(32),
-    borderRadius: scale(16),
-    backgroundColor: colors.surfaceAlt,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(8),
-  },
-  searchWrap: {
-    flex: 1,
-    height: scale(40),
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: scale(12),
-    gap: scale(6),
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: ms(13),
-  },
-  filterBtn: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  categoryRow: {
-    paddingVertical: scale(2),
-    gap: scale(8),
-  },
-  categoryChip: {
-    height: scale(34),
-    borderRadius: scale(17),
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: scale(12),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(4),
-  },
-  categoryChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  categoryText: {
-    color: colors.textMuted,
-    fontSize: ms(12),
-    fontWeight: "700",
-  },
-  categoryTextActive: {
-    color: colors.primaryContrast,
-  },
-  sectionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: ms(21),
-    fontWeight: "900",
-  },
-  sectionAction: {
-    color: colors.accent,
-    fontSize: ms(13),
-    fontWeight: "800",
-  },
-  featuredRow: {
-    gap: scale(10),
-    paddingBottom: scale(2),
-  },
-  featuredCard: {
-    width: scale(258),
-    height: scale(142),
-    borderRadius: scale(16),
-    borderWidth: 1,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceAlt,
-  },
-  featuredImage: {
-    width: "100%",
-    height: "100%",
-  },
-  featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlay,
-  },
-  featuredTagWrap: {
-    position: "absolute",
-    left: scale(10),
-    top: scale(10),
-  },
-  bookmarkBtn: {
-    position: "absolute",
-    right: scale(10),
-    top: scale(10),
-    width: scale(24),
-    height: scale(24),
-    borderRadius: scale(12),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.overlayStrong,
-  },
-  featuredTag: {
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(3),
-    borderRadius: 999,
-    fontSize: ms(9),
-    fontWeight: "900",
-    color: colors.text,
-    overflow: "hidden",
-  },
-  tagPrimary: {
-    backgroundColor: colors.surfaceAlt,
-  },
-  tagSecondary: {
-    backgroundColor: colors.surface,
-  },
-  featuredBody: {
-    position: "absolute",
-    left: scale(12),
-    right: scale(12),
-    bottom: scale(10),
-  },
-  featuredTitle: {
-    color: colors.primaryContrast,
-    fontSize: ms(18),
-    fontWeight: "900",
-  },
-  featuredMetaRow: {
-    marginTop: scale(4),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(5),
-  },
-  featuredMeta: {
-    color: colors.borderSoft,
-    fontSize: ms(11),
-    fontWeight: "700",
-  },
-  upcomingWrap: {
-    gap: scale(10),
-  },
-  upcomingCard: {
-    position: "relative",
-    borderRadius: scale(14),
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surfaceAlt,
-    padding: scale(10),
-    flexDirection: "row",
-    gap: scale(10),
-  },
-  upcomingImage: {
-    width: scale(62),
-    height: scale(62),
-    borderRadius: scale(12),
-    backgroundColor: colors.surfaceAlt,
-  },
-  upcomingBody: {
-    flex: 1,
-    gap: scale(4),
-  },
-  upcomingBodyWithBookmark: {
-    paddingRight: scale(28),
-  },
-  upcomingTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: scale(6),
-  },
-  upcomingCategory: {
-    flexShrink: 1,
-    color: colors.accent,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    overflow: "hidden",
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(3),
-    fontSize: ms(9),
-    fontWeight: "900",
-  },
-  upcomingDate: {
-    color: colors.textSubtle,
-    fontSize: ms(10),
-    fontWeight: "800",
-  },
-  upcomingTitle: {
-    color: colors.text,
-    fontSize: ms(16),
-    fontWeight: "800",
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(4),
-  },
-  locationText: {
-    flex: 1,
-    color: colors.textMuted,
-    fontSize: ms(11),
-    fontWeight: "600",
-  },
-  upcomingBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  timeText: {
-    color: colors.primary,
-    fontSize: ms(14),
-    fontWeight: "900",
-  },
-  rsvpBtn: {
-    borderRadius: 999,
-    backgroundColor: colors.accent,
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(5),
-  },
-  rsvpText: {
-    color: colors.primaryContrast,
-    fontSize: ms(10),
-    fontWeight: "900",
-  },
-  trendingRow: {
-    gap: scale(10),
-  },
-  trendingCard: {
-    position: "relative",
-    width: scale(150),
-    borderRadius: scale(14),
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-  },
-  trendingImage: {
-    width: "100%",
-    height: scale(74),
-    backgroundColor: colors.surfaceAlt,
-  },
-  trendingBody: {
-    padding: scale(9),
-    gap: scale(4),
-  },
-  trendingTitle: {
-    color: colors.text,
-    fontSize: ms(12),
-    fontWeight: "800",
-  },
-  trendingMeta: {
-    color: colors.textMuted,
-    fontSize: ms(10),
-    fontWeight: "600",
-  },
-  detailsBtn: {
-    marginTop: scale(6),
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    height: scale(26),
-  },
-  detailsBtnText: {
-    color: colors.primary,
-    fontSize: ms(10),
-    fontWeight: "800",
-  },
-  bookmarkBtnInline: {
-    position: "absolute",
-    right: scale(10),
-    top: scale(10),
-    width: scale(24),
-    height: scale(24),
-    borderRadius: scale(12),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceAlt,
-    zIndex: 5,
-  },
+    page: {
+      flex: 1,
+      backgroundColor: colors.surfaceAlt,
+    },
+    content: {
+      paddingHorizontal: scale(12),
+      paddingBottom: scale(18),
+      gap: scale(12),
+    },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    userWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(8),
+    },
+    avatar: {
+      width: scale(30),
+      height: scale(30),
+      borderRadius: scale(15),
+    },
+    avatarRing: {
+      width: scale(34),
+      height: scale(34),
+      borderRadius: scale(17),
+      backgroundColor: "#EFC5A3",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    welcomeText: {
+      color: colors.textMuted,
+      fontSize: ms(10),
+      fontWeight: "700",
+    },
+    nameText: {
+      color: colors.primary,
+      fontSize: ms(22),
+      fontWeight: "900",
+      marginTop: -1,
+    },
+    iconBtn: {
+      width: scale(34),
+      height: scale(34),
+      borderRadius: scale(17),
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    searchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(7),
+    },
+    searchWrap: {
+      flex: 1,
+      height: scale(41),
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: scale(11),
+      gap: scale(6),
+    },
+    searchInput: {
+      flex: 1,
+      color: colors.text,
+      fontSize: ms(13),
+    },
+    filterBtn: {
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(18),
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    announcementCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(9),
+      borderRadius: scale(13),
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      backgroundColor: colors.surface,
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(10),
+    },
+    announcementIconWrap: {
+      width: scale(30),
+      height: scale(30),
+      borderRadius: scale(15),
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceAlt,
+    },
+    announcementBody: {
+      flex: 1,
+      gap: scale(3),
+    },
+    announcementTitle: {
+      color: colors.text,
+      fontSize: ms(12),
+      fontWeight: "900",
+      lineHeight: ms(15),
+    },
+    announcementBottomRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: scale(8),
+    },
+    announcementMessage: {
+      flex: 1,
+      color: colors.textMuted,
+      fontSize: ms(11),
+      fontWeight: "600",
+    },
+    announcementLink: {
+      color: colors.primary,
+      fontSize: ms(11),
+      fontWeight: "900",
+    },
+    categoryRow: {
+      paddingVertical: scale(1),
+      gap: scale(8),
+    },
+    categoryChip: {
+      height: scale(32),
+      borderRadius: scale(16),
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: scale(11),
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+    },
+    categoryChipActive: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    categoryText: {
+      color: colors.textMuted,
+      fontSize: ms(12),
+      fontWeight: "700",
+    },
+    categoryTextActive: {
+      color: colors.primaryContrast,
+    },
+    sectionRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: scale(1),
+    },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: ms(24),
+      fontWeight: "900",
+    },
+    sectionAction: {
+      color: colors.primary,
+      fontSize: ms(13),
+      fontWeight: "800",
+    },
+    featuredRow: {
+      gap: scale(10),
+      paddingBottom: scale(2),
+    },
+    featuredCard: {
+      width: scale(180),
+      height: scale(146),
+      borderRadius: scale(15),
+      borderWidth: 1,
+      overflow: "hidden",
+      backgroundColor: colors.surfaceAlt,
+    },
+    featuredImage: {
+      width: "100%",
+      height: "100%",
+    },
+    featuredOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.overlay,
+    },
+    featuredTagWrap: {
+      position: "absolute",
+      left: scale(9),
+      top: scale(10),
+    },
+    bookmarkBtn: {
+      position: "absolute",
+      right: scale(9),
+      top: scale(9),
+      width: scale(24),
+      height: scale(24),
+      borderRadius: scale(12),
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.overlayStrong,
+    },
+    featuredTag: {
+      paddingHorizontal: scale(7),
+      paddingVertical: scale(3),
+      borderRadius: 999,
+      fontSize: ms(9),
+      fontWeight: "900",
+      color: colors.text,
+      overflow: "hidden",
+    },
+    tagPrimary: {
+      backgroundColor: colors.surfaceAlt,
+    },
+    tagSecondary: {
+      backgroundColor: colors.surface,
+    },
+    featuredBody: {
+      position: "absolute",
+      left: scale(10),
+      right: scale(10),
+      bottom: scale(10),
+    },
+    featuredTitle: {
+      color: colors.primaryContrast,
+      fontSize: ms(24),
+      fontWeight: "900",
+    },
+    featuredMetaRow: {
+      marginTop: scale(3),
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+    },
+    featuredMeta: {
+      color: colors.borderSoft,
+      fontSize: ms(10),
+      fontWeight: "700",
+    },
+    upcomingWrap: {
+      gap: scale(10),
+    },
+    upcomingCard: {
+      position: "relative",
+      borderRadius: scale(14),
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      backgroundColor: colors.surface,
+      padding: scale(10),
+      flexDirection: "row",
+      gap: scale(10),
+    },
+    upcomingImage: {
+      width: scale(62),
+      height: scale(62),
+      borderRadius: scale(12),
+      backgroundColor: colors.surfaceAlt,
+    },
+    upcomingBody: {
+      flex: 1,
+      gap: scale(4),
+    },
+    upcomingBodyWithBookmark: {
+      paddingRight: scale(28),
+    },
+    upcomingTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: scale(6),
+    },
+    upcomingCategory: {
+      flexShrink: 1,
+      color: colors.accent,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 999,
+      overflow: "hidden",
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(3),
+      fontSize: ms(9),
+      fontWeight: "900",
+    },
+    upcomingDate: {
+      color: colors.textSubtle,
+      fontSize: ms(10),
+      fontWeight: "800",
+    },
+    upcomingTitle: {
+      color: colors.text,
+      fontSize: ms(15),
+      fontWeight: "800",
+    },
+    locationRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+    },
+    locationText: {
+      flex: 1,
+      color: colors.textMuted,
+      fontSize: ms(11),
+      fontWeight: "600",
+    },
+    upcomingBottom: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    timeText: {
+      color: colors.primary,
+      fontSize: ms(14),
+      fontWeight: "900",
+    },
+    rsvpBtn: {
+      borderRadius: 999,
+      backgroundColor: colors.primary,
+      paddingHorizontal: scale(12),
+      paddingVertical: scale(5),
+    },
+    rsvpText: {
+      color: colors.primaryContrast,
+      fontSize: ms(10),
+      fontWeight: "900",
+    },
+    bookmarkBtnInline: {
+      position: "absolute",
+      right: scale(10),
+      top: scale(10),
+      width: scale(24),
+      height: scale(24),
+      borderRadius: scale(12),
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceAlt,
+      zIndex: 5,
+    },
   });

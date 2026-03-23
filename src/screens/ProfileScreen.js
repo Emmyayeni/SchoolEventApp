@@ -16,6 +16,7 @@ export default function ProfileScreen({
   onOpenSavedEvents,
   onOpenNotifications,
   onCreateEvent,
+  onOpenAnnouncement,
   onOpenSettings,
   onLogout,
 }) {
@@ -60,6 +61,13 @@ export default function ProfileScreen({
           <Ionicons name={isStaff ? "add-circle-outline" : "compass-outline"} size={15} color={colors.primaryContrast} />
           <Text style={styles.manageButtonText}>{isStaff ? "Create Event" : "Discover Events"}</Text>
         </Pressable>
+
+        {isStaff && (
+          <Pressable style={styles.announcementButton} onPress={onOpenAnnouncement}>
+            <Ionicons name="megaphone-outline" size={15} color={colors.primaryContrast} />
+            <Text style={styles.announcementButtonText}>Create Announcement</Text>
+          </Pressable>
+        )}
       </View>
 
       <SectionTitle title="ACCOUNT ACTIVITY" colors={colors} />
@@ -269,6 +277,22 @@ const getStyles = (colors, isDark) =>
     paddingVertical: scale(10),
   },
   manageButtonText: {
+    color: colors.primaryContrast,
+    fontSize: ms(13),
+    fontWeight: "800",
+  },
+  announcementButton: {
+    marginTop: scale(8),
+    width: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: scale(6),
+    paddingVertical: scale(10),
+  },
+  announcementButtonText: {
     color: colors.primaryContrast,
     fontSize: ms(13),
     fontWeight: "800",

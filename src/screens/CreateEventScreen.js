@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
+import { EVENT_CATEGORY_OPTIONS } from "../utils/constants";
 import { ms, scale } from "../utils/responsive";
 
 export default function CreateEventScreen({ values, errors, onChange, onSubmit, onUploadEventImage, onBack }) {
@@ -17,6 +18,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showCategoryList, setShowCategoryList] = useState(false);
   const formBusy = submitting || uploadingBanner;
 
   const parseDateValue = () => {
@@ -196,13 +198,19 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
           error={errors.title}
         />
 
-        <Field
+        <CategorySelectField
           label="Category"
           value={values.category}
-          onChangeText={(value) => onChange("category", value)}
           placeholder="Select category"
           error={errors.category}
-          rightIcon="chevron-down"
+          options={EVENT_CATEGORY_OPTIONS}
+          isOpen={showCategoryList}
+          disabled={formBusy}
+          onToggle={() => setShowCategoryList((prev) => !prev)}
+          onSelect={(category) => {
+            onChange("category", category);
+            setShowCategoryList(false);
+          }}
         />
 
         <Field
@@ -393,6 +401,58 @@ function PickerField({ label, value, placeholder, error, icon, onPress, disabled
   );
 }
 
+function CategorySelectField({
+  label,
+  value,
+  placeholder,
+  error,
+  options,
+  isOpen,
+  onToggle,
+  onSelect,
+  disabled,
+}) {
+  const { colors } = useAppTheme();
+  const styles = getStyles(colors);
+
+  return (
+    <View style={styles.fieldWrap}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable
+        style={[styles.inputWrap, error && styles.inputWrapError, disabled && styles.inputWrapDisabled]}
+        onPress={onToggle}
+        disabled={disabled}
+      >
+        <Ionicons name="grid" size={15} color={colors.textSubtle} style={styles.leftIcon} />
+        <Text style={[styles.input, styles.inputWithLeftIcon, styles.inputWithRightIcon, !value && styles.inputPlaceholder]}>
+          {value || placeholder}
+        </Text>
+        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={15} color={colors.textMuted} style={styles.rightIcon} />
+      </Pressable>
+
+      {isOpen && (
+        <View style={styles.categoryListWrap}>
+          {options.map((option) => {
+            const active = option === value;
+            return (
+              <Pressable
+                key={option}
+                style={[styles.categoryItem, active && styles.categoryItemActive]}
+                onPress={() => onSelect(option)}
+              >
+                <Text style={[styles.categoryItemText, active && styles.categoryItemTextActive]}>{option}</Text>
+                {active && <Ionicons name="checkmark" size={14} color={colors.primary} />}
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+}
+
 const getStyles = (colors) =>
   StyleSheet.create({
   page: {
@@ -510,6 +570,34 @@ const getStyles = (colors) =>
   },
   inputWrapError: {
     borderColor: colors.error,
+  },
+  categoryListWrap: {
+    marginTop: scale(6),
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: scale(12),
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
+  categoryItem: {
+    minHeight: scale(38),
+    paddingHorizontal: scale(12),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSoft,
+  },
+  categoryItemActive: {
+    backgroundColor: colors.surfaceAlt,
+  },
+  categoryItemText: {
+    color: colors.text,
+    fontSize: ms(13),
+    fontWeight: "600",
+  },
+  categoryItemTextActive: {
+    color: colors.primary,
   },
   input: {
     color: colors.text,

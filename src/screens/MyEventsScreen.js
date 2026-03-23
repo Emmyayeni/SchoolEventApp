@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, onBack, onOpenNotifications, onCreateEvent }) {
+export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, onBack, onOpenNotifications, onCreateEvent, onOpenAnnouncement }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -59,6 +59,13 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
                 ? "Create events, publish updates, and manage registrations."
                 : "Browse event details, save favorites, and RSVP quickly."}
             </Text>
+
+            {isStaff && (
+              <Pressable style={styles.announcementBtn} onPress={onOpenAnnouncement}>
+                <Ionicons name="megaphone-outline" size={14} color={colors.primaryContrast} />
+                <Text style={styles.announcementBtnText}>Create Announcement</Text>
+              </Pressable>
+            )}
 
             <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
               <Ionicons name="search" size={16} color={colors.textSubtle} />
@@ -156,6 +163,23 @@ const createStyles = (colors) =>
     color: colors.textMuted,
     fontSize: ms(12),
     fontWeight: "600",
+  },
+  announcementBtn: {
+    alignSelf: "flex-start",
+    minHeight: scale(34),
+    borderRadius: 999,
+    paddingHorizontal: scale(12),
+    marginBottom: scale(9),
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: scale(6),
+  },
+  announcementBtnText: {
+    color: colors.primaryContrast,
+    fontSize: ms(12),
+    fontWeight: "800",
   },
   topRow: {
     flexDirection: "row",
