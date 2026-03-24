@@ -8,18 +8,17 @@ import { useAppTheme } from "../theme/theme";
 import { EVENT_CATEGORY_OPTIONS } from "../utils/constants";
 import { ms, scale } from "../utils/responsive";
 
-export default function CreateEventScreen({ values, errors, onChange, onSubmit, onUploadEventImage, onBack }) {
+export default function CreateEventScreen({ values, errors, onChange, onSubmit, onUploadEventImage, onBack, mode = "create" }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
-  const [targetAudience, setTargetAudience] = useState("All");
-  const [capacity, setCapacity] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showCategoryList, setShowCategoryList] = useState(false);
   const formBusy = submitting || uploadingBanner;
+  const isEditMode = mode === "edit";
 
   const parseDateValue = () => {
     const parsed = values.date ? new Date(values.date) : null;
@@ -153,7 +152,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
     const success = await onSubmit();
     try {
       if (success) {
-        Alert.alert("Success", "Event created successfully");
+        Alert.alert("Success", isEditMode ? "Event updated successfully" : "Event created successfully");
       }
     } finally {
       setSubmitting(false);
@@ -171,7 +170,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
         <Pressable onPress={onBack} style={styles.backButton} disabled={formBusy}>
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={styles.title}>Create Event</Text>
+        <Text style={styles.title}>{isEditMode ? "Edit Event" : "Create Event"}</Text>
       </View>
 
       <Text style={styles.sectionLabel}>Event Banner</Text>
@@ -301,16 +300,16 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
           <View style={styles.halfField}>
             <Field
               label="Target Audience"
-              value={targetAudience}
-              onChangeText={setTargetAudience}
+              value={values.targetAudience}
+              onChangeText={(value) => onChange("targetAudience", value)}
               placeholder="All"
             />
           </View>
           <View style={styles.halfField}>
             <Field
               label="Capacity"
-              value={capacity}
-              onChangeText={setCapacity}
+              value={values.capacity}
+              onChangeText={(value) => onChange("capacity", value)}
               placeholder="e.g. 500"
             />
           </View>
@@ -319,7 +318,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
 
       <Pressable style={[styles.publishButton, formBusy && styles.buttonDisabled]} onPress={handleSubmit} disabled={formBusy}>
         {submitting ? <ActivityIndicator size="small" color={colors.primaryContrast} /> : <Ionicons name="play" size={13} color={colors.primaryContrast} />}
-        <Text style={styles.publishText}>{submitting ? "Publishing..." : "Publish Event"}</Text>
+        <Text style={styles.publishText}>{submitting ? (isEditMode ? "Updating..." : "Publishing...") : (isEditMode ? "Update Event" : "Publish Event")}</Text>
       </Pressable>
 
       <Pressable style={[styles.draftButton, formBusy && styles.buttonDisabled]} onPress={onBack} disabled={formBusy}>

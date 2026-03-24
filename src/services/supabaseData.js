@@ -4,6 +4,11 @@ import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "./storage";
 const DEFAULT_EVENT_IMAGE =
   "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80";
 
+function isLikelyImageUrl(value) {
+  const raw = String(value || "").toLowerCase();
+  return /\.(jpg|jpeg|png|webp|heic)(\?|$)/.test(raw) || raw.startsWith("data:image/");
+}
+
 function to12HourTime(timeValue) {
   if (!timeValue) {
     return "";
@@ -167,6 +172,42 @@ export function mapNotificationRowToApp(row) {
   };
 }
 
+function formatAnnouncementTimestamp(dateValue) {
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toLocaleString([], {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function mapAnnouncementRowToApp(row) {
+  const resolvedAttachments = (Array.isArray(row.attachment_urls) ? row.attachment_urls : [])
+    .map((item) => resolveStoragePublicUrl(item, STORAGE_BUCKETS.announcementFiles, item))
+    .filter(Boolean);
+  const mainImage = resolvedAttachments.find(isLikelyImageUrl) || "";
+
+  return {
+    id: row.id,
+    subject: row.subject,
+    message: row.message,
+    targetAudience: Array.isArray(row.target_audience) ? row.target_audience : ["all"],
+    attachments: resolvedAttachments,
+    mainImage,
+    senderId: row.sender_id,
+    senderName: row?.sender_profile?.full_name || "Office of the Registrar",
+    sentAt: row.sent_at,
+    createdAt: row.created_at,
+    displayDate: formatAnnouncementTimestamp(row.sent_at || row.created_at),
+  };
+}
+
 export async function fetchEvents() {
   const { data, error } = await supabase
     .from("events")
@@ -269,6 +310,19 @@ export async function fetchNotifications(userId) {
   return (data || []).map(mapNotificationRowToApp);
 }
 
+export async function fetchAnnouncements() {
+  const { data, error } = await supabase
+    .from("announcements")
+    .select("id, sender_id, subject, message, target_audience, attachment_urls, sent_at, created_at, sender_profile:profiles!announcements_sender_id_fkey(full_name)")
+    .order("sent_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(mapAnnouncementRowToApp);
+}
+
 export async function markNotificationAsRead({ notificationId, userId }) {
   const { error } = await supabase
     .from("notifications")
@@ -323,15 +377,63 @@ export async function createEventFromForm({ form, userId }) {
   return mapEventRowToApp(data);
 }
 
-export async function createAnnouncement({ userId, subject, message, targetAudience }) {
-  const { error } = await supabase.from("announcements").insert({
-    sender_id: userId,
-    subject: subject.trim(),
-    message: message.trim(),
-    target_audience: normalizeAudienceList(targetAudience),
-  });
+export async function updateEventFromForm({ eventId, form, userId }) {
+  const payload = {
+    title: form.title?.trim() || "Untitled Event",
+    category: form.category?.trim() || "Workshop",
+    description: form.description?.trim() || "",
+    event_date: parseDateForDb(form.date) || new Date().toISOString().slice(0, 10),
+    start_time: parseTimeForDb(form.time),
+    venue: form.venue?.trim() || "TBA",
+    organizer: form.organizer?.trim() || "NSUK",
+    image_url: form.image?.trim() || DEFAULT_EVENT_IMAGE,
+    target_audience: normalizeAudience(form.targetAudience),
+    capacity: Number.isFinite(Number(form.capacity)) && Number(form.capacity) > 0 ? Number(form.capacity) : null,
+  };
+
+  const { data, error } = await supabase
+    .from("events")
+    .update(payload)
+    .eq("id", eventId)
+    .eq("created_by", userId)
+    .select("*")
+    .single();
 
   if (error) {
     throw error;
   }
+
+  return mapEventRowToApp(data);
+}
+
+export async function deleteEventById({ eventId, userId }) {
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId)
+    .eq("created_by", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function createAnnouncement({ userId, subject, message, targetAudience, attachmentUrls = [] }) {
+  const { data, error } = await supabase
+    .from("announcements")
+    .insert({
+      sender_id: userId,
+      subject: subject.trim(),
+      message: message.trim(),
+      target_audience: normalizeAudienceList(targetAudience),
+      attachment_urls: attachmentUrls.filter(Boolean),
+    })
+    .select("id, sender_id, subject, message, target_audience, attachment_urls, sent_at, created_at, sender_profile:profiles!announcements_sender_id_fkey(full_name)")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapAnnouncementRowToApp(data);
 }

@@ -13,20 +13,13 @@ const HOME_CATEGORIES = [
   { label: "Workshop", icon: "construct" },
 ];
 
-const DUMMY_ANNOUNCEMENTS = [
-  {
-    id: "dummy-announcement-1",
-    title: "Important: New Exam Schedule Released",
-    message: "View the revised dates for the 2026 session.",
-  },
-];
-
 export default function HomeScreen({
   user,
   dashboardType = "student",
   bookmarkedEventIds = [],
   events = [],
   featuredEvents = [],
+  announcements = [],
   onToggleBookmark,
   onOpenNotifications,
   onOpenEvent,
@@ -76,7 +69,7 @@ export default function HomeScreen({
   }, [featuredEvents, filteredEvents]);
 
   const upcoming = useMemo(() => filteredEvents.slice(0, 3), [filteredEvents]);
-  const announcement = DUMMY_ANNOUNCEMENTS[0];
+  const announcement = announcements[0] || null;
 
   return (
     <ScrollView
@@ -123,21 +116,23 @@ export default function HomeScreen({
         </Pressable>
       </View>
 
-      <Pressable
-        style={styles.announcementCard}
-        onPress={() => onOpenAnnouncementDetails?.()}
-      >
-        <View style={styles.announcementIconWrap}>
-          <Ionicons name="megaphone" size={14} color={colors.accent} />
-        </View>
-        <View style={styles.announcementBody}>
-          <Text style={styles.announcementTitle} numberOfLines={2}>{announcement.title}</Text>
-          <View style={styles.announcementBottomRow}>
-            <Text style={styles.announcementMessage} numberOfLines={2}>{announcement.message}</Text>
-            <Text style={styles.announcementLink}>Read More</Text>
+      {announcement && (
+        <Pressable
+          style={styles.announcementCard}
+          onPress={() => onOpenAnnouncementDetails?.(announcement.id)}
+        >
+          <View style={styles.announcementIconWrap}>
+            <Ionicons name="megaphone" size={14} color={colors.accent} />
           </View>
-        </View>
-      </Pressable>
+          <View style={styles.announcementBody}>
+            <Text style={styles.announcementTitle} numberOfLines={2}>{announcement.subject}</Text>
+            <View style={styles.announcementBottomRow}>
+              <Text style={styles.announcementMessage} numberOfLines={2}>{announcement.message}</Text>
+              <Text style={styles.announcementLink}>Read More</Text>
+            </View>
+          </View>
+        </Pressable>
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
         {HOME_CATEGORIES.map((categoryItem) => {

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -20,6 +21,32 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   const [scheduledAt, setScheduledAt] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [mainImageUri, setMainImageUri] = useState("");
+  const [attachmentUris, setAttachmentUris] = useState([]);
+
+  const pickImage = async ({ onSelect }) => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission required", "Please allow photo access to add an image.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.9,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      onSelect(result.assets[0].uri);
+    } catch (_error) {
+      Alert.alert("Upload failed", "Could not pick image. Please try again.");
+    }
+  };
 
   const scheduledLabel = `${scheduledAt.toLocaleDateString()} ${scheduledAt.toLocaleTimeString([], {
     hour: "2-digit",
@@ -80,6 +107,8 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         message,
         targetAudience: selectedAudience,
         scheduledAt: scheduleMode === "later" ? scheduledAt.toISOString() : null,
+        mainImageUri,
+        attachmentUris,
       });
 
       if (!result?.ok) {
@@ -95,6 +124,8 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
 
     setSubject("");
     setMessage("");
+    setMainImageUri("");
+    setAttachmentUris([]);
   };
 
   return (
@@ -151,6 +182,29 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         multiline
         textAlignVertical="top"
       />
+
+      <Text style={styles.label}>Main Image (Optional)</Text>
+      <Pressable
+        style={styles.attachBox}
+        onPress={() => pickImage({ onSelect: setMainImageUri })}
+      >
+        {mainImageUri ? (
+          <View style={styles.previewWrap}>
+            <Image source={{ uri: mainImageUri }} style={styles.previewImage} resizeMode="cover" />
+            <Pressable style={styles.removeBadge} onPress={() => setMainImageUri("")}>
+              <Ionicons name="close" size={12} color={colors.primaryContrast} />
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View style={styles.attachIconWrap}>
+              <Ionicons name="image-outline" size={18} color={colors.accent} />
+            </View>
+            <Text style={styles.attachText}>Tap to choose announcement cover image</Text>
+            <Text style={styles.attachHint}>JPG, PNG, WEBP</Text>
+          </>
+        )}
+      </Pressable>
 
       <Text style={styles.sectionTitle}>DELIVERY</Text>
       <View style={styles.scheduleRow}>
@@ -212,14 +266,41 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
       <Text style={styles.label}>Attachments (Optional)</Text>
       <Pressable
         style={styles.attachBox}
-        onPress={() => Alert.alert("Upload", "Attachment upload will be added next.")}
+        onPress={() =>
+          pickImage({
+            onSelect: (uri) => {
+              setAttachmentUris((prev) => {
+                if (prev.includes(uri)) {
+                  return prev;
+                }
+                return [...prev, uri].slice(0, 5);
+              });
+            },
+          })
+        }
       >
         <View style={styles.attachIconWrap}>
           <Ionicons name="document-attach" size={18} color={colors.accent} />
         </View>
-        <Text style={styles.attachText}>Click to upload images or documents</Text>
-        <Text style={styles.attachHint}>PDF, JPG, PNG (Max 5MB)</Text>
+        <Text style={styles.attachText}>Tap to add attachment images ({attachmentUris.length}/5)</Text>
+        <Text style={styles.attachHint}>JPG, PNG, WEBP</Text>
       </Pressable>
+
+      {attachmentUris.length > 0 && (
+        <View style={styles.attachmentPreviewRow}>
+          {attachmentUris.map((uri, index) => (
+            <View key={`${uri}-${index}`} style={styles.attachmentThumbWrap}>
+              <Image source={{ uri }} style={styles.attachmentThumb} resizeMode="cover" />
+              <Pressable
+                style={styles.removeAttachmentBtn}
+                onPress={() => setAttachmentUris((prev) => prev.filter((item) => item !== uri))}
+              >
+                <Ionicons name="close" size={10} color={colors.primaryContrast} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
 
       <Pressable style={styles.sendBtn} onPress={handleSend}>
         <Ionicons name="paper-plane" size={14} color={colors.primaryContrast} />
@@ -421,6 +502,58 @@ const getStyles = (colors, isDark) =>
       color: colors.textSubtle,
       fontSize: ms(10),
       fontWeight: "600",
+    },
+    previewWrap: {
+      width: "100%",
+      height: scale(140),
+      borderRadius: scale(10),
+      overflow: "hidden",
+      position: "relative",
+    },
+    previewImage: {
+      width: "100%",
+      height: "100%",
+    },
+    removeBadge: {
+      position: "absolute",
+      top: scale(8),
+      right: scale(8),
+      width: scale(22),
+      height: scale(22),
+      borderRadius: scale(11),
+      backgroundColor: colors.error,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    attachmentPreviewRow: {
+      marginTop: scale(8),
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: scale(8),
+    },
+    attachmentThumbWrap: {
+      width: scale(64),
+      height: scale(64),
+      borderRadius: scale(8),
+      overflow: "hidden",
+      position: "relative",
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    attachmentThumb: {
+      width: "100%",
+      height: "100%",
+    },
+    removeAttachmentBtn: {
+      position: "absolute",
+      top: scale(3),
+      right: scale(3),
+      width: scale(16),
+      height: scale(16),
+      borderRadius: scale(8),
+      backgroundColor: colors.error,
+      alignItems: "center",
+      justifyContent: "center",
     },
     sendBtn: {
       marginTop: scale(18),

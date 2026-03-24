@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
@@ -8,14 +9,29 @@ export default function EventDetailsScreen({
   isRegistered,
   isBookmarked,
   registering,
+  canManageEvent,
+  deletingEvent,
   onRegister,
   onToggleBookmark,
+  onEditEvent,
+  onDeleteEvent,
   onBack,
 }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
   const registerLabel = isRegistered ? "Registered" : registering ? "Registering..." : "Register Now";
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTs(Date.now());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const eventStatus = useMemo(() => getEventTimeStatus(event, nowTs), [event, nowTs]);
 
   return (
     <ScrollView
@@ -32,6 +48,16 @@ export default function EventDetailsScreen({
           <Pressable style={styles.topIconBtn} onPress={onToggleBookmark}>
             <Ionicons name={isBookmarked ? "bookmark" : "bookmark-outline"} size={14} color={colors.primary} />
           </Pressable>
+          {canManageEvent && (
+            <Pressable style={styles.topIconBtn} onPress={onEditEvent}>
+              <Ionicons name="create-outline" size={14} color={colors.primary} />
+            </Pressable>
+          )}
+          {canManageEvent && (
+            <Pressable style={styles.topIconBtn} onPress={onDeleteEvent} disabled={deletingEvent}>
+              <Ionicons name="trash-outline" size={14} color={colors.error} />
+            </Pressable>
+          )}
           <Pressable
             style={styles.topIconBtn}
             onPress={() => Alert.alert("Share", "Share feature will be connected to native share API later.")}
@@ -86,7 +112,7 @@ export default function EventDetailsScreen({
             <View style={[styles.avatarDot, { backgroundColor: colors.unreadBg }]} />
           </View>
           <Text style={styles.registeredText}>150+ registered</Text>
-          <Text style={styles.statusText}>RSVP OPEN</Text>
+          <Text style={styles.statusText}>{eventStatus}</Text>
         </View>
 
         <Text style={styles.sectionTitle}>About this event</Text>
@@ -165,6 +191,77 @@ function formatEventDate(dateText) {
   const day = parsed.getDate();
   const year = parsed.getFullYear();
   return `${month} ${day}, ${year}`;
+}
+
+function parseEventStartDateTime(dateText, timeText) {
+  if (!dateText) {
+    return null;
+  }
+
+  const baseDate = new Date(dateText);
+  if (Number.isNaN(baseDate.getTime())) {
+    return null;
+  }
+
+  const start = new Date(baseDate);
+  start.setHours(0, 0, 0, 0);
+
+  const rawTime = String(timeText || "").trim();
+  if (!rawTime) {
+    return start;
+  }
+
+  const twelveHour = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (twelveHour) {
+    let hour = Number(twelveHour[1]);
+    const minute = Number(twelveHour[2]);
+    const period = twelveHour[3].toUpperCase();
+
+    if (period === "PM" && hour < 12) {
+      hour += 12;
+    }
+    if (period === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    start.setHours(hour, minute, 0, 0);
+    return start;
+  }
+
+  const twentyFourHour = rawTime.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (twentyFourHour) {
+    const hour = Number(twentyFourHour[1]);
+    const minute = Number(twentyFourHour[2]);
+    start.setHours(hour, minute, 0, 0);
+    return start;
+  }
+
+  return start;
+}
+
+function getEventTimeStatus(event, nowTimestamp) {
+  const start = parseEventStartDateTime(event?.date, event?.time);
+  if (!start) {
+    return "UPCOMING";
+  }
+
+  const hasTime = !!String(event?.time || "").trim();
+  const end = new Date(start);
+  if (hasTime) {
+    // Default duration when end time is not stored.
+    end.setHours(end.getHours() + 2);
+  } else {
+    end.setDate(end.getDate() + 1);
+  }
+
+  const now = new Date(nowTimestamp);
+  if (now < start) {
+    return "UPCOMING";
+  }
+  if (now >= end) {
+    return "PAST";
+  }
+  return "ONGOING";
 }
 
 const getStyles = (colors) =>

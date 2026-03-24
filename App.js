@@ -28,7 +28,10 @@ import SignupScreen from "./src/screens/SignupScreen";
 import SplashScreen from "./src/screens/SplashScreen";
 import { STORAGE_BUCKETS, uploadImageToBucket } from "./src/services/storage";
 import {
+    createAnnouncement,
     createEventFromForm,
+    deleteEventById,
+    fetchAnnouncements,
     fetchEventBookmarks,
     fetchEventRegistrations,
     fetchEvents,
@@ -37,11 +40,24 @@ import {
     markNotificationAsRead,
     registerForEvent,
     toggleEventBookmark,
+    updateEventFromForm,
 } from "./src/services/supabaseData";
 import { ThemeProvider, getThemeColors } from "./src/theme/theme";
 import { filterByCategory, searchEvents } from "./src/utils/helpers";
 
 const PROFILE_CACHE_KEY = "@nsuk/profile_cache";
+const DEFAULT_CREATE_EVENT_FORM = {
+  title: "",
+  category: "",
+  description: "",
+  date: "",
+  time: "",
+  venue: "",
+  organizer: "",
+  image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
+  targetAudience: "all",
+  capacity: "",
+};
 
 export default function App() {
   const systemScheme = useColorScheme();
@@ -60,6 +76,8 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState("home");
   const [selectedEventId, setSelectedEventId] = useState(null);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [deletingEvent, setDeletingEvent] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [openingAnnouncement, setOpeningAnnouncement] = useState(false);
@@ -67,6 +85,7 @@ export default function App() {
   const [openingSettings, setOpeningSettings] = useState(false);
 
   const [events, setEvents] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [user, setUser] = useState(seedUser);
   const [notifications, setNotifications] = useState([]);
   const [registeredEventIds, setRegisteredEventIds] = useState([]);
@@ -74,6 +93,7 @@ export default function App() {
 
   const [homeSearch, setHomeSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState(["tech", "football", "workshop", "science"]);
 
@@ -105,16 +125,7 @@ export default function App() {
 
   const [profileDraft, setProfileDraft] = useState(seedUser);
 
-  const [createEventForm, setCreateEventForm] = useState({
-    title: "",
-    category: "",
-    description: "",
-    date: "",
-    time: "",
-    venue: "",
-    organizer: "",
-    image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
-  });
+  const [createEventForm, setCreateEventForm] = useState(DEFAULT_CREATE_EVENT_FORM);
   const [createEventErrors, setCreateEventErrors] = useState({});
 
   const cacheProfileLocally = async (profile) => {
@@ -143,11 +154,12 @@ export default function App() {
       return;
     }
 
-    const [eventRows, registrationRows, bookmarkIds, notificationRows] = await Promise.all([
+    const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows] = await Promise.all([
       fetchEvents(),
       fetchEventRegistrations(currentUserId),
       fetchEventBookmarks(currentUserId),
       fetchNotifications(currentUserId),
+      fetchAnnouncements(),
     ]);
 
     setEvents(eventRows);
@@ -158,6 +170,7 @@ export default function App() {
     );
     setBookmarkedEventIds(bookmarkIds);
     setNotifications(notificationRows);
+    setAnnouncements(announcementRows);
   }, []);
 
   useEffect(() => {
@@ -294,6 +307,21 @@ export default function App() {
     () => events.find((event) => event.id === selectedEventId),
     [events, selectedEventId]
   );
+  const canManageSelectedEvent = useMemo(
+    () => !!selectedEvent && selectedEvent.createdBy === user?.id,
+    [selectedEvent, user?.id]
+  );
+
+  const selectedAnnouncement = useMemo(
+    () => {
+      if (!selectedAnnouncementId) {
+        return announcements[0] || null;
+      }
+
+      return announcements.find((item) => item.id === selectedAnnouncementId) || null;
+    },
+    [announcements, selectedAnnouncementId]
+  );
 
   const featuredEvents = useMemo(() => events.filter((event) => event.isFeatured), [events]);
 
@@ -336,6 +364,61 @@ export default function App() {
 
     if (item.eventId) {
       setSelectedEventId(item.eventId);
+    }
+
+    if (item.announcementId) {
+      setSelectedAnnouncementId(item.announcementId);
+      setOpeningAnnouncementDetails(true);
+    }
+  };
+
+  const handleSendAnnouncement = async ({
+    subject,
+    message,
+    targetAudience,
+    scheduledAt,
+    mainImageUri,
+    attachmentUris = [],
+  }) => {
+    try {
+      if (scheduledAt) {
+        Alert.alert("Scheduling note", "Scheduled announcements are not enabled yet. This will be sent immediately.");
+      }
+
+      const uploadedUrls = [];
+
+      if (mainImageUri) {
+        const uploadedMain = await handleUploadAnnouncementMedia(mainImageUri);
+        if (!uploadedMain.ok) {
+          Alert.alert("Upload failed", uploadedMain.message || "Could not upload main image.");
+          return { ok: false };
+        }
+        uploadedUrls.push(uploadedMain.path);
+      }
+
+      if (attachmentUris.length > 0) {
+        for (const uri of attachmentUris) {
+          const uploaded = await handleUploadAnnouncementMedia(uri);
+          if (uploaded.ok) {
+            uploadedUrls.push(uploaded.path);
+          }
+        }
+      }
+
+      const created = await createAnnouncement({
+        userId: user.id,
+        subject,
+        message,
+        targetAudience,
+        attachmentUrls: uploadedUrls,
+      });
+
+      setAnnouncements((prev) => [created, ...prev]);
+      setOpeningAnnouncement(false);
+      return { ok: true };
+    } catch (error) {
+      Alert.alert("Send failed", error?.message || "Could not send announcement.");
+      return { ok: false };
     }
   };
 
@@ -390,6 +473,69 @@ export default function App() {
     } finally {
       setRegistering(false);
     }
+  };
+
+  const openCreateEvent = () => {
+    setEditingEventId(null);
+    setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+    setCreateEventErrors({});
+    setCreatingEvent(true);
+  };
+
+  const startEditSelectedEvent = () => {
+    if (!selectedEvent || selectedEvent.createdBy !== user?.id) {
+      return;
+    }
+
+    setEditingEventId(selectedEvent.id);
+    setCreateEventForm({
+      title: selectedEvent.title || "",
+      category: selectedEvent.category || "",
+      description: selectedEvent.description || "",
+      date: selectedEvent.date || "",
+      time: selectedEvent.time || "",
+      venue: selectedEvent.venue || "",
+      organizer: selectedEvent.organizer || "",
+      image: selectedEvent.image || DEFAULT_CREATE_EVENT_FORM.image,
+      targetAudience: selectedEvent.targetAudience || "all",
+      capacity: selectedEvent.capacity ? String(selectedEvent.capacity) : "",
+    });
+    setCreateEventErrors({});
+    setSelectedEventId(null);
+    setCreatingEvent(true);
+  };
+
+  const confirmDeleteSelectedEvent = () => {
+    if (!selectedEvent || selectedEvent.createdBy !== user?.id || deletingEvent) {
+      return;
+    }
+
+    Alert.alert(
+      "Delete event",
+      "This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingEvent(true);
+            try {
+              await deleteEventById({ eventId: selectedEvent.id, userId: user.id });
+              setEvents((prev) => prev.filter((item) => item.id !== selectedEvent.id));
+              setBookmarkedEventIds((prev) => prev.filter((id) => id !== selectedEvent.id));
+              setRegisteredEventIds((prev) => prev.filter((id) => id !== selectedEvent.id));
+              setSelectedEventId(null);
+              Alert.alert("Deleted", "Event removed successfully.");
+            } catch (error) {
+              Alert.alert("Delete failed", error?.message || "Could not delete this event.");
+            } finally {
+              setDeletingEvent(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const submitLogin = async () => {
@@ -522,24 +668,26 @@ export default function App() {
     }
 
     try {
-      const created = await createEventFromForm({ form: createEventForm, userId: user.id });
-      setEvents((prev) => [created, ...prev]);
+      if (editingEventId) {
+        const updated = await updateEventFromForm({
+          eventId: editingEventId,
+          form: createEventForm,
+          userId: user.id,
+        });
+        setEvents((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      } else {
+        const created = await createEventFromForm({ form: createEventForm, userId: user.id });
+        setEvents((prev) => [created, ...prev]);
+      }
+
       setCreatingEvent(false);
+      setEditingEventId(null);
       setActiveTab("home");
-      setCreateEventForm({
-        title: "",
-        category: "",
-        description: "",
-        date: "",
-        time: "",
-        venue: "",
-        organizer: "",
-        image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
-      });
+      setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
       setCreateEventErrors({});
       return true;
     } catch (error) {
-      Alert.alert("Create failed", error?.message || "Could not create event.");
+      Alert.alert(editingEventId ? "Update failed" : "Create failed", error?.message || "Could not save event.");
       return false;
     }
   };
@@ -650,6 +798,33 @@ export default function App() {
     }
   };
 
+  const handleUploadAnnouncementMedia = async (localUri) => {
+    const startedAt = Date.now();
+    console.log("[announcement-media-upload] started", {
+      uriPrefix: String(localUri || "").slice(0, 40),
+    });
+
+    try {
+      const uploaded = await uploadImageToBucket({
+        bucket: STORAGE_BUCKETS.announcementFiles,
+        userId: user?.id,
+        localUri,
+      });
+
+      console.log("[announcement-media-upload] success", {
+        durationMs: Date.now() - startedAt,
+        path: uploaded.path,
+      });
+      return { ok: true, ...uploaded };
+    } catch (error) {
+      console.log("[announcement-media-upload] failed", {
+        durationMs: Date.now() - startedAt,
+        message: error?.message || String(error),
+      });
+      return { ok: false, message: error?.message || "Could not upload announcement media." };
+    }
+  };
+
   const isStaffUser = user?.accountType === "staff";
 
   const logout = async () => {
@@ -666,12 +841,15 @@ export default function App() {
     setPhase("auth");
     setAuthScreen("login");
     setSelectedEventId(null);
+    setEditingEventId(null);
+    setDeletingEvent(false);
     setEditingProfile(false);
     setCreatingEvent(false);
     setOpeningAnnouncement(false);
     setOpeningAnnouncementDetails(false);
     setOpeningSettings(false);
     setEvents([]);
+    setAnnouncements([]);
     setNotifications([]);
     setRegisteredEventIds([]);
     setBookmarkedEventIds([]);
@@ -788,8 +966,12 @@ export default function App() {
         isRegistered={registeredEventIds.includes(selectedEvent.id)}
         isBookmarked={bookmarkedEventIds.includes(selectedEvent.id)}
         registering={registering}
+        canManageEvent={canManageSelectedEvent}
+        deletingEvent={deletingEvent}
         onRegister={handleRegisterEvent}
         onToggleBookmark={() => handleToggleBookmark(selectedEvent.id)}
+        onEditEvent={startEditSelectedEvent}
+        onDeleteEvent={confirmDeleteSelectedEvent}
         onBack={() => setSelectedEventId(null)}
       />,
       ["bottom", "left", "right"]
@@ -821,6 +1003,7 @@ export default function App() {
   if (creatingEvent) {
     return renderInShell(
       <CreateEventScreen
+        mode={editingEventId ? "edit" : "create"}
         values={createEventForm}
         errors={createEventErrors}
         onChange={(field, value) => {
@@ -829,7 +1012,10 @@ export default function App() {
         }}
         onUploadEventImage={handleUploadEventImage}
         onSubmit={submitCreateEvent}
-        onBack={() => setCreatingEvent(false)}
+        onBack={() => {
+          setCreatingEvent(false);
+          setEditingEventId(null);
+        }}
       />,
       ["bottom", "left", "right"]
     );
@@ -844,14 +1030,20 @@ export default function App() {
 
   if (openingAnnouncement) {
     return renderInShell(
-      <SendAnnouncementScreen onBack={() => setOpeningAnnouncement(false)} />,
+      <SendAnnouncementScreen
+        onBack={() => setOpeningAnnouncement(false)}
+        onSendAnnouncement={handleSendAnnouncement}
+      />,
       ["bottom", "left", "right"]
     );
   }
 
   if (openingAnnouncementDetails) {
     return renderInShell(
-      <AnnouncementDetailsScreen onBack={() => setOpeningAnnouncementDetails(false)} />,
+      <AnnouncementDetailsScreen
+        announcement={selectedAnnouncement}
+        onBack={() => setOpeningAnnouncementDetails(false)}
+      />,
       ["bottom", "left", "right"]
     );
   }
@@ -867,11 +1059,15 @@ export default function App() {
         bookmarkedEventIds,
         featuredEvents,
         events: filteredHomeEvents,
+        announcements,
         onToggleBookmark: handleToggleBookmark,
         onOpenEvent: openEvent,
         onOpenNotifications: () => setActiveTab("notifications"),
         onOpenProfile: () => setActiveTab("profile"),
-        onOpenAnnouncementDetails: () => setOpeningAnnouncementDetails(true),
+        onOpenAnnouncementDetails: (announcementId) => {
+          setSelectedAnnouncementId(announcementId || null);
+          setOpeningAnnouncementDetails(true);
+        },
         onActivateSearch: (value) => {
           const input = String(value || "").trim();
           if (input) {
@@ -897,7 +1093,7 @@ export default function App() {
         onOpenEvent: openEvent,
         onBack: () => setActiveTab("home"),
         onOpenNotifications: () => setActiveTab("notifications"),
-        onCreateEvent: () => setCreatingEvent(true),
+        onCreateEvent: openCreateEvent,
         onOpenAnnouncement: () => setOpeningAnnouncement(true),
       }}
       notificationsProps={{
@@ -921,7 +1117,7 @@ export default function App() {
         onOpenSavedEvents: () => setActiveTab("home"),
         onOpenNotifications: () => setActiveTab("notifications"),
         onOpenSettings: () => setOpeningSettings(true),
-        onCreateEvent: () => setCreatingEvent(true),
+        onCreateEvent: openCreateEvent,
         onOpenAnnouncement: () => setOpeningAnnouncement(true),
         onLogout: logout,
       }}

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
@@ -11,6 +11,15 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState("All Events");
   const [viewMode, setViewMode] = useState("list");
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTs(Date.now());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const categories = [
     { label: "All Events", icon: "apps" },
@@ -52,6 +61,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
         <ExploreCard
           event={item}
           index={index}
+          nowTs={nowTs}
           viewMode={viewMode}
           colors={colors}
           styles={styles}
@@ -134,9 +144,9 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   );
 }
 
-function ExploreCard({ event, index, viewMode, onPress, colors, styles }) {
-  const status = getStatus(index);
-  const disabled = status.label === "CLOSED";
+function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles }) {
+  const status = getStatus(event, nowTs);
+  const disabled = status.type === "past";
 
   return (
     <Pressable
@@ -152,7 +162,7 @@ function ExploreCard({ event, index, viewMode, onPress, colors, styles }) {
       <View style={styles.imageWrap}>
         <Image source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
         <View style={styles.badgeOverlay}>
-          <Text style={[styles.badgeTag, status.type === "closed" && styles.badgeGray]}>{status.label}</Text>
+          <Text style={[styles.badgeTag, status.type === "past" && styles.badgeGray]}>{status.label}</Text>
           <Text style={styles.badgeTagSecondary} numberOfLines={1}>
             {toCategoryLabel(event.category)}
           </Text>
@@ -184,10 +194,10 @@ function ExploreCard({ event, index, viewMode, onPress, colors, styles }) {
         </View>
 
         <View style={styles.bottomRow}>
-          <Text style={styles.attendingText}>{getAttending(index)}</Text>
+          <Text style={styles.attendingText}>{getAttending(status.type)}</Text>
           <Pressable disabled={disabled} style={[styles.actionButton, disabled && styles.actionButtonDisabled]}>
             <Text style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>
-              {disabled ? "View Results" : index === 0 ? "RSVP Now" : "Register"}
+              {disabled ? "View Results" : status.type === "ongoing" ? "Join Now" : "Register"}
             </Text>
           </Pressable>
         </View>
@@ -196,21 +206,82 @@ function ExploreCard({ event, index, viewMode, onPress, colors, styles }) {
   );
 }
 
-function getStatus(index) {
-  if (index === 0) {
-    return { label: "ONGOING", type: "ongoing" };
+function parseEventStartDateTime(dateText, timeText) {
+  if (!dateText) {
+    return null;
   }
-  if (index === 1) {
-    return { label: "UPCOMING", type: "upcoming" };
+
+  const baseDate = new Date(dateText);
+  if (Number.isNaN(baseDate.getTime())) {
+    return null;
   }
-  return { label: "CLOSED", type: "closed" };
+
+  const start = new Date(baseDate);
+  start.setHours(0, 0, 0, 0);
+
+  const rawTime = String(timeText || "").trim();
+  if (!rawTime) {
+    return start;
+  }
+
+  const twelveHour = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (twelveHour) {
+    let hour = Number(twelveHour[1]);
+    const minute = Number(twelveHour[2]);
+    const period = twelveHour[3].toUpperCase();
+
+    if (period === "PM" && hour < 12) {
+      hour += 12;
+    }
+    if (period === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    start.setHours(hour, minute, 0, 0);
+    return start;
+  }
+
+  const twentyFourHour = rawTime.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (twentyFourHour) {
+    const hour = Number(twentyFourHour[1]);
+    const minute = Number(twentyFourHour[2]);
+    start.setHours(hour, minute, 0, 0);
+    return start;
+  }
+
+  return start;
 }
 
-function getAttending(index) {
-  if (index === 0) {
+function getStatus(event, nowTs) {
+  const start = parseEventStartDateTime(event?.date, event?.time);
+  if (!start) {
+    return { label: "UPCOMING", type: "upcoming" };
+  }
+
+  const hasTime = !!String(event?.time || "").trim();
+  const end = new Date(start);
+  if (hasTime) {
+    // If no end time exists, assume a 2 hour event duration.
+    end.setHours(end.getHours() + 2);
+  } else {
+    end.setDate(end.getDate() + 1);
+  }
+
+  const now = new Date(nowTs);
+  if (now < start) {
+    return { label: "UPCOMING", type: "upcoming" };
+  }
+  if (now >= end) {
+    return { label: "ENDED", type: "past" };
+  }
+  return { label: "ONGOING", type: "ongoing" };
+}
+
+function getAttending(statusType) {
+  if (statusType === "ongoing") {
     return "20k+";
   }
-  if (index === 1) {
+  if (statusType === "upcoming") {
     return "250+ attending";
   }
   return "Registration ended";
