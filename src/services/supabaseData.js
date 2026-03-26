@@ -270,30 +270,45 @@ export async function fetchEventBookmarks(userId) {
 }
 
 export async function toggleEventBookmark({ eventId, userId, isBookmarked }) {
-  if (isBookmarked) {
-    const { error } = await supabase
-      .from("event_bookmarks")
-      .delete()
-      .eq("user_id", userId)
-      .eq("event_id", eventId);
+  try {
+    if (isBookmarked) {
+      const { error } = await supabase
+        .from("event_bookmarks")
+        .delete()
+        .eq("user_id", userId)
+        .eq("event_id", eventId);
+
+      if (error) {
+        console.error("Bookmark delete error:", error?.message || error, {
+          eventId,
+          userId,
+        });
+        throw error;
+      }
+
+      console.log("Bookmark removed successfully", { eventId, userId });
+      return false;
+    }
+
+    const { error } = await supabase.from("event_bookmarks").insert({
+      user_id: userId,
+      event_id: eventId,
+    });
 
     if (error) {
+      console.error("Bookmark insert error:", error?.message || error, {
+        eventId,
+        userId,
+      });
       throw error;
     }
 
-    return false;
-  }
-
-  const { error } = await supabase.from("event_bookmarks").insert({
-    user_id: userId,
-    event_id: eventId,
-  });
-
-  if (error) {
+    console.log("Bookmark added successfully", { eventId, userId });
+    return true;
+  } catch (error) {
+    console.error("Toggle bookmark failed:", error?.message || error);
     throw error;
   }
-
-  return true;
 }
 
 export async function fetchNotifications(userId) {

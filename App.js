@@ -434,15 +434,22 @@ export default function App() {
   const handleToggleBookmark = async (eventId) => {
     try {
       const isBookmarked = bookmarkedEventIds.includes(eventId);
+      console.log("Toggling bookmark:", { eventId, currently: isBookmarked });
+      
       const nowBookmarked = await toggleEventBookmark({ eventId, userId: user.id, isBookmarked });
+      
       setBookmarkedEventIds((prev) => {
         if (nowBookmarked) {
           return prev.includes(eventId) ? prev : [...prev, eventId];
         }
         return prev.filter((id) => id !== eventId);
       });
+      
+      console.log("Bookmark toggled successfully:", { eventId, newState: nowBookmarked });
     } catch (error) {
-      Alert.alert("Error", "Could not update bookmark.");
+      console.error("Bookmark toggle error:", error);
+      const errorMsg = error?.message || error?.details || "Could not update bookmark.";
+      Alert.alert("Bookmark Error", errorMsg);
     }
   };
 
@@ -1114,12 +1121,19 @@ export default function App() {
           setEditingProfile(true);
         },
         onOpenMyEvents: () => setActiveTab("my-events"),
-        onOpenSavedEvents: () => setActiveTab("home"),
+        onOpenSavedEvents: () => setActiveTab("my-events"),
         onOpenNotifications: () => setActiveTab("notifications"),
         onOpenSettings: () => setOpeningSettings(true),
         onCreateEvent: openCreateEvent,
         onOpenAnnouncement: () => setOpeningAnnouncement(true),
         onLogout: logout,
+      }}
+      savedEventsProps={{
+        events,
+        bookmarkedEventIds,
+        onBack: () => setActiveTab("home"),
+        onOpenEvent: openEvent,
+        onToggleBookmark: handleToggleBookmark,
       }}
     />,
     ["left", "right"]

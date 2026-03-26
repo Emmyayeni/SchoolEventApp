@@ -3,6 +3,7 @@ import HomeScreen from "../screens/HomeScreen";
 import MyEventsScreen from "../screens/MyEventsScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import SavedEventsScreen from "../screens/SavedEventsScreen";
 import SearchScreen from "../screens/SearchScreen";
 import { useAppTheme } from "../theme/theme";
 import BottomTabs from "./BottomTabs";
@@ -16,6 +17,7 @@ export default function AppNavigator({
   myEventsProps,
   notificationsProps,
   profileProps,
+  savedEventsProps,
 }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
@@ -28,7 +30,7 @@ export default function AppNavigator({
       return <SearchScreen {...searchProps} />;
     }
     if (activeTab === "my-events") {
-      return <MyEventsScreen {...myEventsProps} />;
+      return isStaff ? <MyEventsScreen {...myEventsProps} /> : <SavedEventsScreen {...savedEventsProps} />;
     }
     if (activeTab === "notifications") {
       return <NotificationsScreen {...notificationsProps} />;

@@ -639,15 +639,6 @@ for insert
 to authenticated
 with check (
   user_id = (select auth.uid())
-  and exists (
-    select 1
-    from public.events e
-    where e.id = event_id
-      and (
-        e.status = 'published'
-        or e.created_by = (select auth.uid())
-      )
-  )
 );
 
 drop policy if exists "event_bookmarks_delete_own" on public.event_bookmarks;
