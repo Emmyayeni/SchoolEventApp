@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-nat
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
-export default function SettingsScreen({ onBack, onLogout }) {
+export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLogout }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -28,11 +28,20 @@ export default function SettingsScreen({ onBack, onLogout }) {
         </View>
       </View>
 
-      <SectionTitle title="ACCOUNT" colors={colors} styles={styles} />
+      <SectionTitle title="ACCOUNT & APPEARANCE" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
         <SettingsRow icon="lock-closed" label="Password change" colors={colors} styles={styles} />
         <Divider styles={styles} />
         <SettingsRow icon="shield-checkmark" label="Privacy settings" colors={colors} styles={styles} />
+        <Divider styles={styles} />
+        <ToggleRow
+          icon={themeMode === "dark" ? "moon" : "sunny"}
+          label="Dark Mode"
+          value={themeMode === "dark"}
+          onValueChange={onToggleTheme}
+          colors={colors}
+          styles={styles}
+        />
       </View>
 
       <SectionTitle title="NOTIFICATIONS" colors={colors} styles={styles} />

@@ -162,7 +162,7 @@ const getStyles = (colors) =>
     fontWeight: "700",
   },
   loaderPercent: {
-    color: colors.accent,
+    color: colors.primaryContrast,
     fontSize: ms(12),
     fontWeight: "900",
   },
@@ -175,7 +175,7 @@ const getStyles = (colors) =>
   loaderFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primaryContrast,
   },
   footerText: {
     color: colors.alphaTextLow,

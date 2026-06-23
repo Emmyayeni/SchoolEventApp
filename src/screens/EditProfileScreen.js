@@ -156,14 +156,23 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
         </View>
 
         <View style={styles.doubleRow}>
-          <View style={[styles.input, styles.selectLike]}>
-            <Text style={styles.selectText}>{values.department || "Select department"}</Text>
-            <Ionicons name="chevron-down" size={16} color={colors.textSubtle} />
-          </View>
-          <View style={[styles.input, styles.selectLike]}>
-            <Text style={styles.selectText}>{values.level ? `${values.level} Level` : "Select level"}</Text>
-            <Ionicons name="chevron-down" size={16} color={colors.textSubtle} />
-          </View>
+          <TextInput
+            value={values.department}
+            onChangeText={(value) => onChange("department", value)}
+            placeholder="E.g. Computer Science"
+            placeholderTextColor={colors.textSubtle}
+            style={[styles.input, { flex: 1 }]}
+            editable={!formBusy}
+          />
+          <TextInput
+            value={values.level}
+            onChangeText={(value) => onChange("level", value)}
+            placeholder="E.g. 400"
+            placeholderTextColor={colors.textSubtle}
+            style={[styles.input, { flex: 1 }]}
+            keyboardType="number-pad"
+            editable={!formBusy}
+          />
         </View>
 
         <Pressable style={[styles.saveBtn, formBusy && styles.saveBtnDisabled]} onPress={handleSave} disabled={formBusy}>

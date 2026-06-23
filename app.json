@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MyProject",
+    "name": "NSUK Events",
     "slug": "MyProject",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,11 +22,10 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
       [
         "expo-image-picker",
         {
@@ -46,11 +45,16 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    }
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0b7a24"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ]
   }
 }

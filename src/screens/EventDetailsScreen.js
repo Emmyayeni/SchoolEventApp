@@ -32,6 +32,26 @@ export default function EventDetailsScreen({
   }, []);
 
   const eventStatus = useMemo(() => getEventTimeStatus(event, nowTs), [event, nowTs]);
+  const audienceLabels = useMemo(() => getAudienceLabels(event?.targetAudience), [event?.targetAudience]);
+  const registeredUsers = useMemo(() => {
+    if (!Array.isArray(event?.registeredUsers)) {
+      return [];
+    }
+    return event.registeredUsers.slice(0, 3);
+  }, [event?.registeredUsers]);
+  const registrationSummary = useMemo(() => {
+    const count = Number(event?.registeredCount);
+    if (!Number.isFinite(count) || count < 0) {
+      return "No registrations yet";
+    }
+
+    const capacity = Number(event?.capacity);
+    if (Number.isFinite(capacity) && capacity > 0) {
+      return `${count} registered • ${Math.max(capacity - count, 0)} spots left`;
+    }
+
+    return `${count} registered`;
+  }, [event?.capacity, event?.registeredCount]);
 
   return (
     <ScrollView
@@ -107,11 +127,19 @@ export default function EventDetailsScreen({
 
         <View style={[styles.registeredBar, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
           <View style={styles.avatarsWrap}>
-            <View style={[styles.avatarDot, { backgroundColor: colors.surfaceAlt }]} />
-            <View style={[styles.avatarDot, { backgroundColor: colors.surface }]} />
-            <View style={[styles.avatarDot, { backgroundColor: colors.unreadBg }]} />
+            {registeredUsers.map((person, index) => (
+              <View key={`${person.id}-${index}`} style={styles.avatarDot}>
+                {person.avatar ? (
+                  <Image source={{ uri: person.avatar }} style={styles.avatarImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.avatarFallback, { backgroundColor: colors.surfaceAlt }]}> 
+                    <Ionicons name="person" size={10} color={colors.textMuted} />
+                  </View>
+                )}
+              </View>
+            ))}
           </View>
-          <Text style={styles.registeredText}>150+ registered</Text>
+          <Text style={styles.registeredText}>{registrationSummary}</Text>
           <Text style={styles.statusText}>{eventStatus}</Text>
         </View>
 
@@ -120,15 +148,11 @@ export default function EventDetailsScreen({
 
         <Text style={styles.sectionTitle}>Who can attend</Text>
         <View style={styles.chipRow}>
-          <Text style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-            All Students
-          </Text>
-          <Text style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-            Faculty Staff
-          </Text>
-          <Text style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-            Tech Enthusiasts
-          </Text>
+          {audienceLabels.map((label) => (
+            <Text key={label} style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              {label}
+            </Text>
+          ))}
         </View>
 
         <Text style={styles.sectionTitle}>Event agenda</Text>
@@ -262,6 +286,17 @@ function getEventTimeStatus(event, nowTimestamp) {
     return "PAST";
   }
   return "ONGOING";
+}
+
+function getAudienceLabels(targetAudience) {
+  const value = String(targetAudience || "all").toLowerCase();
+  if (value === "students") {
+    return ["Students"];
+  }
+  if (value === "staff") {
+    return ["Faculty Staff"];
+  }
+  return ["All Students", "Faculty Staff"];
 }
 
 const getStyles = (colors) =>
@@ -399,14 +434,25 @@ const getStyles = (colors) =>
   },
   avatarsWrap: {
     flexDirection: "row",
+    minWidth: scale(20),
   },
   avatarDot: {
     width: scale(18),
     height: scale(18),
     borderRadius: scale(9),
+    overflow: "hidden",
     marginRight: -scale(6),
     borderWidth: 1,
     borderColor: colors.primaryContrast,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   registeredText: {
     color: colors.accent,

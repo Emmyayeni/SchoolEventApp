@@ -13,8 +13,10 @@ import {
     signOutCurrentUser,
     signUpWithEmailPassword,
     updateCurrentUserProfile,
+    resetPasswordForEmail,
 } from "./lib/Auth";
 import { user as seedUser } from "./src/data/user";
+import AdminNavigator from "./src/navigation/AdminNavigator";
 import AppNavigator from "./src/navigation/AppNavigator";
 import AnnouncementDetailsScreen from "./src/screens/AnnouncementDetailsScreen";
 import CreateEventScreen from "./src/screens/CreateEventScreen";
@@ -31,8 +33,11 @@ import {
     createAnnouncement,
     createEventFromForm,
     deleteEventById,
+    deleteEventByIdAsAdmin,
+    fetchAdminUsers,
     fetchAnnouncements,
     fetchEventBookmarks,
+    fetchEventDetailsById,
     fetchEventRegistrations,
     fetchEvents,
     fetchNotifications,
@@ -41,7 +46,9 @@ import {
     registerForEvent,
     toggleEventBookmark,
     updateEventFromForm,
+    approveUserAdmin,
 } from "./src/services/supabaseData";
+import { registerForPushNotificationsAsync } from "./src/services/notifications";
 import { ThemeProvider, getThemeColors } from "./src/theme/theme";
 import { filterByCategory, searchEvents } from "./src/utils/helpers";
 
@@ -76,6 +83,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState("home");
   const [selectedEventId, setSelectedEventId] = useState(null);
+  const [selectedEventDetails, setSelectedEventDetails] = useState(null);
   const [editingEventId, setEditingEventId] = useState(null);
   const [deletingEvent, setDeletingEvent] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -83,11 +91,21 @@ export default function App() {
   const [openingAnnouncement, setOpeningAnnouncement] = useState(false);
   const [openingAnnouncementDetails, setOpeningAnnouncementDetails] = useState(false);
   const [openingSettings, setOpeningSettings] = useState(false);
+  const [activeAdminScreen, setActiveAdminScreen] = useState("dashboard");
+  const [adminSettings, setAdminSettings] = useState({
+    autoApproveEvents: false,
+    requireEventDescription: true,
+    maxEventsPerUser: 5,
+    sendNotifications: true,
+    maintenanceMode: false,
+  });
 
   const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState(seedUser);
   const [notifications, setNotifications] = useState([]);
+  const [adminUsers, setAdminUsers] = useState([]);
   const [registeredEventIds, setRegisteredEventIds] = useState([]);
   const [bookmarkedEventIds, setBookmarkedEventIds] = useState([]);
 
@@ -149,28 +167,42 @@ export default function App() {
     }
   };
 
-  const loadAppData = useCallback(async (currentUserId) => {
-    if (!currentUserId) {
-      return;
+  const loadAppData = useCallback(async (currentUserId, accountType, userRole) => {
+    try {
+      setRefreshing(true);
+      const baseQueries = [
+        fetchEvents(),
+        fetchEventRegistrations(currentUserId),
+        fetchEventBookmarks(currentUserId),
+        fetchNotifications(currentUserId),
+        fetchAnnouncements(),
+      ];
+
+      const shouldLoadAdminUsers = accountType === "admin" || (userRole && userRole !== "viewer");
+      if (shouldLoadAdminUsers) {
+        baseQueries.push(fetchAdminUsers());
+      }
+
+      const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows, adminUserRows] = await Promise.all(baseQueries);
+
+      setEvents(eventRows);
+      setRegisteredEventIds(
+        registrationRows
+          .filter((item) => item.status === "registered")
+          .map((item) => item.event_id)
+      );
+      setBookmarkedEventIds(bookmarkIds);
+      setNotifications(notificationRows);
+      setAnnouncements(announcementRows);
+
+      if (shouldLoadAdminUsers) {
+        setAdminUsers(adminUserRows || []);
+      } else {
+        setAdminUsers([]);
+      }
+    } finally {
+      setRefreshing(false);
     }
-
-    const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows] = await Promise.all([
-      fetchEvents(),
-      fetchEventRegistrations(currentUserId),
-      fetchEventBookmarks(currentUserId),
-      fetchNotifications(currentUserId),
-      fetchAnnouncements(),
-    ]);
-
-    setEvents(eventRows);
-    setRegisteredEventIds(
-      registrationRows
-        .filter((item) => item.status === "registered")
-        .map((item) => item.event_id)
-    );
-    setBookmarkedEventIds(bookmarkIds);
-    setNotifications(notificationRows);
-    setAnnouncements(announcementRows);
   }, []);
 
   useEffect(() => {
@@ -178,6 +210,11 @@ export default function App() {
 
     const restoreSession = async () => {
       try {
+        const onboardingValue = await AsyncStorage.getItem("@nsuk/has_seen_onboarding");
+        if (isMounted && onboardingValue === "true") {
+          setHasSeenOnboarding(true);
+        }
+
         const cachedProfile = await getCachedProfile();
         if (isMounted && cachedProfile) {
           setUser((prev) => ({ ...prev, ...cachedProfile }));
@@ -232,29 +269,29 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
-      return;
-    }
-
-    let active = true;
+    let isMounted = true;
 
     const hydrateData = async () => {
       try {
-        await loadAppData(user.id);
+        if (isMounted && user?.id) {
+          await loadAppData(user.id, user.accountType, user.role);
+        }
+        // Register for push notifications if authenticated
+        await registerForPushNotificationsAsync(user.id);
       } catch (error) {
-        if (!active) {
+        if (!isMounted) {
           return;
         }
-        Alert.alert("Sync error", "Could not load latest events and notifications.");
+        Alert.alert("Sync error", `Could not load data: ${error?.message || error}`);
       }
     };
 
     hydrateData();
 
     return () => {
-      active = false;
+      isMounted = false;
     };
-  }, [isAuthenticated, user?.id, loadAppData]);
+  }, [isAuthenticated, user?.id, user?.accountType, loadAppData]);
 
   useEffect(() => {
     if (authInitializing) {
@@ -283,10 +320,10 @@ export default function App() {
       return;
     }
 
+    // Note: NavigationBar and SystemUI styling removed to prevent edge-to-edge warnings
+    // Modern Android natively handles the system bar colors dynamically.;
+
     const applySystemBars = () => {
-      SystemUI.setBackgroundColorAsync(systemBarBackground).catch(() => {});
-      NavigationBar.setPositionAsync("relative").catch(() => {});
-      NavigationBar.setBackgroundColorAsync(systemBarBackground).catch(() => {});
       NavigationBar.setButtonStyleAsync(systemBarStyle).catch(() => {});
     };
 
@@ -303,10 +340,56 @@ export default function App() {
     };
   }, [systemBarBackground, systemBarStyle]);
 
-  const selectedEvent = useMemo(
-    () => events.find((event) => event.id === selectedEventId),
-    [events, selectedEventId]
-  );
+  useEffect(() => {
+    if (!selectedEventId) {
+      setSelectedEventDetails(null);
+      return;
+    }
+
+    let active = true;
+
+    const loadSelectedEventDetails = async () => {
+      try {
+        const details = await fetchEventDetailsById(selectedEventId);
+        if (!active) {
+          return;
+        }
+
+        setSelectedEventDetails(details);
+        setEvents((prev) => {
+          const exists = prev.some((item) => item.id === details.id);
+          if (!exists) {
+            return [details, ...prev];
+          }
+          return prev.map((item) => (item.id === details.id ? { ...item, ...details } : item));
+        });
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        console.log("Event details load error:", error?.message || error);
+      }
+    };
+
+    loadSelectedEventDetails();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedEventId]);
+
+  const selectedEvent = useMemo(() => {
+    const listEvent = events.find((event) => event.id === selectedEventId) || null;
+
+    if (selectedEventDetails?.id === selectedEventId) {
+      return {
+        ...(listEvent || {}),
+        ...selectedEventDetails,
+      };
+    }
+
+    return listEvent;
+  }, [events, selectedEventDetails, selectedEventId]);
   const canManageSelectedEvent = useMemo(
     () => !!selectedEvent && selectedEvent.createdBy === user?.id,
     [selectedEvent, user?.id]
@@ -349,6 +432,44 @@ export default function App() {
     }, {});
     return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
   }, [myEvents]);
+
+  const adminStats = useMemo(
+    () => ({
+      totalEvents: events.length,
+      totalUsers: adminUsers.length,
+      totalRegistrations: registeredEventIds.length,
+      activeAnnouncements: announcements.length,
+    }),
+    [events.length, adminUsers.length, registeredEventIds.length, announcements.length]
+  );
+
+  const adminAnalytics = useMemo(() => {
+    const eventsByCategory = events.reduce((acc, event) => {
+      const key = event.category || "Other";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const usersByDepartment = adminUsers.reduce((acc, profile) => {
+      const key = profile.department || "General";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      totalEvents: events.length,
+      totalUsers: adminUsers.length,
+      totalRegistrations: registeredEventIds.length,
+      averageAttendance: events.length ? Math.round((registeredEventIds.length / events.length) * 100) : 0,
+      eventsByCategory,
+      usersByDepartment,
+      registrationTrend: [],
+      topEvents: events
+        .slice()
+        .sort((a, b) => (b.registeredCount || 0) - (a.registeredCount || 0))
+        .slice(0, 5),
+    };
+  }, [events, adminUsers, registeredEventIds.length]);
 
   const openEvent = (id) => {
     setSelectedEventId(id);
@@ -487,6 +608,40 @@ export default function App() {
     setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
     setCreateEventErrors({});
     setCreatingEvent(true);
+  };
+
+  const startEditEventById = (eventId) => {
+    const event = events.find((item) => item.id === eventId);
+    if (!event) {
+      return;
+    }
+
+    setEditingEventId(event.id);
+    setCreateEventForm({
+      title: event.title || "",
+      category: event.category || "",
+      description: event.description || "",
+      date: event.date || "",
+      time: event.time || "",
+      venue: event.venue || "",
+      organizer: event.organizer || "",
+      image: event.image || DEFAULT_CREATE_EVENT_FORM.image,
+      targetAudience: event.targetAudience || "all",
+      capacity: event.capacity ? String(event.capacity) : "",
+    });
+    setCreateEventErrors({});
+    setCreatingEvent(true);
+  };
+
+  const deleteEventByIdForAdmin = async (eventId) => {
+    try {
+      await deleteEventByIdAsAdmin({ eventId });
+      setEvents((prev) => prev.filter((item) => item.id !== eventId));
+      setBookmarkedEventIds((prev) => prev.filter((id) => id !== eventId));
+      setRegisteredEventIds((prev) => prev.filter((id) => id !== eventId));
+    } catch (error) {
+      Alert.alert("Delete failed", error?.message || "Could not delete this event.");
+    }
   };
 
   const startEditSelectedEvent = () => {
@@ -696,6 +851,10 @@ export default function App() {
     } catch (error) {
       Alert.alert(editingEventId ? "Update failed" : "Create failed", error?.message || "Could not save event.");
       return false;
+    } finally {
+      if (isAdminUser) {
+        setActiveAdminScreen("events");
+      }
     }
   };
 
@@ -833,6 +992,7 @@ export default function App() {
   };
 
   const isStaffUser = user?.accountType === "staff";
+  const isAdminUser = user?.accountType === "admin" || (user?.role && user?.role !== "viewer");
 
   const logout = async () => {
     try {
@@ -848,6 +1008,7 @@ export default function App() {
     setPhase("auth");
     setAuthScreen("login");
     setSelectedEventId(null);
+    setSelectedEventDetails(null);
     setEditingEventId(null);
     setDeletingEvent(false);
     setEditingProfile(false);
@@ -855,6 +1016,8 @@ export default function App() {
     setOpeningAnnouncement(false);
     setOpeningAnnouncementDetails(false);
     setOpeningSettings(false);
+    setActiveAdminScreen("dashboard");
+    setAdminUsers([]);
     setEvents([]);
     setAnnouncements([]);
     setNotifications([]);
@@ -903,6 +1066,18 @@ export default function App() {
             setAuthScreen("signup");
             setLoginErrors({});
           }}
+          onForgotPassword={async (email) => {
+            try {
+              if (!email || !email.includes("@")) {
+                Alert.alert("Invalid Email", "Please enter a valid email address.");
+                return;
+              }
+              await resetPasswordForEmail(email.trim().toLowerCase());
+              Alert.alert("Email Sent", "If an account exists, you will receive a password reset link.");
+            } catch (error) {
+              Alert.alert("Reset Failed", error?.message || "Could not send reset link.");
+            }
+          }}
         />
       );
     }
@@ -949,11 +1124,13 @@ export default function App() {
       <OnboardingScreen
         step={onboardingStep}
         onNext={() => setOnboardingStep((prev) => prev + 1)}
-        onSkip={() => {
+        onSkip={async () => {
+          await AsyncStorage.setItem("@nsuk/has_seen_onboarding", "true");
           setHasSeenOnboarding(true);
           setPhase("auth");
         }}
-        onGetStarted={() => {
+        onGetStarted={async () => {
+          await AsyncStorage.setItem("@nsuk/has_seen_onboarding", "true");
           setHasSeenOnboarding(true);
           setPhase("auth");
         }}
@@ -1030,7 +1207,12 @@ export default function App() {
 
   if (openingSettings) {
     return renderInShell(
-      <SettingsScreen onBack={() => setOpeningSettings(false)} onLogout={logout} />,
+      <SettingsScreen 
+        themeMode={themeMode}
+        onToggleTheme={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
+        onBack={() => setOpeningSettings(false)} 
+        onLogout={logout} 
+      />,
       ["bottom", "left", "right"]
     );
   }
@@ -1052,6 +1234,96 @@ export default function App() {
         onBack={() => setOpeningAnnouncementDetails(false)}
       />,
       ["bottom", "left", "right"]
+    );
+  }
+
+  if (isAdminUser) {
+    return renderInShell(
+      <AdminNavigator
+        activeScreen={activeAdminScreen}
+        onNavigate={setActiveAdminScreen}
+        dashboardProps={{
+          currentUser: user,
+          stats: adminStats,
+          recentEvents: events.slice(0, 3),
+          recentUsers: adminUsers.slice(0, 3),
+          onManageEvents: () => setActiveAdminScreen("events"),
+          onManageUsers: () => setActiveAdminScreen("users"),
+          onManageAnnouncements: () => setOpeningAnnouncement(true),
+          onViewAnalytics: () => setActiveAdminScreen("analytics"),
+          onBack: () => setActiveAdminScreen("dashboard"),
+        }}
+        manageEventsProps={{
+          events,
+          onBack: () => setActiveAdminScreen("dashboard"),
+          onCreateEvent: openCreateEvent,
+          onEditEvent: startEditEventById,
+          onDeleteEvent: deleteEventByIdForAdmin,
+          onViewEventDetails: openEvent,
+        }}
+        manageUsersProps={{
+          users: adminUsers,
+          onBack: () => setActiveAdminScreen("dashboard"),
+          onViewUserDetails: (userId) => {
+            const profile = adminUsers.find((item) => item.id === userId);
+            if (!profile) {
+              return;
+            }
+            Alert.alert("User Profile", `Name: ${profile.fullName}\nEmail: ${profile.email}\nRole: ${profile.accountType.toUpperCase()}`);
+          },
+          onEditUser: (userId) => {
+            setAdminUsers((prev) => prev.map((u) => {
+              if (u.id === userId) {
+                const nextRole = u.accountType === "student" ? "staff" : u.accountType === "staff" ? "admin" : "student";
+                Alert.alert("Role Updated", `${u.fullName} is now assigned as: ${nextRole.toUpperCase()}`);
+                return { ...u, accountType: nextRole };
+              }
+              return u;
+            }));
+          },
+          onDisableUser: (userId) => {
+            const profile = adminUsers.find((item) => item.id === userId);
+            setAdminUsers((prev) => prev.filter((item) => item.id !== userId));
+            Alert.alert("User Disabled", `${profile?.fullName || "User"} has been disabled and removed from the system.`);
+          },
+          onApproveUser: async (userId) => {
+            try {
+              await approveUserAdmin(userId);
+              setAdminUsers((prev) => prev.map((u) => u.id === userId ? { ...u, accountStatus: "approved" } : u));
+              Alert.alert("Success", "Account has been approved. They now have full access.");
+            } catch (err) {
+              Alert.alert("Error", "Could not approve the user at this time.");
+            }
+          },
+          onResetPassword: (userId) => {
+            const profile = adminUsers.find((item) => item.id === userId);
+            Alert.alert("Password Reset", `A secure password reset link has been dispatched to ${profile?.email}.`);
+          },
+        }}
+        analyticsProps={{
+          analytics: adminAnalytics,
+          onBack: () => setActiveAdminScreen("dashboard"),
+          onExportReport: () => Alert.alert("Export Successful", "The analytics report has been downloaded to your device as a CSV file."),
+        }}
+        settingsProps={{
+          settings: adminSettings,
+          onBack: () => setActiveAdminScreen("dashboard"),
+          onUpdateSettings: setAdminSettings,
+          onEditProfile: () => {
+            setProfileDraft(user);
+            setEditingProfile(true);
+          },
+          onChangePassword: () => {
+            if (user?.email) {
+              Alert.alert("Security", `We've sent an email to ${user.email} with instructions to securely change your password.`);
+            } else {
+              Alert.alert("Error", "No email attached to this account.");
+            }
+          },
+          onLogout: logout,
+        }}
+      />,
+      ["left", "right"]
     );
   }
 

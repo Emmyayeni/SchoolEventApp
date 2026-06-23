@@ -57,7 +57,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique,
   full_name text,
-  account_type text not null default 'student' check (account_type in ('student', 'staff')),
+  account_type text not null default 'student' check (account_type in ('student', 'staff', 'organizer', 'admin')),
   department text,
   level text,
   faculty text,
@@ -209,9 +209,27 @@ as $$
     select 1
     from public.profiles p
     where p.id = p_user_id
-      and p.account_type = 'staff'
+      and p.account_type in ('staff', 'organizer', 'admin')
+  ) or exists (
+    select 1
+    from public.admin_users a
+    where a.id = p_user_id
+      and a.role in ('superadmin', 'moderator')
   );
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Admin Users (role-based access)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.admin_users (
+  id uuid primary key references public.profiles(id) on delete cascade,
+  role text not null default 'viewer' check (role in ('superadmin', 'moderator', 'viewer')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_admin_users_role on public.admin_users(role);
 
 -- ---------------------------------------------------------------------------
 -- Events
@@ -472,6 +490,15 @@ alter table public.event_bookmarks enable row level security;
 alter table public.announcements enable row level security;
 alter table public.notifications enable row level security;
 alter table public.user_settings enable row level security;
+alter table public.admin_users enable row level security;
+
+-- Admin Users
+drop policy if exists "admin_users_select" on public.admin_users;
+create policy "admin_users_select"
+on public.admin_users
+for select
+to authenticated
+using (true);
 
 -- Profiles
 drop policy if exists "profiles_select_own" on public.profiles;

@@ -52,9 +52,20 @@ export default function NotificationsScreen({ notifications, onPressItem, onMark
         </Pressable>
       </View>
 
-      <Section title="TODAY" items={todayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
-      <Section title="YESTERDAY" items={yesterdayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
-      <Section title="EARLIER" items={earlierItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
+      {notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off-outline" size={64} color={colors.borderSoft} />
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            You have no notifications right now.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <Section title="TODAY" items={todayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
+          <Section title="YESTERDAY" items={yesterdayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
+          <Section title="EARLIER" items={earlierItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -152,6 +163,17 @@ const createStyles = (colors) =>
     color: colors.accent,
     fontSize: ms(12),
     fontWeight: "800",
+  },
+  emptyContainer: {
+    paddingVertical: scale(60),
+    alignItems: "center",
+    justifyContent: "center",
+    gap: scale(12),
+  },
+  emptyText: {
+    fontSize: ms(14),
+    fontWeight: "500",
+    textAlign: "center",
   },
   sectionWrap: {
     marginTop: scale(8),

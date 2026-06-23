@@ -129,7 +129,22 @@ export function mapEventRowToApp(row) {
     createdBy: row.created_by,
     targetAudience: row.target_audience,
     capacity: row.capacity,
+    registeredCount: row.registeredCount,
+    registeredUsers: Array.isArray(row.registeredUsers) ? row.registeredUsers : [],
   };
+}
+
+function mapRegisteredUserRows(rows = []) {
+  return rows
+    .map((row) => {
+      const profile = Array.isArray(row?.profile) ? row.profile[0] : row?.profile;
+      return {
+        id: row.user_id,
+        avatar: resolveStoragePublicUrl(profile?.avatar_url, STORAGE_BUCKETS.avatars, ""),
+        fullName: profile?.full_name || "",
+      };
+    })
+    .filter((item) => !!item.id);
 }
 
 function relativeTimeFromDate(dateValue) {
@@ -220,6 +235,46 @@ export async function fetchEvents() {
   }
 
   return (data || []).map(mapEventRowToApp);
+}
+
+export async function fetchEventDetailsById(eventId) {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const { count, error: registrationError } = await supabase
+    .from("event_registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .eq("status", "registered");
+
+  if (registrationError) {
+    throw registrationError;
+  }
+
+  const { data: registeredUsersRows, error: registeredUsersError } = await supabase
+    .from("event_registrations")
+    .select("user_id, profile:profiles!event_registrations_user_id_fkey(avatar_url, full_name)")
+    .eq("event_id", eventId)
+    .eq("status", "registered")
+    .order("registered_at", { ascending: true })
+    .limit(3);
+
+  if (registeredUsersError) {
+    throw registeredUsersError;
+  }
+
+  return mapEventRowToApp({
+    ...data,
+    registeredCount: count || 0,
+    registeredUsers: mapRegisteredUserRows(registeredUsersRows || []),
+  });
 }
 
 export async function fetchEventRegistrations(userId) {
@@ -338,6 +393,40 @@ export async function fetchAnnouncements() {
   return (data || []).map(mapAnnouncementRowToApp);
 }
 
+export async function fetchAdminUsers() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, account_type, department, level, role_designation, avatar_url, account_status, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    email: row.email || "",
+    fullName: row.full_name || row.email || "User",
+    accountType: row.account_type || "student",
+    department: row.department || "",
+    level: row.level || "",
+    roleDesignation: row.role_designation || "",
+    avatar: resolveStoragePublicUrl(row.avatar_url, STORAGE_BUCKETS.avatars, ""),
+    accountStatus: row.account_status || "approved",
+  }));
+}
+
+export async function approveUserAdmin(userId) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ account_status: "approved" })
+    .eq("id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function markNotificationAsRead({ notificationId, userId }) {
   const { error } = await supabase
     .from("notifications")
@@ -427,6 +516,17 @@ export async function deleteEventById({ eventId, userId }) {
     .delete()
     .eq("id", eventId)
     .eq("created_by", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteEventByIdAsAdmin({ eventId }) {
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId);
 
   if (error) {
     throw error;

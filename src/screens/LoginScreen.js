@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -16,10 +16,31 @@ export default function LoginScreen({
   onLogin,
   onSwitchToSignup,
   onBack = () => {},
+  onForgotPassword,
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark, insets);
+
+  const handleForgotPassword = () => {
+    Alert.prompt(
+      "Reset Password",
+      "Enter your email address to receive a password reset link.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Send Link", 
+          onPress: (text) => {
+            if (text && onForgotPassword) {
+              onForgotPassword(text);
+            }
+          } 
+        }
+      ],
+      "plain-text",
+      email
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -70,7 +91,7 @@ export default function LoginScreen({
 
       {!!errors.general && <Text style={styles.error}>{errors.general}</Text>}
 
-      <Pressable style={styles.forgotWrap}>
+      <Pressable style={styles.forgotWrap} onPress={handleForgotPassword}>
         <Text style={styles.forgotLink}>Forgot password?</Text>
       </Pressable>
 
