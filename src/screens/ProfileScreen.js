@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
@@ -32,103 +33,161 @@ export default function ProfileScreen({
     >
       <View style={styles.headerRow}>
         <Text style={styles.title}>Profile</Text>
-        <Pressable style={styles.settingsBtn} onPress={onOpenSettings}>
-          <Ionicons name="settings-sharp" size={18} color={colors.text} />
-        </Pressable>
+        <ScalePressable style={styles.settingsBtn} onPress={onOpenSettings}>
+          <Ionicons name="settings-sharp" size={20} color={colors.text} />
+        </ScalePressable>
       </View>
 
-      <View style={styles.profileCard}>
-        <View style={styles.avatarWrap}>
-          <Image
-            source={{ uri: user.avatar || "https://randomuser.me/api/portraits/women/44.jpg" }}
-            style={styles.avatar}
-          />
-          <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark" size={12} color={colors.primaryContrast} />
+      <View style={[styles.profileCard, isStaff ? styles.profileCardStaff : styles.profileCardStudent]}>
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarWrap}>
+            <Image
+              source={{ uri: user.avatar || "https://randomuser.me/api/portraits/women/44.jpg" }}
+              style={styles.avatar}
+            />
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark" size={12} color={colors.primaryContrast} />
+            </View>
+          </View>
+          
+          <ScalePressable style={styles.editButton} onPress={onEditProfile}>
+            <Ionicons name="pencil" size={16} color={isStaff ? colors.primaryContrast : colors.primaryContrast} />
+          </ScalePressable>
+        </View>
+
+        <View style={styles.profileInfo}>
+          <Text style={[styles.name, isStaff && styles.textStaff, !isStaff && styles.textStudent]}>{user.fullName}</Text>
+          <Text style={[styles.department, isStaff && styles.textStaffMuted, !isStaff && styles.textStudentMuted]}>{user.department}</Text>
+          
+          <View style={styles.badgesRow}>
+            <View style={[styles.roleBadge, isStaff ? styles.roleBadgeStaff : styles.roleBadgeStudent]}>
+              <Ionicons name={isStaff ? "briefcase" : "school"} size={12} color={isStaff ? colors.primary : colors.primaryContrast} />
+              <Text style={[styles.roleBadgeText, isStaff ? styles.textPrimary : styles.textStudent]}>
+                {isStaff ? "Organizer" : "Student"}
+              </Text>
+            </View>
+            <View style={styles.levelBadge}>
+              <Text style={[styles.levelBadgeText, !isStaff && styles.textStudent]}>{user.level || "N/A"}</Text>
+            </View>
           </View>
         </View>
-        <Text style={styles.name}>{user.fullName}</Text>
-        <Text style={styles.meta}>{user.department}</Text>
-        <Text style={styles.level}>{user.level || (isStaff ? "Organizer" : "Student")}</Text>
-        <Text style={styles.roleBadge}>{isStaff ? "Staff / Organizer" : "Student / Attendee"}</Text>
-
-        <Pressable style={styles.editButton} onPress={onEditProfile}>
-          <Ionicons name="create-outline" size={15} color={colors.primaryContrast} />
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </Pressable>
-
-        <Pressable style={styles.manageButton} onPress={isStaff ? onCreateEvent : onOpenMyEvents}>
-          <Ionicons name={isStaff ? "add-circle-outline" : "compass-outline"} size={15} color={colors.primaryContrast} />
-          <Text style={styles.manageButtonText}>{isStaff ? "Create Event" : "Discover Events"}</Text>
-        </Pressable>
-
-        {isStaff && (
-          <Pressable style={styles.announcementButton} onPress={onOpenAnnouncement}>
-            <Ionicons name="megaphone-outline" size={15} color={colors.primaryContrast} />
-            <Text style={styles.announcementButtonText}>Create Announcement</Text>
-          </Pressable>
-        )}
       </View>
 
-      <SectionTitle title="ACCOUNT ACTIVITY" colors={colors} />
-      <View style={styles.groupCard}>
-        <ActionRow
-          icon="ticket"
-          label="My Registrations"
-          value={`${totalRegistered}`}
-          iconBg={colors.surfaceAlt}
-          iconColor={colors.primary}
-          onPress={onOpenMyEvents}
-        />
-        <Divider colors={colors} />
-        <ActionRow
-          icon="bookmark"
-          label="Saved Events"
-          value={favoriteCategory || "Campus Picks"}
-          iconBg={colors.surfaceAlt}
-          iconColor={colors.primary}
-          onPress={onOpenSavedEvents}
-        />
-        <Divider colors={colors} />
-        <ActionRow
-          icon="notifications"
-          label="Notification Settings"
-          iconBg={colors.surfaceAlt}
-          iconColor={colors.primary}
-          onPress={onOpenNotifications}
-        />
-      </View>
+      <SectionTitle title={isStaff ? "ORGANIZER TOOLS" : "MY HUB"} colors={colors} />
+      
+      {isStaff ? (
+        <View style={styles.actionGrid}>
+          <GridTile 
+            icon="add-circle" 
+            label="Create Event" 
+            color={colors.primary} 
+            onPress={onCreateEvent} 
+            styles={styles} 
+          />
+          <GridTile 
+            icon="megaphone" 
+            label="Send Announcement" 
+            color={colors.accent} 
+            onPress={onOpenAnnouncement} 
+            styles={styles} 
+          />
+          <GridTile 
+            icon="calendar" 
+            label="Manage Hosted Events" 
+            color={colors.success || "#10b981"} 
+            onPress={onOpenMyEvents} 
+            styles={styles} 
+            fullWidth
+          />
+        </View>
+      ) : (
+        <View style={styles.actionGrid}>
+          <GridTile 
+            icon="bookmark" 
+            label="Saved Events" 
+            color={colors.accent} 
+            onPress={onOpenSavedEvents} 
+            styles={styles} 
+          />
+          <GridTile 
+            icon="ticket" 
+            label={`Registrations (${totalRegistered})`} 
+            color={colors.primary} 
+            onPress={onOpenMyEvents} 
+            styles={styles} 
+          />
+        </View>
+      )}
 
-      <SectionTitle title="PREFERENCES" colors={colors} />
-      <View style={styles.groupCard}>
+      <SectionTitle title="PREFERENCES & SETTINGS" colors={colors} />
+      <View style={styles.listCard}>
         <View style={styles.preferenceRow}>
           <View style={styles.rowLeft}>
             <View style={[styles.rowIconWrap, { backgroundColor: colors.surfaceAlt }]}>
-              <Ionicons name="moon" size={14} color={colors.primary} />
+              <Ionicons name="moon" size={16} color={colors.primary} />
             </View>
             <Text style={[styles.rowLabel, { color: colors.text }]}>Dark Mode</Text>
           </View>
           <Switch
             value={themeMode === "dark"}
             onValueChange={onToggleTheme}
-            trackColor={{ false: colors.border, true: colors.primary }}
+            trackColor={{ false: colors.borderSoft, true: colors.primary }}
             thumbColor={colors.primaryContrast}
           />
         </View>
-      </View>
-
-      <SectionTitle title="SUPPORT & INFO" colors={colors} />
-      <View style={styles.groupCard}>
-        <ActionRow icon="help-circle" label="Help & Support" iconBg={colors.surfaceAlt} iconColor={colors.primary} onPress={onOpenSettings} />
+        
         <Divider colors={colors} />
-        <ActionRow icon="code-slash" label="About Developers" iconBg={colors.surfaceAlt} iconColor={colors.primary} onPress={onOpenSettings} />
+        
+        <ActionRow 
+          icon="notifications" 
+          label="Notifications" 
+          colors={colors} 
+          onPress={onOpenNotifications} 
+        />
+        
+        <Divider colors={colors} />
+        
+        <ActionRow 
+          icon="help-buoy" 
+          label="Help & Support" 
+          colors={colors} 
+          onPress={() => {}} 
+        />
       </View>
 
-      <Pressable style={styles.logoutBtn} onPress={onLogout}>
-        <Ionicons name="log-out-outline" size={16} color={colors.error} />
-        <Text style={styles.logoutText}>Logout</Text>
-      </Pressable>
+      <ScalePressable style={styles.logoutBtn} onPress={onLogout}>
+        <Ionicons name="log-out-outline" size={18} color={colors.error} />
+        <Text style={styles.logoutText}>Log Out securely</Text>
+      </ScalePressable>
     </ScrollView>
+  );
+}
+
+function GridTile({ icon, label, color, fullWidth, onPress, styles }) {
+  return (
+    <ScalePressable 
+      style={[styles.gridTile, fullWidth && styles.gridTileFull]} 
+      onPress={onPress}
+    >
+      <View style={[styles.gridTileIconWrap, { backgroundColor: color + "15" }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <Text style={styles.gridTileLabel}>{label}</Text>
+    </ScalePressable>
+  );
+}
+
+function ActionRow({ icon, label, colors, onPress }) {
+  return (
+    <ScalePressable style={stylesStatic.actionRow} onPress={onPress}>
+      <View style={stylesStatic.rowLeft}>
+        <View style={[stylesStatic.rowIconWrap, { backgroundColor: colors.surfaceAlt }]}>
+          <Ionicons name={icon} size={16} color={colors.primary} />
+        </View>
+        <Text style={[stylesStatic.rowLabel, { color: colors.text }]}>{label}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+    </ScalePressable>
   );
 }
 
@@ -140,246 +199,260 @@ function Divider({ colors }) {
   return <View style={[stylesStatic.divider, { backgroundColor: colors.borderSoft }]} />;
 }
 
-function ActionRow({ icon, label, value, iconBg, iconColor, onPress }) {
-  const { colors } = useAppTheme();
-
-  return (
-    <Pressable style={stylesStatic.actionRow} onPress={onPress}>
-      <View style={stylesStatic.rowLeft}>
-        <View style={[stylesStatic.rowIconWrap, { backgroundColor: iconBg }]}> 
-          <Ionicons name={icon} size={14} color={iconColor} />
-        </View>
-        <View style={stylesStatic.rowTextWrap}>
-          <Text style={[stylesStatic.rowLabel, { color: colors.text }]}>{label}</Text>
-          {!!value && <Text style={[stylesStatic.rowValue, { color: colors.textSubtle }]}>{value}</Text>}
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-    </Pressable>
-  );
-}
-
-const getStyles = (colors, isDark) =>
-  StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: isDark ? colors.background : colors.surfaceAlt,
+const stylesStatic = StyleSheet.create({
+  sectionTitle: {
+    fontSize: ms(12),
+    fontFamily: "Outfit_900Black",
+    letterSpacing: 1,
+    marginBottom: scale(12),
+    marginTop: scale(10),
+    paddingHorizontal: scale(4),
   },
-  content: {
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: scale(12),
     paddingHorizontal: scale(14),
-    paddingTop: scale(10),
-    paddingBottom: scale(20),
+  },
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: scale(12),
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: ms(22),
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  settingsBtn: {
+  rowIconWrap: {
     width: scale(32),
     height: scale(32),
     borderRadius: scale(16),
     alignItems: "center",
     justifyContent: "center",
   },
-  profileCard: {
-    borderRadius: scale(18),
-    backgroundColor: isDark ? colors.surface : colors.surface,
+  rowLabel: {
+    fontSize: ms(14),
+    fontWeight: "600",
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: scale(14),
+  },
+});
+
+const getStyles = (colors, isDark) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(40),
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: scale(14),
-    paddingHorizontal: scale(12),
-    gap: scale(4),
+    justifyContent: "space-between",
+    marginBottom: scale(16),
+  },
+  title: {
+    color: colors.text,
+    fontSize: ms(32),
+    fontFamily: "Outfit_900Black",
+    letterSpacing: -0.5,
+  },
+  settingsBtn: {
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  profileCard: {
+    borderRadius: scale(20),
+    padding: scale(20),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  profileCardStudent: {
+    backgroundColor: colors.primary,
+  },
+  profileCardStaff: {
+    backgroundColor: isDark ? colors.surface : "#1e293b",
+  },
+  profileHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   avatarWrap: {
     position: "relative",
-    marginBottom: scale(4),
-    borderRadius: 999,
-    borderWidth: 3,
-    borderColor: colors.border,
-    padding: scale(3),
   },
   avatar: {
-    width: scale(80),
-    height: scale(80),
-    borderRadius: scale(40),
-    backgroundColor: colors.surfaceAlt,
+    width: scale(72),
+    height: scale(72),
+    borderRadius: scale(36),
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   verifiedBadge: {
     position: "absolute",
+    bottom: 0,
     right: 0,
-    bottom: scale(4),
+    backgroundColor: colors.accent,
     width: scale(22),
     height: scale(22),
     borderRadius: scale(11),
-    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: colors.primaryContrast,
   },
+  editButton: {
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInfo: {
+    marginTop: scale(16),
+  },
   name: {
-    fontSize: ms(22),
+    fontSize: ms(24),
+    fontFamily: "Outfit_900Black",
+    marginBottom: scale(2),
+    color: colors.primaryContrast,
+  },
+  department: {
+    fontSize: ms(13),
+    fontWeight: "600",
+    color: colors.primaryContrast,
+    opacity: 0.8,
+    marginBottom: scale(12),
+  },
+  textStaff: { color: "#ffffff" },
+  textStaffMuted: { color: "rgba(255, 255, 255, 0.7)" },
+  textStudent: { color: colors.primaryContrast },
+  textStudentMuted: { color: colors.primaryContrast, opacity: 0.8 },
+  textPrimary: { color: colors.primary },
+  badgesRow: {
+    flexDirection: "row",
+    gap: scale(8),
+  },
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: 999,
+  },
+  roleBadgeStudent: { backgroundColor: "rgba(255,255,255,0.2)" },
+  roleBadgeStaff: { backgroundColor: colors.surfaceAlt },
+  roleBadgeText: {
+    fontSize: ms(11),
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  levelBadge: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: 999,
+  },
+  levelBadgeText: {
+    color: colors.primaryContrast,
+    fontSize: ms(11),
+    fontWeight: "800",
+  },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: scale(12),
+  },
+  gridTile: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: colors.surface,
+    padding: scale(16),
+    borderRadius: scale(16),
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  gridTileFull: {
+    minWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(12),
+  },
+  gridTileIconWrap: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(14),
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: scale(12),
+  },
+  gridTileLabel: {
+    fontSize: ms(13),
     fontWeight: "800",
     color: colors.text,
   },
-  meta: {
-    fontSize: ms(14),
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  level: {
-    fontSize: ms(13),
-    color: colors.primary,
-    fontWeight: "800",
-  },
-  roleBadge: {
-    marginTop: scale(2),
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(4),
-    borderRadius: 999,
-    color: colors.accent,
-    backgroundColor: colors.surfaceAlt,
-    fontSize: ms(11),
-    fontWeight: "800",
-    overflow: "hidden",
-  },
-  editButton: {
-    marginTop: scale(8),
-    width: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: scale(6),
-    paddingVertical: scale(11),
-  },
-  editButtonText: {
-    color: colors.primaryContrast,
-    fontSize: ms(14),
-    fontWeight: "800",
-  },
-  manageButton: {
-    marginTop: scale(8),
-    width: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.accent,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: scale(6),
-    paddingVertical: scale(10),
-  },
-  manageButtonText: {
-    color: colors.primaryContrast,
-    fontSize: ms(13),
-    fontWeight: "800",
-  },
-  announcementButton: {
-    marginTop: scale(8),
-    width: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: scale(6),
-    paddingVertical: scale(10),
-  },
-  announcementButtonText: {
-    color: colors.primaryContrast,
-    fontSize: ms(13),
-    fontWeight: "800",
-  },
-  groupCard: {
-    borderRadius: scale(16),
+  listCard: {
     backgroundColor: colors.surface,
+    borderRadius: scale(16),
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    paddingVertical: scale(2),
+    overflow: "hidden",
   },
   preferenceRow: {
-    minHeight: scale(52),
-    paddingHorizontal: scale(14),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(14),
   },
   rowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(10),
+    gap: scale(12),
   },
   rowIconWrap: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(14),
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     alignItems: "center",
     justifyContent: "center",
   },
+  rowLabel: {
+    fontSize: ms(14),
+    fontWeight: "600",
+  },
   logoutBtn: {
-    borderRadius: scale(14),
-    backgroundColor: colors.surfaceAlt,
-    minHeight: scale(48),
-    marginTop: scale(6),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: scale(6),
+    gap: scale(8),
+    marginTop: scale(24),
+    padding: scale(14),
+    borderRadius: scale(14),
+    backgroundColor: colors.error + "15",
   },
   logoutText: {
     color: colors.error,
     fontSize: ms(14),
     fontWeight: "800",
-  },
-  });
-
-const stylesStatic = StyleSheet.create({
-  sectionTitle: {
-    fontSize: ms(11),
-    letterSpacing: 1,
-    fontWeight: "800",
-    marginTop: scale(2),
-    marginBottom: scale(2),
-  },
-  actionRow: {
-    minHeight: scale(54),
-    paddingHorizontal: scale(14),
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  rowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(10),
-  },
-  rowIconWrap: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(14),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowTextWrap: {
-    gap: 1,
-  },
-  rowLabel: {
-    fontSize: ms(14),
-    fontWeight: "700",
-  },
-  rowValue: {
-    fontSize: ms(11),
-    fontWeight: "600",
-  },
-  divider: {
-    height: 1,
-    marginLeft: scale(50),
   },
 });

@@ -2,9 +2,26 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
+import {
+  useFonts,
+  Outfit_300Light,
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+  Outfit_800ExtraBold,
+  Outfit_900Black,
+} from "@expo-google-fonts/outfit";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, AppState, Platform, StyleSheet, useColorScheme } from "react-native";
+import { Alert, AppState, Platform, StyleSheet, Text, TextInput, LogBox, useColorScheme } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+
+// Apply global font family and suppress defaultProps warning
+LogBox.ignoreLogs(['TextElement: Support for defaultProps', 'TextInput: Support for defaultProps', 'defaultProps will be removed']);
+if (!Text.defaultProps) Text.defaultProps = {};
+Text.defaultProps.style = { fontFamily: "Outfit_400Regular" };
+if (!TextInput.defaultProps) TextInput.defaultProps = {};
+TextInput.defaultProps.style = { fontFamily: "Outfit_400Regular" };
 import {
     getAuthErrorMessage,
     getCurrentAppUser,
@@ -18,6 +35,8 @@ import {
 import { user as seedUser } from "./src/data/user";
 import AdminNavigator from "./src/navigation/AdminNavigator";
 import AppNavigator from "./src/navigation/AppNavigator";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { ToastProvider } from "./src/components/Toast";
 import AnnouncementDetailsScreen from "./src/screens/AnnouncementDetailsScreen";
 import CreateEventScreen from "./src/screens/CreateEventScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
@@ -47,6 +66,7 @@ import {
     toggleEventBookmark,
     updateEventFromForm,
     approveUserAdmin,
+    disableUserAdmin,
 } from "./src/services/supabaseData";
 import { registerForPushNotificationsAsync } from "./src/services/notifications";
 import { ThemeProvider, getThemeColors } from "./src/theme/theme";
@@ -98,6 +118,16 @@ export default function App() {
     maxEventsPerUser: 5,
     sendNotifications: true,
     maintenanceMode: false,
+  });
+
+  const [fontsLoaded] = useFonts({
+    Outfit_300Light,
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+    Outfit_800ExtraBold,
+    Outfit_900Black,
   });
 
   const [events, setEvents] = useState([]);
@@ -204,6 +234,12 @@ export default function App() {
       setRefreshing(false);
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    if (user?.id) {
+      await loadAppData(user.id, user.accountType, user.role);
+    }
+  }, [user, loadAppData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -502,6 +538,14 @@ export default function App() {
     attachmentUris = [],
   }) => {
     try {
+      const cleanSubject = subject?.trim() || "";
+      const cleanMessage = message?.trim() || "";
+
+      if (!cleanSubject || !cleanMessage) {
+        Alert.alert("Validation Error", "Subject and message cannot be empty.");
+        return { ok: false };
+      }
+
       if (scheduledAt) {
         Alert.alert("Scheduling note", "Scheduled announcements are not enabled yet. This will be sent immediately.");
       }
@@ -528,8 +572,8 @@ export default function App() {
 
       const created = await createAnnouncement({
         userId: user.id,
-        subject,
-        message,
+        subject: cleanSubject,
+        message: cleanMessage,
         targetAudience,
         attachmentUrls: uploadedUrls,
       });
@@ -553,21 +597,39 @@ export default function App() {
   };
 
   const handleToggleBookmark = async (eventId) => {
+    const isBookmarked = bookmarkedEventIds.includes(eventId);
+    const expectedNewState = !isBookmarked;
+
+    // Optimistically update the UI
+    setBookmarkedEventIds((prev) => {
+      if (expectedNewState) {
+        return prev.includes(eventId) ? prev : [...prev, eventId];
+      }
+      return prev.filter((id) => id !== eventId);
+    });
+
     try {
-      const isBookmarked = bookmarkedEventIds.includes(eventId);
-      console.log("Toggling bookmark:", { eventId, currently: isBookmarked });
-      
+      console.log("Toggling bookmark optimistically:", { eventId, expectedNewState });
       const nowBookmarked = await toggleEventBookmark({ eventId, userId: user.id, isBookmarked });
       
+      // If the server somehow returns a different state than expected, correct it silently
+      if (nowBookmarked !== expectedNewState) {
+        setBookmarkedEventIds((prev) => {
+          if (nowBookmarked) {
+            return prev.includes(eventId) ? prev : [...prev, eventId];
+          }
+          return prev.filter((id) => id !== eventId);
+        });
+      }
+    } catch (error) {
+      // Revert the optimistic update on failure
       setBookmarkedEventIds((prev) => {
-        if (nowBookmarked) {
+        if (isBookmarked) {
           return prev.includes(eventId) ? prev : [...prev, eventId];
         }
         return prev.filter((id) => id !== eventId);
       });
       
-      console.log("Bookmark toggled successfully:", { eventId, newState: nowBookmarked });
-    } catch (error) {
       console.error("Bookmark toggle error:", error);
       const errorMsg = error?.message || error?.details || "Could not update bookmark.";
       Alert.alert("Bookmark Error", errorMsg);
@@ -703,12 +765,15 @@ export default function App() {
   const submitLogin = async () => {
     const errors = {};
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!loginForm.email.trim()) {
+    const cleanEmail = loginForm.email?.trim().toLowerCase() || "";
+    const cleanPassword = loginForm.password?.trim() || "";
+
+    if (!cleanEmail) {
       errors.email = "Email is required";
-    } else if (!emailPattern.test(loginForm.email.trim())) {
+    } else if (!emailPattern.test(cleanEmail)) {
       errors.email = "Enter a valid email";
     }
-    if (!loginForm.password.trim()) {
+    if (!cleanPassword) {
       errors.password = "Password is required";
     }
 
@@ -720,8 +785,8 @@ export default function App() {
     setLoginLoading(true);
     try {
       const { appUser } = await signInWithEmailPassword({
-        email: loginForm.email.trim().toLowerCase(),
-        password: loginForm.password,
+        email: cleanEmail,
+        password: cleanPassword,
       });
 
       setUser((prev) => ({ ...prev, ...appUser }));
@@ -741,37 +806,43 @@ export default function App() {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isStaffSignup = signupForm.accountType === "staff";
 
-    if (!signupForm.fullName.trim()) {
-      errors.fullName = "Full name is required";
-    }
-    if (!signupForm.email.trim()) {
+    const cleanFullName = signupForm.fullName?.trim() || "";
+    const cleanEmail = signupForm.email?.trim().toLowerCase() || "";
+    const cleanDepartment = signupForm.department?.trim() || "";
+    const cleanLevel = signupForm.level?.trim() || "";
+    const cleanFaculty = signupForm.faculty?.trim() || "";
+    const cleanMatric = signupForm.matricNumber?.trim() || "";
+    const cleanStaffId = signupForm.staffId?.trim() || "";
+    const cleanRole = signupForm.roleDesignation?.trim() || "";
+    const cleanPassword = signupForm.password?.trim() || "";
+    const cleanConfirm = signupForm.confirmPassword?.trim() || "";
+
+    if (!cleanFullName) errors.fullName = "Full name is required";
+    if (!cleanEmail) {
       errors.email = "Email is required";
-    } else if (!emailPattern.test(signupForm.email.trim())) {
+    } else if (!emailPattern.test(cleanEmail)) {
       errors.email = "Enter a valid email";
     }
-    if (!signupForm.department.trim()) {
-      errors.department = "Department is required";
-    }
-    if (!isStaffSignup && !signupForm.level.trim()) {
-      errors.level = "Level is required";
-    }
-    if (!isStaffSignup && !signupForm.matricNumber.trim()) {
-      errors.matricNumber = "Matric number is required";
-    }
-    if (isStaffSignup && !signupForm.staffId.trim()) {
-      errors.staffId = "Staff ID is required";
-    }
-    if (isStaffSignup && !signupForm.roleDesignation.trim()) {
-      errors.roleDesignation = "Role designation is required";
-    }
-    if (!signupForm.password.trim()) {
+    if (!cleanDepartment) errors.department = "Department is required";
+    
+    if (!isStaffSignup && !cleanLevel) errors.level = "Level is required";
+    if (!isStaffSignup && !cleanMatric) errors.matricNumber = "Matric number is required";
+    
+    if (isStaffSignup && !cleanStaffId) errors.staffId = "Staff ID is required";
+    if (isStaffSignup && !cleanRole) errors.roleDesignation = "Role designation is required";
+
+    if (!cleanPassword) {
       errors.password = "Password is required";
+    } else if (cleanPassword.length < 6) {
+      errors.password = "Password must be at least 6 characters";
     }
-    if (!signupForm.confirmPassword.trim()) {
+    
+    if (!cleanConfirm) {
       errors.confirmPassword = "Confirm your password";
-    } else if (signupForm.confirmPassword !== signupForm.password) {
+    } else if (cleanConfirm !== cleanPassword) {
       errors.confirmPassword = "Passwords do not match";
     }
+    
     setSignupErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -780,17 +851,17 @@ export default function App() {
     setSignupLoading(true);
     try {
       const { appUser, requiresEmailConfirmation } = await signUpWithEmailPassword({
-        email: signupForm.email.trim().toLowerCase(),
-        password: signupForm.password,
+        email: cleanEmail,
+        password: cleanPassword,
         profile: {
           accountType: signupForm.accountType,
-          fullName: signupForm.fullName,
-          department: signupForm.department,
-          level: signupForm.level,
-          faculty: signupForm.faculty,
-          matricNumber: signupForm.matricNumber,
-          staffId: signupForm.staffId,
-          roleDesignation: signupForm.roleDesignation,
+          fullName: cleanFullName,
+          department: cleanDepartment,
+          level: cleanLevel,
+          faculty: cleanFaculty,
+          matricNumber: cleanMatric,
+          staffId: cleanStaffId,
+          roleDesignation: cleanRole,
         },
       });
 
@@ -798,7 +869,7 @@ export default function App() {
 
       if (requiresEmailConfirmation) {
         setAuthScreen("login");
-        setLoginForm((prev) => ({ ...prev, email: signupForm.email.trim().toLowerCase(), password: "" }));
+        setLoginForm((prev) => ({ ...prev, email: cleanEmail, password: "" }));
         setLoginErrors({ general: "Account created. Check your email to verify, then log in." });
         return;
       }
@@ -818,11 +889,23 @@ export default function App() {
 
   const submitCreateEvent = async () => {
     const errors = {};
+    const cleanedForm = {};
+
     ["title", "category", "description", "date", "time", "venue", "organizer", "image"].forEach((field) => {
-      if (!createEventForm[field]?.trim()) {
+      const val = createEventForm[field];
+      const cleaned = typeof val === "string" ? val.trim() : val;
+      cleanedForm[field] = cleaned;
+      if (!cleaned) {
         errors[field] = "Required";
       }
     });
+
+    const parsedCapacity = Number(createEventForm.capacity);
+    if (createEventForm.capacity && (!Number.isFinite(parsedCapacity) || parsedCapacity <= 0)) {
+      errors.capacity = "Must be > 0";
+    } else {
+      cleanedForm.capacity = createEventForm.capacity ? String(parsedCapacity) : "";
+    }
 
     setCreateEventErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -833,12 +916,12 @@ export default function App() {
       if (editingEventId) {
         const updated = await updateEventFromForm({
           eventId: editingEventId,
-          form: createEventForm,
+          form: { ...createEventForm, ...cleanedForm },
           userId: user.id,
         });
         setEvents((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       } else {
-        const created = await createEventFromForm({ form: createEventForm, userId: user.id });
+        const created = await createEventFromForm({ form: { ...createEventForm, ...cleanedForm }, userId: user.id });
         setEvents((prev) => [created, ...prev]);
       }
 
@@ -860,7 +943,15 @@ export default function App() {
 
   const saveProfile = async () => {
     const startedAt = Date.now();
-    const localDraft = { ...profileDraft, themeMode };
+    const localDraft = { 
+      ...profileDraft, 
+      themeMode,
+      fullName: profileDraft.fullName?.trim() || "",
+      department: profileDraft.department?.trim() || "",
+      faculty: profileDraft.faculty?.trim() || "",
+      level: profileDraft.level?.trim() || "",
+    };
+    
     console.log("[profile-save] started", {
       hasAvatar: !!localDraft.avatar,
       hasPhoneNumber: !!(localDraft.phoneNumber || localDraft.phone),
@@ -1103,17 +1194,23 @@ export default function App() {
   const renderInShell = (content, safeAreaEdges = ["bottom", "left", "right"]) => (
     <SafeAreaProvider>
       <ThemeProvider mode={themeMode} setMode={setThemeMode}>
-        <SafeAreaView edges={safeAreaEdges} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-          <StatusBar
-            style={systemBarStyle}
-            backgroundColor={systemBarBackground}
-            translucent={false}
-          />
-          {content}
-        </SafeAreaView>
+        <ToastProvider>
+          <SafeAreaView edges={safeAreaEdges} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <StatusBar
+              style={systemBarStyle}
+              backgroundColor={systemBarBackground}
+              translucent={false}
+            />
+            {content}
+          </SafeAreaView>
+        </ToastProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   if (phase === "splash") {
     return renderInShell(<SplashScreen />, ["left", "right"]);
@@ -1242,6 +1339,12 @@ export default function App() {
       <AdminNavigator
         activeScreen={activeAdminScreen}
         onNavigate={setActiveAdminScreen}
+        onSwitchToUser={() => {
+          setPhase("main");
+          setActiveAdminScreen("dashboard");
+        }}
+        refreshing={refreshing}
+        onRefreshData={handleRefresh}
         dashboardProps={{
           currentUser: user,
           stats: adminStats,
@@ -1263,6 +1366,7 @@ export default function App() {
         }}
         manageUsersProps={{
           users: adminUsers,
+          currentUserId: user?.id,
           onBack: () => setActiveAdminScreen("dashboard"),
           onViewUserDetails: (userId) => {
             const profile = adminUsers.find((item) => item.id === userId);
@@ -1281,10 +1385,15 @@ export default function App() {
               return u;
             }));
           },
-          onDisableUser: (userId) => {
+          onDisableUser: async (userId) => {
             const profile = adminUsers.find((item) => item.id === userId);
-            setAdminUsers((prev) => prev.filter((item) => item.id !== userId));
-            Alert.alert("User Disabled", `${profile?.fullName || "User"} has been disabled and removed from the system.`);
+            try {
+              await disableUserAdmin(userId);
+              setAdminUsers((prev) => prev.map((u) => u.id === userId ? { ...u, accountStatus: "disabled" } : u));
+              Alert.alert("User Disabled", `${profile?.fullName || "User"} has been disabled.`);
+            } catch (err) {
+              Alert.alert("Error", "Could not disable the user at this time.");
+            }
           },
           onApproveUser: async (userId) => {
             try {
@@ -1328,9 +1437,14 @@ export default function App() {
   }
 
   return renderInShell(
-    <AppNavigator
+    <ErrorBoundary>
+      <AppNavigator
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      user={user}
+      themeMode={themeMode}
+      refreshing={refreshing}
+      onRefreshData={handleRefresh}
       isStaff={isStaffUser}
       homeProps={{
         user,
@@ -1354,6 +1468,8 @@ export default function App() {
           }
           setActiveTab("search");
         },
+        onCreateEvent: openCreateEvent,
+        onOpenManageEvents: () => setActiveTab("my-events"),
       }}
       searchProps={{
         value: searchQuery,
@@ -1374,6 +1490,13 @@ export default function App() {
         onOpenNotifications: () => setActiveTab("notifications"),
         onCreateEvent: openCreateEvent,
         onOpenAnnouncement: () => setOpeningAnnouncement(true),
+      }}
+      savedEventsProps={{
+        events: filteredHomeEvents,
+        bookmarkedEventIds,
+        onBack: () => setActiveTab("home"),
+        onOpenEvent: openEvent,
+        onToggleBookmark: handleToggleBookmark,
       }}
       notificationsProps={{
         notifications,
@@ -1407,8 +1530,9 @@ export default function App() {
         onOpenEvent: openEvent,
         onToggleBookmark: handleToggleBookmark,
       }}
-    />,
-    ["left", "right"]
+    />
+    </ErrorBoundary>,
+    ["top", "bottom", "left", "right"]
   );
 }
 

@@ -427,6 +427,17 @@ export async function approveUserAdmin(userId) {
   }
 }
 
+export async function disableUserAdmin(userId) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ account_status: "disabled" })
+    .eq("id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function markNotificationAsRead({ notificationId, userId }) {
   const { error } = await supabase
     .from("notifications")

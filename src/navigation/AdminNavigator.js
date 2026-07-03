@@ -15,6 +15,8 @@ export default function AdminNavigator({
   manageUsersProps,
   analyticsProps,
   settingsProps,
+  refreshing,
+  onRefreshData,
 }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
@@ -22,17 +24,17 @@ export default function AdminNavigator({
   const renderActiveScreen = () => {
     switch (activeScreen) {
       case "dashboard":
-        return <AdminDashboard {...dashboardProps} />;
+        return <AdminDashboard {...dashboardProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
       case "events":
-        return <ManageEventsScreen {...manageEventsProps} />;
+        return <ManageEventsScreen {...manageEventsProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
       case "users":
-        return <ManageUsersScreen {...manageUsersProps} />;
+        return <ManageUsersScreen {...manageUsersProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
       case "analytics":
-        return <AdminAnalyticsScreen {...analyticsProps} />;
+        return <AdminAnalyticsScreen {...analyticsProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
       case "settings":
         return <AdminSettingsScreen {...settingsProps} />;
       default:
-        return <AdminDashboard {...dashboardProps} />;
+        return <AdminDashboard {...dashboardProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
     }
   };
 

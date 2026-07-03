@@ -18,22 +18,28 @@ export default function AppNavigator({
   notificationsProps,
   profileProps,
   savedEventsProps,
+  refreshing,
+  onRefreshData,
 }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
 
   const renderActiveScreen = () => {
     if (activeTab === "home") {
-      return <HomeScreen {...homeProps} />;
+      return <HomeScreen {...homeProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
     }
     if (activeTab === "search") {
       return <SearchScreen {...searchProps} />;
     }
     if (activeTab === "my-events") {
-      return isStaff ? <MyEventsScreen {...myEventsProps} /> : <SavedEventsScreen {...savedEventsProps} />;
+      return isStaff ? (
+        <MyEventsScreen {...myEventsProps} refreshing={refreshing} onRefreshData={onRefreshData} />
+      ) : (
+        <SavedEventsScreen {...savedEventsProps} refreshing={refreshing} onRefreshData={onRefreshData} />
+      );
     }
     if (activeTab === "notifications") {
-      return <NotificationsScreen {...notificationsProps} />;
+      return <NotificationsScreen {...notificationsProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
     }
     return <ProfileScreen {...profileProps} />;
   };

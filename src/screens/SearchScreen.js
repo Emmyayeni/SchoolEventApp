@@ -2,6 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyState } from "../components/EmptyState";
+import { FadeInImage } from "../components/FadeInImage";
+import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
@@ -68,6 +71,13 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
           onPress={() => onOpenEvent(item.id)}
         />
       )}
+      ListEmptyComponent={
+        <EmptyState
+          icon="search-outline"
+          title="No results found"
+          description="Try adjusting your search filters or keywords to find what you're looking for."
+        />
+      }
       ListHeaderComponent={
         <View style={styles.headerWrap}>
           <View style={styles.topRow}>
@@ -149,7 +159,7 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
   const disabled = status.type === "past";
 
   return (
-    <Pressable
+    <ScalePressable
       onPress={onPress}
       disabled={disabled}
       style={[
@@ -160,7 +170,7 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
       ]}
     >
       <View style={styles.imageWrap}>
-        <Image source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
+        <FadeInImage source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
         <View style={styles.badgeOverlay}>
           <Text style={[styles.badgeTag, status.type === "past" && styles.badgeGray]}>{status.label}</Text>
           <Text style={styles.badgeTagSecondary} numberOfLines={1}>
@@ -202,7 +212,7 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
           </Pressable>
         </View>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 

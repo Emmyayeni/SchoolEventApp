@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Share } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -34,6 +34,17 @@ export default function AnnouncementDetailsScreen({ onBack, announcement }) {
   const hasAnnouncement = !!announcement;
 
   const mainImage = announcement?.mainImage || ANNOUNCEMENT_FALLBACK_IMAGE;
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Campus Announcement: ${announcement?.subject || "Update"}\nRead more in the app!`,
+      });
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
   return (
     <ScrollView
       style={[styles.page, { backgroundColor: colors.background }]}
@@ -47,7 +58,7 @@ export default function AnnouncementDetailsScreen({ onBack, announcement }) {
         <Text style={styles.screenTitle}>Announcement</Text>
         <Pressable
           style={styles.iconBtn}
-          onPress={() => Alert.alert("Share", "Share feature will be connected next.")}
+          onPress={handleShare}
         >
           <Ionicons name="share-social-outline" size={18} color={colors.text} />
         </Pressable>

@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, ScrollView, StyleSheet, Text, View, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
@@ -21,6 +22,8 @@ export default function AdminDashboard({
   onManageAnnouncements,
   onViewAnalytics,
   onBack,
+  refreshing,
+  onRefreshData,
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -58,6 +61,7 @@ export default function AdminDashboard({
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + scale(24) }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.primary} />}
         bounces={false}
       >
         {/* Gradient Header */}
@@ -186,12 +190,12 @@ function StatCard({ icon, label, value, colors, styles }) {
 
 function ActionButton({ icon, label, onPress, colors, styles, color }) {
   return (
-    <Pressable style={styles.actionBtn} onPress={onPress}>
+    <ScalePressable style={styles.actionBtn} onPress={onPress}>
       <View style={[styles.actionIconWrap, { backgroundColor: color + "15" }]}>
         <Ionicons name={icon} size={24} color={color} />
       </View>
       <Text style={styles.actionLabel}>{label}</Text>
-    </Pressable>
+    </ScalePressable>
   );
 }
 

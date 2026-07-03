@@ -1,16 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FadeInImage } from "../components/FadeInImage";
+import { ScalePressable } from "../components/ScalePressable";
+import { EventSkeletonCard } from "../components/SkeletonLoader";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-const HOME_CATEGORIES = [
-  { label: "All", icon: "apps" },
-  { label: "Academic", icon: "school" },
-  { label: "Social", icon: "people" },
-  { label: "Sports", icon: "football" },
-  { label: "Workshop", icon: "construct" },
+const CATEGORY_DATA = [
+  { label: "Today", image: "https://images.unsplash.com/photo-1506784951809-c8e39031c5df?w=200&q=80" },
+  { label: "Tomorrow", image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=200&q=80" },
+  { label: "Academic", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&q=80" },
+  { label: "Sports", image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=200&q=80" },
+  { label: "Seminar", image: "https://images.unsplash.com/photo-1544531586-fde5298cdd40?w=200&q=80" },
+  { label: "Workshop", image: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=200&q=80" },
+  { label: "SUG", image: "https://images.unsplash.com/photo-1523580494112-071d45d41982?w=200&q=80" },
 ];
 
 export default function HomeScreen({
@@ -26,34 +32,41 @@ export default function HomeScreen({
   onOpenProfile,
   onActivateSearch,
   onOpenAnnouncementDetails,
+  onCreateEvent,
+  onOpenManageEvents,
+  refreshing,
+  onRefreshData,
 }) {
-  const { colors } = useAppTheme();
+  const { colors, mode } = useAppTheme();
+  const isDark = mode === "dark";
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [activeCategory, setActiveCategory] = useState("Today");
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const firstName = (user?.fullName || "John").trim().split(" ")[0] || "John";
   const isStudent = dashboardType !== "staff";
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning,";
+    if (hour < 18) return "Good Afternoon,";
+    return "Good Evening,";
+  };
+  const greeting = getGreeting();
+
   const filteredEvents = useMemo(() => {
     const byCategory = events.filter((item) => {
-      if (activeCategory === "All") {
-        return true;
-      }
-      if (activeCategory === "Academic") {
-        return ["Seminar", "Workshop", "Conference"].includes(item.category);
-      }
-      if (activeCategory === "Workshop") {
-        return item.category === "Workshop";
-      }
-      return item.category?.toLowerCase() === activeCategory.toLowerCase();
+      if (activeCategory === "Today" || activeCategory === "Tomorrow" || activeCategory === "All") return true;
+      if (activeCategory === "Academic") return ["Seminar", "Workshop", "Conference"].includes(item.category);
+      if (activeCategory === "Workshop") return item.category === "Workshop";
+      if (activeCategory === "Sports") return item.category === "Sports";
+      if (activeCategory === "Seminar") return item.category === "Seminar";
+      return true; // Fallback
     });
 
     const needle = searchText.trim().toLowerCase();
-    if (!needle) {
-      return byCategory;
-    }
+    if (!needle) return byCategory;
 
     return byCategory.filter((item) => {
       const source = `${item.title} ${item.venue} ${item.category}`.toLowerCase();
@@ -61,567 +74,828 @@ export default function HomeScreen({
     });
   }, [activeCategory, events, searchText]);
 
-  const featured = useMemo(() => {
-    if (featuredEvents.length > 0) {
-      return featuredEvents.slice(0, 5);
-    }
-    return filteredEvents.slice(0, 5);
-  }, [featuredEvents, filteredEvents]);
+  const upcoming = useMemo(() => filteredEvents, [filteredEvents]);
+  const featured = featuredEvents.length > 0 ? featuredEvents[0] : (events.length > 0 ? events[0] : null);
 
-  const upcoming = useMemo(() => filteredEvents.slice(0, 3), [filteredEvents]);
-  const announcement = announcements[0] || null;
+  const staffHostedEvents = useMemo(() => {
+    return events.filter(e => e.createdBy === user?.id);
+  }, [events, user]);
+
+  const activeEventsCount = useMemo(() => {
+    return staffHostedEvents.filter(e => {
+      const start = new Date(e.date);
+      return start >= new Date();
+    }).length;
+  }, [staffHostedEvents]);
+
+  const totalRegistrations = useMemo(() => {
+    return staffHostedEvents.reduce((sum, e) => {
+      const count = Number(e.registeredCount);
+      return sum + (Number.isFinite(count) ? count : 0);
+    }, 0);
+  }, [staffHostedEvents]);
+
+  const renderFaces = (count = 3, size = 18) => {
+    return (
+      <View style={{ flexDirection: "row", marginRight: scale(6) }}>
+        {[1, 2, 3].slice(0, count).map((num, i) => (
+          <Image
+            key={i}
+            source={{ uri: `https://randomuser.me/api/portraits/women/${(num * 10) + 1}.jpg` }}
+            style={{
+              width: scale(size),
+              height: scale(size),
+              borderRadius: scale(size / 2),
+              borderWidth: 1,
+              borderColor: colors.surface,
+              marginLeft: i > 0 ? -scale(8) : 0,
+            }}
+          />
+        ))}
+      </View>
+    );
+  };
 
   return (
-    <ScrollView
-      style={[styles.page, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + scale(8) }]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.userWrap}>
-          <Pressable onPress={onOpenProfile}>
-            <View style={styles.avatarRing}>
-              <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+    <View style={[styles.page, { paddingTop: insets.top }]}>
+      {/* TOP APP BAR */}
+      <View style={styles.topNav}>
+        <Pressable style={styles.menuIcon}>
+          <Ionicons name="menu-outline" size={28} color={colors.text} />
+        </Pressable>
+        <View style={styles.logoWrap}>
+          <View style={styles.shieldIconWrap}>
+            <Ionicons name="shield-checkmark" size={16} color="#fff" />
+          </View>
+          <View style={styles.logoTextWrap}>
+            <Text style={styles.logoTitle}>NSUK</Text>
+            <Text style={styles.logoSubtitle}>CAMPUS EVENTS</Text>
+          </View>
+        </View>
+        <Pressable style={styles.bellWrap} onPress={onOpenNotifications}>
+          <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>3</Text>
+          </View>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.primary} />}
+      >
+        {/* GREETING BAR */}
+        <View style={styles.greetingRow}>
+          <Pressable style={styles.greetingLeft} onPress={onOpenProfile}>
+            <Image source={{ uri: user?.avatar || "https://randomuser.me/api/portraits/lego/1.jpg" }} style={styles.greetingAvatar} />
+            <View>
+              <Text style={styles.greetingText}>{greeting} 👋</Text>
+              <Text style={styles.greetingName}>{firstName}</Text>
             </View>
           </Pressable>
-          <View>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.nameText}>Hello, {firstName}</Text>
+          <View style={styles.campusDropdown}>
+            <Ionicons name="location" size={12} color={colors.text} />
+            <Text style={styles.campusText}>NSUK Main Campus</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.text} />
           </View>
         </View>
 
-        <Pressable style={styles.iconBtn} onPress={onOpenNotifications}>
-          <Ionicons name="notifications-outline" size={16} color={colors.primary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.searchRow}>
-        <Pressable
-          style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => onActivateSearch?.(searchText)}
-        >
-          <Ionicons name="search" size={16} color={colors.textSubtle} />
-          <TextInput
-            value={searchText}
-            onChangeText={setSearchText}
-            onFocus={() => onActivateSearch?.(searchText)}
-            placeholder="Search events, venues..."
-            placeholderTextColor={colors.textSubtle}
-            style={[styles.searchInput, { color: colors.text }]}
-          />
-        </Pressable>
-
-        <Pressable style={styles.filterBtn} onPress={() => onActivateSearch?.(searchText)}>
-          <Ionicons name="options" size={16} color={colors.primaryContrast} />
-        </Pressable>
-      </View>
-
-      {announcement && (
-        <Pressable
-          style={styles.announcementCard}
-          onPress={() => onOpenAnnouncementDetails?.(announcement.id)}
-        >
-          <View style={styles.announcementIconWrap}>
-            <Ionicons name="megaphone" size={14} color={colors.accent} />
-          </View>
-          <View style={styles.announcementBody}>
-            <Text style={styles.announcementTitle} numberOfLines={2}>{announcement.subject}</Text>
-            <View style={styles.announcementBottomRow}>
-              <Text style={styles.announcementMessage} numberOfLines={2}>{announcement.message}</Text>
-              <Text style={styles.announcementLink}>Read More</Text>
-            </View>
-          </View>
-        </Pressable>
-      )}
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-        {HOME_CATEGORIES.map((categoryItem) => {
-          const active = categoryItem.label === activeCategory;
-          const iconColor = active ? colors.primaryContrast : colors.accent;
-          return (
-            <Pressable
-              key={categoryItem.label}
-              onPress={() => setActiveCategory(categoryItem.label)}
-              style={[styles.categoryChip, active && styles.categoryChipActive]}
-            >
-              <Ionicons name={categoryItem.icon} size={11} color={iconColor} />
-              <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{categoryItem.label}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      <SectionTitle title="Featured Events" action="View all" styles={styles} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
-        {featured.map((item, index) => (
-          <Pressable
-            key={String(item.id)}
-            style={[styles.featuredCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
-            onPress={() => onOpenEvent?.(item.id)}
-          >
-            <Image source={{ uri: item.image }} style={styles.featuredImage} />
-            <View style={styles.featuredOverlay} />
-
-            {isStudent && (
-              <Pressable style={styles.bookmarkBtn} onPress={() => onToggleBookmark?.(item.id)}>
-                <Ionicons
-                  name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"}
-                  size={13}
-                  color={colors.primaryContrast}
-                />
-              </Pressable>
-            )}
-
-            <View style={styles.featuredTagWrap}>
-              <Text style={[styles.featuredTag, index % 2 === 0 ? styles.tagPrimary : styles.tagSecondary]}>
-                {index % 2 === 0 ? "FEATURED" : "TRENDING"}
-              </Text>
-            </View>
-
-            <View style={styles.featuredBody}>
-              <Text style={styles.featuredTitle} numberOfLines={1}>{item.title}</Text>
-              <View style={styles.featuredMetaRow}>
-                <Ionicons name="calendar-outline" size={11} color={colors.borderSoft} />
-                <Text style={styles.featuredMeta}>{formatDate(item.date)}, {item.time}</Text>
-              </View>
-            </View>
+        {/* SEARCH AREA */}
+        <View style={styles.searchContainer}>
+          <Pressable style={styles.searchInputWrap} onPress={() => onActivateSearch?.(searchText)}>
+            <Ionicons name="search" size={20} color={colors.textSubtle} />
+            <TextInput
+              value={searchText}
+              onChangeText={setSearchText}
+              onFocus={() => onActivateSearch?.(searchText)}
+              placeholder="Search events, categories, or organizers..."
+              placeholderTextColor={colors.textSubtle}
+              style={styles.searchInput}
+              pointerEvents="none"
+            />
           </Pressable>
-        ))}
-      </ScrollView>
+          <Pressable style={styles.filterBtn} onPress={() => onActivateSearch?.(searchText)}>
+            <Ionicons name="options-outline" size={22} color={colors.text} />
+          </Pressable>
+        </View>
 
-      <SectionTitle title="Upcoming Events" action="See all" styles={styles} />
-      <View style={styles.upcomingWrap}>
-        {upcoming.map((item) => (
-          <Pressable
-            key={String(item.id)}
-            style={[styles.upcomingCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
-            onPress={() => onOpenEvent?.(item.id)}
-          >
-            {isStudent && (
-              <Pressable style={styles.bookmarkBtnInline} onPress={() => onToggleBookmark?.(item.id)}>
-                <Ionicons
-                  name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"}
-                  size={13}
-                  color={colors.accent}
-                />
-              </Pressable>
-            )}
+        {/* STORY-STYLE CATEGORIES */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyRow}>
+          {CATEGORY_DATA.map((cat, i) => {
+            const active = cat.label === activeCategory;
+            return (
+              <ScalePressable key={i} onPress={() => setActiveCategory(cat.label)} style={styles.storyItem}>
+                <View style={[styles.storyRing, active && styles.storyRingActive]}>
+                  <View style={styles.storyImageWrap}>
+                    {cat.label === "Today" || cat.label === "Tomorrow" ? (
+                      <View style={[styles.storyIconWrap, { backgroundColor: active ? colors.primary : colors.surfaceAlt }]}>
+                        <Ionicons name="calendar" size={24} color={active ? "#fff" : colors.primary} />
+                      </View>
+                    ) : (
+                      <Image source={{ uri: cat.image }} style={styles.storyImage} />
+                    )}
+                  </View>
+                </View>
+                <Text style={[styles.storyText, active && styles.storyTextActive]}>{cat.label}</Text>
+              </ScalePressable>
+            );
+          })}
+        </ScrollView>
 
-            <Image source={{ uri: item.image }} style={styles.upcomingImage} />
-
-            <View style={[styles.upcomingBody, isStudent && styles.upcomingBodyWithBookmark]}>
-              <View style={styles.upcomingTop}>
-                <Text style={styles.upcomingCategory} numberOfLines={1}>{item.category.toUpperCase()}</Text>
-                <Text style={styles.upcomingDate}>{formatShortDate(item.date)}</Text>
+        {/* FEATURED EVENT HERO CARD */}
+        {featured && isStudent && (
+          <ScalePressable style={styles.featuredHero} onPress={() => onOpenEvent?.(featured.id)}>
+            <Image source={{ uri: featured.image }} style={styles.featuredHeroBg} />
+            <LinearGradient colors={["transparent", "rgba(5, 15, 40, 0.95)"]} style={styles.featuredGradient} />
+            <View style={styles.featuredHeroContent}>
+              <View style={styles.featuredBadge}>
+                <Ionicons name="star" size={10} color="#fff" />
+                <Text style={styles.featuredBadgeText}>FEATURED EVENT</Text>
+              </View>
+              <Text style={styles.featuredHeroTitle}>{featured.title}</Text>
+              <Text style={styles.featuredHeroDesc} numberOfLines={2}>
+                {featured.description || "Explore emerging technologies, network with experts and innovators, and shape the future."}
+              </Text>
+              
+              <View style={styles.featuredHeroMetaRow}>
+                <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.featuredHeroMetaText}>{formatDate(featured.date)}</Text>
+                <Text style={styles.featuredHeroMetaDivider}>|</Text>
+                <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.featuredHeroMetaText}>{featured.time || "9:00 AM"}</Text>
+                <Text style={styles.featuredHeroMetaDivider}>|</Text>
+                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.featuredHeroMetaText} numberOfLines={1}>{featured.venue}</Text>
               </View>
 
-              <Text style={styles.upcomingTitle} numberOfLines={1}>{item.title}</Text>
-
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={11} color={colors.textMuted} />
-                <Text style={styles.locationText} numberOfLines={1}>{item.venue}</Text>
+              <View style={styles.featuredHeroBottom}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {renderFaces(3, 20)}
+                  <Text style={styles.facePileText}>243 Going • 18 Interested</Text>
+                </View>
+                <Pressable style={styles.viewDetailsBtn} onPress={() => onOpenEvent?.(featured.id)}>
+                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#000" />
+                </Pressable>
               </View>
+            </View>
+          </ScalePressable>
+        )}
 
-              <View style={styles.upcomingBottom}>
-                <Text style={styles.timeText}>{item.time}</Text>
-                <View style={styles.rsvpBtn}>
-                  <Text style={styles.rsvpText}>RSVP</Text>
+        {/* ORGANIZER METRICS HERO CARD */}
+        {!isStudent && (
+          <View style={styles.organizerHero}>
+            <Image source={{ uri: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=80" }} style={styles.featuredHeroBg} />
+            <LinearGradient colors={["transparent", "rgba(5, 15, 40, 0.95)"]} style={styles.featuredGradient} />
+            <View style={styles.featuredHeroContent}>
+              <View style={[styles.featuredBadge, { backgroundColor: "#fff" }]}>
+                <Ionicons name="stats-chart" size={10} color={colors.primary} />
+                <Text style={[styles.featuredBadgeText, { color: colors.primary }]}>ORGANIZER DASHBOARD</Text>
+              </View>
+              <Text style={styles.featuredHeroTitle}>Welcome back, {firstName}!</Text>
+              <Text style={styles.featuredHeroDesc}>Here is a quick overview of your campus events.</Text>
+              
+              <View style={styles.organizerStatsRow}>
+                <View style={styles.organizerStatBox}>
+                  <Text style={styles.organizerStatValue}>{activeEventsCount}</Text>
+                  <Text style={styles.organizerStatLabel}>Active Events</Text>
+                </View>
+                <View style={styles.organizerStatDivider} />
+                <View style={styles.organizerStatBox}>
+                  <Text style={styles.organizerStatValue}>{totalRegistrations}</Text>
+                  <Text style={styles.organizerStatLabel}>Total RSVPs</Text>
                 </View>
               </View>
+
+              <View style={styles.featuredHeroBottom}>
+                <Pressable style={styles.viewDetailsBtn} onPress={onOpenManageEvents}>
+                  <Text style={styles.viewDetailsText}>Manage Events</Text>
+                  <Ionicons name="settings-outline" size={14} color="#000" />
+                </Pressable>
+                <Pressable style={[styles.viewDetailsBtn, { backgroundColor: colors.primary }]} onPress={onCreateEvent}>
+                  <Text style={[styles.viewDetailsText, { color: "#fff" }]}>Create Event</Text>
+                  <Ionicons name="add" size={14} color="#fff" />
+                </Pressable>
+              </View>
             </View>
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+          </View>
+        )}
+
+        {/* FEED LOOP */}
+        <View style={styles.feedWrap}>
+          {upcoming.length === 0 && refreshing ? (
+            <>
+              <EventSkeletonCard />
+              <EventSkeletonCard />
+            </>
+          ) : upcoming.length === 0 ? (
+            <Text style={styles.emptyStateText}>No events found in this category.</Text>
+          ) : (
+            upcoming.map((item) => (
+              <SocialEventPost 
+                key={String(item.id)} 
+                item={item} 
+                colors={colors} 
+                styles={styles}
+                isDark={isDark}
+                onPress={() => onOpenEvent?.(item.id)}
+                isStudent={isStudent}
+                bookmarked={bookmarkedEventIds.includes(item.id)}
+                onToggleBookmark={() => onToggleBookmark?.(item.id)}
+                renderFaces={renderFaces}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-function SectionTitle({ title, action, styles }) {
+function SocialEventPost({ item, colors, styles, isDark, onPress, isStudent, bookmarked, onToggleBookmark, renderFaces }) {
+  const avatarUrl = `https://randomuser.me/api/portraits/men/${(String(item.id).charCodeAt(0) % 90) + 1}.jpg`;
+  
   return (
-    <View style={styles.sectionRow}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {action ? <Text style={styles.sectionAction}>{action}</Text> : <View />}
+    <View style={styles.postCard}>
+      {/* Post Header */}
+      <View style={styles.postHeader}>
+        <Image source={{ uri: avatarUrl }} style={styles.postAvatar} />
+        <View style={styles.postHeaderInfo}>
+          <View style={styles.postAuthorRow}>
+            <Text style={styles.postAuthorName}>{item.organizer || "Student Affairs Division"}</Text>
+            <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+          </View>
+          <View style={styles.postTimeRow}>
+            <Text style={styles.postTimeText}>2 hours ago</Text>
+            <Ionicons name="globe-outline" size={11} color={colors.textMuted} />
+          </View>
+        </View>
+        <Pressable style={styles.postOptionsBtn}>
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      {/* Post Body (Side by Side) */}
+      <Pressable style={styles.postBody} onPress={onPress}>
+        <Image source={{ uri: item.image }} style={styles.postBodyImage} />
+        <View style={styles.postBodyContent}>
+          <View style={styles.postBadge}>
+            <Text style={[styles.postBadgeText, { color: colors.primary }]}>{item.category || "Academic"}</Text>
+          </View>
+          <Text style={styles.postTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.postDesc} numberOfLines={3}>
+            {item.description || "Join developers from across NSUK for a 24-hour coding challenge. Great prizes to be won!"}
+          </Text>
+          
+          <View style={styles.postMetaGrid}>
+            <View style={styles.postMetaRow}>
+              <Ionicons name="calendar-outline" size={12} color={colors.textSubtle} />
+              <Text style={styles.postMetaText}>{formatShortDate(item.date)}</Text>
+            </View>
+            <View style={styles.postMetaRow}>
+              <Ionicons name="location-outline" size={12} color={colors.textSubtle} />
+              <Text style={styles.postMetaText} numberOfLines={1}>{item.venue}</Text>
+            </View>
+          </View>
+
+          <View style={styles.postFacePileRow}>
+            {renderFaces(3, 16)}
+            <Text style={styles.postFacePileText}>132 Going   22 Interested</Text>
+          </View>
+        </View>
+      </Pressable>
+
+      <View style={styles.postDivider} />
+
+      {/* Action Footer */}
+      <View style={styles.postActionFooter}>
+        <Pressable style={styles.postActionBtn}>
+          <Ionicons name="heart" size={18} color="#ff4444" />
+          <Text style={styles.postActionText}>Like</Text>
+        </Pressable>
+        <Pressable style={styles.postActionBtn}>
+          <Ionicons name="chatbubble-outline" size={18} color={colors.textSubtle} />
+          <Text style={styles.postActionText}>Comment</Text>
+        </Pressable>
+        <Pressable style={styles.postActionBtn} onPress={onToggleBookmark}>
+          <Ionicons name={bookmarked ? "bookmark" : "bookmark-outline"} size={18} color={bookmarked ? colors.primary : colors.textSubtle} />
+          <Text style={styles.postActionText}>Save</Text>
+        </Pressable>
+        <Pressable style={styles.postActionBtn}>
+          <Ionicons name="arrow-redo-outline" size={18} color={colors.textSubtle} />
+          <Text style={styles.postActionText}>Share</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 function formatDate(dateText) {
   const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) {
-    return dateText;
-  }
+  if (Number.isNaN(date.getTime())) return dateText;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatShortDate(dateText) {
   const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-const createStyles = (colors) =>
+const createStyles = (colors, isDark) =>
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: colors.background,
     },
     content: {
-      paddingHorizontal: scale(12),
-      paddingBottom: scale(18),
-      gap: scale(12),
+      paddingBottom: scale(40),
     },
-    headerRow: {
+    // Top Nav
+    topNav: {
       flexDirection: "row",
+      alignItems: "center",
       justifyContent: "space-between",
-      alignItems: "center",
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(10),
+      backgroundColor: colors.background,
     },
-    userWrap: {
+    menuIcon: {
+      padding: scale(4),
+    },
+    logoWrap: {
       flexDirection: "row",
       alignItems: "center",
-      gap: scale(8),
+      gap: scale(6),
     },
-    avatar: {
-      width: scale(30),
-      height: scale(30),
-      borderRadius: scale(15),
-    },
-    avatarRing: {
-      width: scale(34),
-      height: scale(34),
-      borderRadius: scale(17),
-      backgroundColor: colors.primary + "30",
-      borderWidth: 1,
-      borderColor: colors.primary,
+    shieldIconWrap: {
+      backgroundColor: colors.primary,
+      width: scale(26),
+      height: scale(28),
+      borderRadius: scale(6),
       alignItems: "center",
       justifyContent: "center",
     },
-    welcomeText: {
-      color: colors.textMuted,
-      fontSize: ms(10),
-      fontWeight: "700",
-      textTransform: "uppercase",
+    logoTextWrap: {
+      flexDirection: "column",
+    },
+    logoTitle: {
+      color: colors.primary,
+      fontSize: ms(14),
+      fontFamily: "Outfit_900Black",
+      lineHeight: ms(14),
       letterSpacing: 0.5,
     },
-    nameText: {
-      color: colors.primary,
-      fontSize: ms(22),
-      fontWeight: "900",
-      marginTop: -1,
+    logoSubtitle: {
+      color: colors.textSubtle,
+      fontSize: ms(8),
+      fontWeight: "800",
+      lineHeight: ms(10),
+      letterSpacing: 0.5,
     },
-    iconBtn: {
-      width: scale(34),
-      height: scale(34),
-      borderRadius: scale(17),
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
-      backgroundColor: colors.surface,
+    bellWrap: {
+      padding: scale(4),
+    },
+    notificationBadge: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      backgroundColor: "#ff4444",
+      width: scale(14),
+      height: scale(14),
+      borderRadius: scale(7),
       alignItems: "center",
       justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: colors.background,
     },
-    searchRow: {
+    notificationBadgeText: {
+      color: "#fff",
+      fontSize: ms(8),
+      fontWeight: "900",
+    },
+    
+    // Greeting Row
+    greetingRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: scale(7),
+      justifyContent: "space-between",
+      paddingHorizontal: scale(16),
+      paddingTop: scale(10),
     },
-    searchWrap: {
-      flex: 1,
-      height: scale(41),
+    greetingLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(10),
+    },
+    greetingAvatar: {
+      width: scale(40),
+      height: scale(40),
+      borderRadius: scale(20),
+    },
+    greetingText: {
+      fontSize: ms(12),
+      color: colors.textSubtle,
+      fontWeight: "600",
+    },
+    greetingName: {
+      fontSize: ms(16),
+      fontFamily: "Outfit_900Black",
+      color: colors.text,
+      marginTop: -2,
+    },
+    campusDropdown: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
       borderRadius: 999,
-      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSoft,
+    },
+    campusText: {
+      fontSize: ms(10),
+      fontWeight: "700",
+      color: colors.text,
+    },
+
+    // Search Area
+    searchContainer: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: scale(11),
-      gap: scale(6),
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 1,
+      paddingHorizontal: scale(16),
+      marginTop: scale(16),
+      gap: scale(10),
+    },
+    searchInputWrap: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: scale(12),
+      paddingHorizontal: scale(12),
+      height: scale(44),
+      gap: scale(8),
     },
     searchInput: {
       flex: 1,
-      color: colors.text,
       fontSize: ms(13),
+      fontFamily: "Outfit_500Medium",
+      color: colors.text,
     },
     filterBtn: {
-      width: scale(36),
-      height: scale(36),
-      borderRadius: scale(18),
-      backgroundColor: colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    announcementCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: scale(9),
-      borderRadius: scale(13),
+      width: scale(44),
+      height: scale(44),
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSoft,
-      backgroundColor: colors.surface,
-      paddingHorizontal: scale(10),
-      paddingVertical: scale(10),
-    },
-    announcementIconWrap: {
-      width: scale(30),
-      height: scale(30),
-      borderRadius: scale(15),
+      borderRadius: scale(12),
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surfaceAlt,
     },
-    announcementBody: {
-      flex: 1,
-      gap: scale(3),
+
+    // Categories (Stories)
+    storyRow: {
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(16),
+      gap: scale(16),
     },
-    announcementTitle: {
-      color: colors.text,
-      fontSize: ms(12),
-      fontWeight: "900",
-      lineHeight: ms(15),
-    },
-    announcementBottomRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
+    storyItem: {
       alignItems: "center",
-      gap: scale(8),
+      gap: scale(6),
+      width: scale(64),
     },
-    announcementMessage: {
-      flex: 1,
-      color: colors.textMuted,
-      fontSize: ms(11),
-      fontWeight: "600",
-    },
-    announcementLink: {
-      color: colors.primary,
-      fontSize: ms(11),
-      fontWeight: "900",
-    },
-    categoryRow: {
-      paddingVertical: scale(1),
-      gap: scale(8),
-    },
-    categoryChip: {
-      height: scale(32),
-      borderRadius: scale(16),
-      borderWidth: 1,
+    storyRing: {
+      width: scale(64),
+      height: scale(64),
+      borderRadius: scale(32),
+      borderWidth: 2,
       borderColor: colors.border,
-      backgroundColor: colors.surface,
-      paddingHorizontal: scale(11),
-      flexDirection: "row",
       alignItems: "center",
-      gap: scale(4),
+      justifyContent: "center",
     },
-    categoryChipActive: {
-      backgroundColor: colors.accent,
-      borderColor: colors.accent,
+    storyRingActive: {
+      borderColor: colors.primary,
     },
-    categoryText: {
-      color: colors.textMuted,
-      fontSize: ms(12),
-      fontWeight: "700",
-    },
-    categoryTextActive: {
-      color: colors.primaryContrast,
-    },
-    sectionRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginTop: scale(1),
-    },
-    sectionTitle: {
-      color: colors.text,
-      fontSize: ms(24),
-      fontWeight: "900",
-    },
-    sectionAction: {
-      color: colors.primary,
-      fontSize: ms(13),
-      fontWeight: "800",
-    },
-    featuredRow: {
-      gap: scale(10),
-      paddingBottom: scale(2),
-    },
-    featuredCard: {
-      width: scale(180),
-      height: scale(146),
-      borderRadius: scale(15),
-      borderWidth: 1,
+    storyImageWrap: {
+      width: scale(54),
+      height: scale(54),
+      borderRadius: scale(27),
       overflow: "hidden",
-      backgroundColor: colors.surfaceAlt,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      borderWidth: 2,
+      borderColor: colors.background,
     },
-    featuredImage: {
+    storyImage: {
       width: "100%",
       height: "100%",
     },
-    featuredOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: colors.overlay,
-    },
-    featuredTagWrap: {
-      position: "absolute",
-      left: scale(9),
-      top: scale(10),
-    },
-    bookmarkBtn: {
-      position: "absolute",
-      right: scale(9),
-      top: scale(9),
-      width: scale(24),
-      height: scale(24),
-      borderRadius: scale(12),
+    storyIconWrap: {
+      flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.overlayStrong,
     },
-    featuredTag: {
-      paddingHorizontal: scale(7),
-      paddingVertical: scale(3),
-      borderRadius: 999,
-      fontSize: ms(9),
-      fontWeight: "900",
-      color: colors.text,
+    storyText: {
+      fontSize: ms(11),
+      fontWeight: "700",
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+    storyTextActive: {
+      color: colors.primary,
+      fontFamily: "Outfit_800ExtraBold",
+    },
+
+    // Featured Event Hero
+    featuredHero: {
+      marginHorizontal: scale(16),
+      height: scale(220),
+      borderRadius: scale(16),
       overflow: "hidden",
+      marginBottom: scale(20),
     },
-    tagPrimary: {
-      backgroundColor: colors.surfaceAlt,
-    },
-    tagSecondary: {
-      backgroundColor: colors.surface,
-    },
-    featuredBody: {
+    featuredHeroBg: {
+      width: "100%",
+      height: "100%",
       position: "absolute",
-      left: scale(10),
-      right: scale(10),
-      bottom: scale(10),
     },
-    featuredTitle: {
-      color: colors.primaryContrast,
-      fontSize: ms(24),
-      fontWeight: "900",
+    featuredGradient: {
+      ...StyleSheet.absoluteFillObject,
     },
-    featuredMetaRow: {
-      marginTop: scale(3),
+    featuredHeroContent: {
+      flex: 1,
+      padding: scale(16),
+      justifyContent: "flex-end",
+    },
+    featuredBadge: {
       flexDirection: "row",
       alignItems: "center",
       gap: scale(4),
+      backgroundColor: colors.primary,
+      alignSelf: "flex-start",
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(4),
+      borderRadius: scale(6),
+      marginBottom: scale(8),
     },
-    featuredMeta: {
-      color: colors.borderSoft,
+    featuredBadgeText: {
+      color: "#fff",
+      fontSize: ms(8),
+      fontWeight: "900",
+      letterSpacing: 0.5,
+    },
+    featuredHeroTitle: {
+      color: "#fff",
+      fontSize: ms(18),
+      fontFamily: "Outfit_900Black",
+      lineHeight: ms(24),
+      marginBottom: scale(4),
+      width: "80%",
+    },
+    featuredHeroDesc: {
+      color: "rgba(255,255,255,0.8)",
+      fontSize: ms(11),
+      lineHeight: ms(16),
+      marginBottom: scale(10),
+      width: "80%",
+    },
+    featuredHeroMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      marginBottom: scale(12),
+    },
+    featuredHeroMetaText: {
+      color: "rgba(255,255,255,0.9)",
+      fontSize: ms(10),
+      fontWeight: "600",
+    },
+    featuredHeroMetaDivider: {
+      color: "rgba(255,255,255,0.4)",
+      fontSize: ms(10),
+      marginHorizontal: scale(2),
+    },
+    featuredHeroBottom: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    facePileText: {
+      color: "#fff",
       fontSize: ms(10),
       fontWeight: "700",
     },
-    upcomingWrap: {
-      gap: scale(10),
+    viewDetailsBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#fff",
+      paddingHorizontal: scale(12),
+      paddingVertical: scale(8),
+      borderRadius: scale(8),
+      gap: scale(4),
     },
-    upcomingCard: {
-      position: "relative",
-      borderRadius: scale(14),
+    viewDetailsText: {
+      color: "#000",
+      fontSize: ms(11),
+      fontWeight: "800",
+    },
+
+    // Organizer Hero Styles
+    organizerHero: {
+      marginHorizontal: scale(16),
+      height: scale(240),
+      borderRadius: scale(16),
+      overflow: "hidden",
+      marginBottom: scale(20),
+    },
+    organizerStatsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "rgba(255,255,255,0.1)",
+      padding: scale(12),
+      borderRadius: scale(12),
+      marginBottom: scale(16),
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.2)",
+    },
+    organizerStatBox: {
+      flex: 1,
+      alignItems: "center",
+    },
+    organizerStatValue: {
+      color: "#fff",
+      fontSize: ms(20),
+      fontFamily: "Outfit_900Black",
+      marginBottom: scale(2),
+    },
+    organizerStatLabel: {
+      color: "rgba(255,255,255,0.7)",
+      fontSize: ms(10),
+      fontWeight: "700",
+    },
+    organizerStatDivider: {
+      width: 1,
+      height: scale(30),
+      backgroundColor: "rgba(255,255,255,0.2)",
+    },
+
+    // Feed Layout
+    feedWrap: {
+      paddingHorizontal: scale(16),
+      gap: scale(16),
+    },
+    postCard: {
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
+      borderRadius: scale(16),
       borderWidth: 1,
       borderColor: colors.borderSoft,
-      backgroundColor: colors.surface,
-      padding: scale(10),
-      flexDirection: "row",
-      gap: scale(10),
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.04,
-      shadowRadius: 6,
-      elevation: 1,
-    },
-    upcomingImage: {
-      width: scale(62),
-      height: scale(62),
-      borderRadius: scale(12),
-      backgroundColor: colors.surfaceAlt,
-    },
-    upcomingBody: {
-      flex: 1,
-      gap: scale(4),
-    },
-    upcomingBodyWithBookmark: {
-      paddingRight: scale(28),
-    },
-    upcomingTop: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: scale(6),
-    },
-    upcomingCategory: {
-      flexShrink: 1,
-      color: colors.accent,
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: 999,
       overflow: "hidden",
-      paddingHorizontal: scale(8),
-      paddingVertical: scale(3),
-      fontSize: ms(9),
-      fontWeight: "900",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0 : 0.05,
+      shadowRadius: 10,
+      elevation: isDark ? 0 : 3,
     },
-    upcomingDate: {
-      color: colors.textSubtle,
-      fontSize: ms(10),
-      fontWeight: "800",
+    postHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: scale(12),
     },
-    upcomingTitle: {
-      color: colors.text,
-      fontSize: ms(15),
-      fontWeight: "800",
+    postAvatar: {
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(18),
+      backgroundColor: colors.background,
     },
-    locationRow: {
+    postHeaderInfo: {
+      flex: 1,
+      marginLeft: scale(10),
+    },
+    postAuthorRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: scale(4),
     },
-    locationText: {
-      flex: 1,
-      color: colors.textMuted,
+    postAuthorName: {
+      fontSize: ms(14),
+      fontFamily: "Outfit_800ExtraBold",
+      color: colors.text,
+    },
+    postTimeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      marginTop: 2,
+    },
+    postTimeText: {
       fontSize: ms(11),
+      color: colors.textMuted,
       fontWeight: "600",
     },
-    upcomingBottom: {
+    postOptionsBtn: {
+      padding: scale(4),
+    },
+    
+    // Side by Side Body
+    postBody: {
       flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    timeText: {
-      color: colors.primary,
-      fontSize: ms(14),
-      fontWeight: "900",
-    },
-    rsvpBtn: {
-      borderRadius: 999,
-      backgroundColor: colors.primary,
       paddingHorizontal: scale(12),
-      paddingVertical: scale(5),
+      gap: scale(12),
     },
-    rsvpText: {
-      color: colors.primaryContrast,
-      fontSize: ms(10),
-      fontWeight: "900",
-    },
-    bookmarkBtnInline: {
-      position: "absolute",
-      right: scale(10),
-      top: scale(10),
-      width: scale(24),
-      height: scale(24),
+    postBodyImage: {
+      width: scale(120),
+      height: scale(140),
       borderRadius: scale(12),
+      backgroundColor: colors.background,
+    },
+    postBodyContent: {
+      flex: 1,
+    },
+    postBadge: {
+      backgroundColor: colors.primary + "15",
+      alignSelf: "flex-start",
+      paddingHorizontal: scale(6),
+      paddingVertical: scale(2),
+      borderRadius: scale(4),
+      marginBottom: scale(4),
+    },
+    postBadgeText: {
+      fontSize: ms(9),
+      fontWeight: "800",
+    },
+    postTitle: {
+      fontSize: ms(15),
+      fontFamily: "Outfit_900Black",
+      color: colors.text,
+      lineHeight: ms(18),
+      marginBottom: scale(4),
+    },
+    postDesc: {
+      fontSize: ms(11),
+      color: colors.textSubtle,
+      lineHeight: ms(14),
+      marginBottom: scale(6),
+    },
+    postMetaGrid: {
+      gap: scale(4),
+      marginBottom: scale(8),
+    },
+    postMetaRow: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surfaceAlt,
-      zIndex: 5,
+      gap: scale(4),
+    },
+    postMetaText: {
+      fontSize: ms(10),
+      color: colors.textSubtle,
+      fontWeight: "600",
+    },
+    postFacePileRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: "auto",
+    },
+    postFacePileText: {
+      fontSize: ms(9),
+      color: colors.textMuted,
+      fontWeight: "700",
+    },
+
+    // Footer
+    postDivider: {
+      height: 1,
+      backgroundColor: colors.borderSoft,
+      marginHorizontal: scale(12),
+      marginTop: scale(12),
+    },
+    postActionFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(10),
+    },
+    postActionBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(6),
+      paddingVertical: scale(4),
+    },
+    postActionText: {
+      fontSize: ms(12),
+      fontWeight: "700",
+      color: colors.textSubtle,
+    },
+    
+    emptyStateText: {
+      fontSize: ms(13),
+      color: colors.textSubtle,
+      fontStyle: "italic",
+      textAlign: "center",
+      paddingVertical: scale(20),
     },
   });

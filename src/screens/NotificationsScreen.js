@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyState } from "../components/EmptyState";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
@@ -53,12 +54,11 @@ export default function NotificationsScreen({ notifications, onPressItem, onMark
       </View>
 
       {notifications.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off-outline" size={64} color={colors.borderSoft} />
-          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            You have no notifications right now.
-          </Text>
-        </View>
+        <EmptyState
+          icon="notifications-off-outline"
+          title="No notifications yet"
+          description="We'll let you know when there's an update."
+        />
       ) : (
         <>
           <Section title="TODAY" items={todayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />

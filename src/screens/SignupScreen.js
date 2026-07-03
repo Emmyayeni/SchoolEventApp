@@ -54,9 +54,13 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
           style={[styles.segmentButton, accountType === "staff" && styles.segmentButtonActive]}
           onPress={() => switchAccountType("staff")}
         >
-          <Text style={[styles.segmentText, { color: colors.textMuted }, accountType === "staff" && styles.segmentTextActive]}>
-            Staff / Organizer
-          </Text>
+          <Text style={[styles.segmentText, { color: colors.textMuted }, accountType === "staff" && styles.segmentTextActive]}>Staff</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.segmentButton, accountType === "organizer" && styles.segmentButtonActive]}
+          onPress={() => switchAccountType("organizer")}
+        >
+          <Text style={[styles.segmentText, { color: colors.textMuted }, accountType === "organizer" && styles.segmentTextActive]}>Organizer</Text>
         </Pressable>
       </View>
 
@@ -152,37 +156,67 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
             label="Level"
             value={values.level}
             onChangeText={(v) => onChange("level", v)}
-            placeholder="e.g 100L"
+            placeholder="e.g 100"
             error={errors.level}
           />
+        </>
+      ) : accountType === "staff" ? (
+        <>
+          <Field
+            colors={colors}
+            styles={styles}
+            label="Department / Faculty"
+            value={values.department}
+            onChangeText={(v) => onChange("department", v)}
+            placeholder="E.g. Science"
+            icon="business"
+            error={errors.department}
+          />
+          <View style={styles.row}>
+            <Field
+              colors={colors}
+              styles={styles}
+              label="Staff ID"
+              value={values.staffId}
+              onChangeText={(v) => onChange("staffId", v)}
+              placeholder="E.g. STF-001"
+              icon="id-card"
+              wrapperStyle={styles.halfWidth}
+              error={errors.staffId}
+            />
+            <Field
+              colors={colors}
+              styles={styles}
+              label="Role"
+              value={values.roleDesignation}
+              onChangeText={(v) => onChange("roleDesignation", v)}
+              placeholder="Lecturer"
+              icon="briefcase"
+              wrapperStyle={styles.halfWidth}
+              error={errors.roleDesignation}
+            />
+          </View>
         </>
       ) : (
         <>
           <Field
             colors={colors}
             styles={styles}
-            label="Staff ID"
-            value={values.staffId}
-            onChangeText={(v) => onChange("staffId", v)}
-            placeholder="e.g NSUK-STF-102"
-            error={errors.staffId}
-          />
-          <Field
-            colors={colors}
-            styles={styles}
-            label="Department / Unit"
+            label="Organization / Group"
             value={values.department}
             onChangeText={(v) => onChange("department", v)}
-            placeholder="e.g ICT Unit"
+            placeholder="E.g. Tech Club"
+            icon="business"
             error={errors.department}
           />
           <Field
             colors={colors}
             styles={styles}
-            label="Role / Designation"
+            label="Role in Organization"
             value={values.roleDesignation}
             onChangeText={(v) => onChange("roleDesignation", v)}
-            placeholder="e.g Lecturer I"
+            placeholder="E.g. Event Coordinator"
+            icon="briefcase"
             error={errors.roleDesignation}
           />
         </>

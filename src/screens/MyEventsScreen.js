@@ -1,11 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FadeInImage } from "../components/FadeInImage";
+import { EmptyState } from "../components/EmptyState";
+import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, onBack, onOpenNotifications, onCreateEvent, onOpenAnnouncement }) {
+export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, onBack, onOpenNotifications, onCreateEvent, onOpenAnnouncement, refreshing, onRefreshData }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -41,7 +44,17 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.primary} />}
         renderItem={({ item }) => <ManageEventCard event={item} onOpenEvent={onOpenEvent} colors={colors} styles={styles} />}
+        ListEmptyComponent={
+          !refreshing ? (
+            <EmptyState
+              icon={searchText ? "search" : "calendar"}
+              title={searchText ? "No matches found" : `No ${activeTab.toLowerCase()} events`}
+              description={searchText ? "Try adjusting your search terms." : "You have no events matching this category."}
+            />
+          ) : null
+        }
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             <View style={styles.topRow}>
@@ -112,8 +125,8 @@ function ManageEventCard({ event, onOpenEvent, colors, styles }) {
     event.status === "Published" ? colors.primary : event.status === "Draft" ? colors.error : colors.textSubtle;
 
   return (
-    <Pressable style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]} onPress={() => onOpenEvent(event.id)}>
-      <Image source={{ uri: event.image }} style={styles.cardImage} />
+    <ScalePressable style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]} onPress={() => onOpenEvent(event.id)}>
+      <FadeInImage source={{ uri: event.image }} style={styles.cardImage} />
       <View style={styles.cardBody}>
         <View style={styles.titleRow}>
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
@@ -132,7 +145,7 @@ function ManageEventCard({ event, onOpenEvent, colors, styles }) {
           <Text style={styles.metaText}>{formatDate(event.date)} • {event.time}</Text>
         </View>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 

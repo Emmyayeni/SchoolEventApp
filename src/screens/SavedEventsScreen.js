@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyState } from "../components/EmptyState";
+import { FadeInImage } from "../components/FadeInImage";
+import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
@@ -33,18 +36,18 @@ export default function SavedEventsScreen({
           </View>
         }
         ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-            <Ionicons name="bookmark-outline" size={24} color={colors.textSubtle} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookmarked events yet</Text>
-            <Text style={[styles.emptyText, { color: colors.textSubtle }]}>Open an event and tap the bookmark icon to save it here.</Text>
-          </View>
+          <EmptyState 
+            title="No bookmarked events yet" 
+            message="Open an event and tap the bookmark icon to save it here." 
+            icon="bookmark-outline" 
+          />
         }
         renderItem={({ item }) => (
-          <Pressable
+          <ScalePressable
             style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
             onPress={() => onOpenEvent(item.id)}
           >
-            <Image source={{ uri: item.image }} style={styles.image} />
+            <FadeInImage source={{ uri: item.image }} style={styles.image} />
             <View style={styles.cardBody}>
               <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
                 {item.title}
@@ -56,7 +59,7 @@ export default function SavedEventsScreen({
             <Pressable style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]} onPress={() => onToggleBookmark(item.id)}>
               <Ionicons name="bookmark" size={16} color={colors.primary} />
             </Pressable>
-          </Pressable>
+          </ScalePressable>
         )}
       />
     </View>
@@ -86,25 +89,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: ms(18),
     fontWeight: "900",
-  },
-  emptyCard: {
-    marginTop: scale(12),
-    borderRadius: scale(14),
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: scale(24),
-    paddingHorizontal: scale(16),
-    gap: scale(6),
-  },
-  emptyTitle: {
-    fontSize: ms(14),
-    fontWeight: "800",
-  },
-  emptyText: {
-    textAlign: "center",
-    fontSize: ms(12),
-    lineHeight: ms(18),
   },
   card: {
     borderRadius: scale(14),

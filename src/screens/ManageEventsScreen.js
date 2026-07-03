@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Alert, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -12,6 +12,8 @@ export default function ManageEventsScreen({
   onEditEvent,
   onDeleteEvent,
   onViewEventDetails,
+  refreshing,
+  onRefreshData,
 }) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -107,6 +109,7 @@ export default function ManageEventsScreen({
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.primary} />}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={64} color={colors.borderSoft} />

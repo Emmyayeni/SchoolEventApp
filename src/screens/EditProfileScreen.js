@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useToast } from "../components/Toast";
 import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "../services/storage";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -12,6 +13,7 @@ const DEFAULT_EDIT_AVATAR =
 export default function EditProfileScreen({ values, onChange, onUploadAvatar, onSave, onSaveSuccess, onBack }) {
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
+  const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const formBusy = saving || uploadingAvatar;
@@ -25,7 +27,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Please allow photo library access to upload an avatar.");
+      showToast("Please allow photo library access to upload an avatar.", "error");
       return;
     }
 
@@ -41,7 +43,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
     }
 
     if (!onUploadAvatar) {
-      Alert.alert("Upload unavailable", "Avatar upload is not connected yet.");
+      showToast("Avatar upload is not connected yet.", "error");
       return;
     }
 
@@ -49,14 +51,14 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
     try {
       const uploadResult = await onUploadAvatar(pickResult.assets[0].uri);
       if (!uploadResult?.ok) {
-        Alert.alert("Upload failed", uploadResult?.message || "Could not upload avatar.");
+        showToast(uploadResult?.message || "Could not upload avatar.", "error");
         return;
       }
 
       onChange("avatar", uploadResult.path);
-      Alert.alert("Uploaded", "Avatar uploaded. Tap Save Changes to persist it.");
+      showToast("Avatar uploaded. Tap Save Changes to persist it.", "success");
     } catch (_error) {
-      Alert.alert("Upload failed", "Could not upload avatar.");
+      showToast("Could not upload avatar.", "error");
     } finally {
       setUploadingAvatar(false);
     }
@@ -77,13 +79,13 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
       }
 
       if (result?.mode === "local") {
-        Alert.alert("Saved locally", `${result.message || "Could not sync to server."} Your changes are visible on this device.`);
+        showToast(`${result.message || "Could not sync to server."} Your changes are visible on this device.`, "success", 4000);
         return;
       }
 
-      Alert.alert("Save failed", result?.message || "Could not save profile changes. Please try again.");
+      showToast(result?.message || "Could not save profile changes. Please try again.", "error");
     } catch (_error) {
-      Alert.alert("Save failed", "Could not save profile changes. Please try again.");
+      showToast("Could not save profile changes. Please try again.", "error");
     } finally {
       setSaving(false);
     }

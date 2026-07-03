@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Alert, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -13,6 +13,9 @@ export default function ManageUsersScreen({
   onDisableUser,
   onResetPassword,
   onApproveUser,
+  currentUserId,
+  refreshing,
+  onRefreshData,
 }) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -157,6 +160,7 @@ export default function ManageUsersScreen({
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.primary} />}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color={colors.borderSoft} />
@@ -168,6 +172,7 @@ export default function ManageUsersScreen({
         renderItem={({ item }) => (
           <UserManageCard
             user={item}
+            isMe={item.id === currentUserId}
             colors={colors}
             styles={styles}
             onView={() => onViewUserDetails?.(item.id)}
@@ -182,7 +187,7 @@ export default function ManageUsersScreen({
   );
 }
 
-function UserManageCard({ user, colors, styles, onView, onEdit, onDisable, onResetPassword, onApprove }) {
+function UserManageCard({ user, isMe, colors, styles, onView, onEdit, onDisable, onResetPassword, onApprove }) {
   const [showActions, setShowActions] = useState(false);
 
   return (
@@ -202,9 +207,16 @@ function UserManageCard({ user, colors, styles, onView, onEdit, onDisable, onRes
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
-              {user.fullName}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={[styles.userName, { color: isMe ? colors.primary : colors.text }]} numberOfLines={1}>
+                {user.fullName} {isMe ? "(You)" : ""}
+              </Text>
+              {isMe && (
+                <View style={{ backgroundColor: colors.primary + "20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}>
+                  <Text style={{ color: colors.primary, fontSize: ms(10), fontWeight: "bold" }}>Me</Text>
+                </View>
+              )}
+            </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
               <Text style={[styles.userRole, { color: colors.textMuted, marginTop: 0 }]}>
                 {user.accountType === "student" ? `${user.level || ''} Level • ${user.department || ''}` : user.roleDesignation || user.accountType}
@@ -226,7 +238,7 @@ function UserManageCard({ user, colors, styles, onView, onEdit, onDisable, onRes
         </Pressable>
       </View>
 
-      {showActions && (
+      {showActions && !isMe && (
         <View style={[styles.actionsPanel, { backgroundColor: colors.surfaceAlt }]}>
           {user.accountStatus === "pending" && (
             <ActionButton
