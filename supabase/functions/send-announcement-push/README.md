@@ -21,12 +21,12 @@ supabase functions deploy send-announcement-push --no-verify-jwt
 
 `--no-verify-jwt` is required because a Database Webhook calls the function
 server-to-server without a user JWT. The call is instead protected by the
-optional shared secret below.
+required shared secret below. The function refuses requests if no secret is configured.
 
 ## 2. Set secrets
 
 ```bash
-# Recommended: a shared secret the webhook must send as the x-webhook-secret header
+# Required: a shared secret the webhook must send as the x-webhook-secret header
 supabase secrets set ANNOUNCEMENT_WEBHOOK_SECRET="$(openssl rand -hex 24)"
 
 # Only if you enabled "Enhanced Security for Push Notifications" in Expo:

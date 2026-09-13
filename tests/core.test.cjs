@@ -8,12 +8,25 @@ function loadModule(file, globals = {}) {
   let source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   const names = [...source.matchAll(/export (?:async )?function (\w+)|export const (\w+)/g)].map(m => m[1] || m[2]);
   source = source.replace(/^import[\s\S]*?from [^\n]+\n/gm, '').replace(/export /g, '');
-  const context = vm.createContext({ console: { log() {} }, setTimeout, clearTimeout, ...globals });
+  source = source.replace(/default \{[\s\S]*$/, '');
+  const context = vm.createContext({ console: { log() {} }, setTimeout, clearTimeout, URLSearchParams, ...globals });
   vm.runInContext(`${source}\nthis.result = { ${names.join(',')} };`, context);
   return context.result;
 }
 
 const validation = loadModule('src/utils/validation.js');
+const eventTime = loadModule('src/utils/eventTime.js');
+test('campus time is converted to UTC without using the device timezone', () => {
+  assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '2:30 PM' }).toISOString(), '2026-10-12T13:30:00.000Z');
+  assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '12:00 AM' }).toISOString(), '2026-10-11T23:00:00.000Z');
+  assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '25:30' }), null);
+});
+test('calendar uses the real start time and escapes event details', () => {
+  const url = new URL(eventTime.eventCalendarUrl({ date: '2026-10-12', time: '2:30 PM', title: 'Science & Arts', venue: 'Main Hall' }));
+  assert.equal(url.searchParams.get('dates'), '20261012T133000Z/20261012T143000Z');
+  assert.equal(url.searchParams.get('text'), 'Science & Arts');
+  assert.equal(url.searchParams.get('ctz'), 'Africa/Lagos');
+});
 test('login rejects malformed addresses and empty passwords', () => {
   assert.ok(validation.validateLogin({ email: 'bad', password: '' }).email);
   assert.ok(validation.validateLogin({ email: 'a@b.co', password: '' }).password);
@@ -110,4 +123,31 @@ test('auth listener releases its callback immediately and ignores stale sign-in 
   await new Promise(resolve => setTimeout(resolve, 30));
   assert.deepEqual(events, ['SIGNED_OUT']);
   subscription.data.subscription.unsubscribe();
+});
+
+test('reminders deduplicate, follow changed event times, and clear at logout', async () => {
+  const scheduled = new Map();
+  let writes = 0;
+  const native = {
+    setNotificationHandler() {},
+    SchedulableTriggerInputTypes: { DATE: 'date' },
+    async getAllScheduledNotificationsAsync() { return [...scheduled.values()]; },
+    async scheduleNotificationAsync(request) { writes++; scheduled.set(request.identifier, request); return request.identifier; },
+    async cancelScheduledNotificationAsync(id) { scheduled.delete(id); },
+  };
+  const api = loadModule('src/services/notifications.js', {
+    Constants: { appOwnership: 'standalone' }, Device: { isDevice: true }, Platform: { OS: 'android' },
+    supabase: {}, eventStartTime: eventTime.eventStartTime, require: () => native,
+  });
+  const event = { id: 'event-1', title: 'Workshop', venue: 'Main hall', date: '2099-01-01', time: '12:00 PM', status: 'published' };
+  const input = { userId: 'user-1', events: [event], registeredEventIds: ['event-1'] };
+  await api.syncEventReminders(input);
+  assert.equal(scheduled.size, 1);
+  await api.syncEventReminders(input);
+  assert.equal(writes, 1);
+  await api.syncEventReminders({ ...input, events: [{ ...event, time: '2:00 PM' }] });
+  assert.equal(writes, 2);
+  assert.equal(scheduled.size, 1);
+  await api.syncEventReminders({ userId: null });
+  assert.equal(scheduled.size, 0);
 });

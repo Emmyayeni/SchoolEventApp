@@ -10,6 +10,7 @@ import {
   fetchAnnouncements,
   fetchEventBookmarks,
   fetchEventRegistrations,
+  fetchVisibleRegistrations,
   fetchEvents,
   fetchNotifications,
   markAllNotificationsAsRead,
@@ -20,8 +21,7 @@ import {
 } from "../services/supabaseData";
 import { supabase } from "../../lib/supabase";
 import { STORAGE_BUCKETS, uploadImageToBucket } from "../services/storage";
-import { registerForPushNotificationsAsync, scheduleEventReminderAsync, cancelAllScheduledNotificationsAsync } from "../services/notifications";
-import { eventStartTime } from "../utils/eventTime";
+import { registerForPushNotificationsAsync, syncEventReminders } from "../services/notifications";
 import { useAuth } from "./AuthContext";
 
 const CACHE_EVENTS_KEY = "@nsuk/cached_events";
@@ -30,12 +30,13 @@ const CACHE_ANNOUNCEMENTS_KEY = "@nsuk/cached_announcements";
 const EventsContext = createContext(null);
 
 export function EventsProvider({ children }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authInitializing } = useAuth();
 
   const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
+  const [visibleRegistrations, setVisibleRegistrations] = useState([]);
   const [registeredEventIds, setRegisteredEventIds] = useState([]);
   const [waitlistedEventIds, setWaitlistedEventIds] = useState([]);
   const [registeringEventId, setRegisteringEventId] = useState(null);
@@ -43,6 +44,7 @@ export function EventsProvider({ children }) {
   const [bookmarkedEventIds, setBookmarkedEventIds] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [dataLoadedFor, setDataLoadedFor] = useState(null);
   const activeUserId = useRef(null);
   activeUserId.current = isAuthenticated ? user?.id : null;
 
@@ -98,6 +100,9 @@ export function EventsProvider({ children }) {
             .catch(() => {});
         }
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${currentUserId}` }, () => {
+        fetchNotifications(currentUserId).then(rows => { if (active) setNotifications(rows); }).catch(() => {});
+      })
       .subscribe();
 
     return () => {
@@ -120,16 +125,18 @@ export function EventsProvider({ children }) {
         ];
 
         const shouldLoadAdminUsers = accountType === "admin" || (userRole && userRole !== "viewer");
-        if (shouldLoadAdminUsers) {
-          baseQueries.push(fetchAdminUsers());
-        }
+        baseQueries.push(shouldLoadAdminUsers ? fetchAdminUsers() : Promise.resolve([]));
+        baseQueries.push(["staff", "organizer", "admin"].includes(accountType) ? fetchVisibleRegistrations() : Promise.resolve([]));
 
-        const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows, adminUserRows] =
+        const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows, adminUserRows, allRegistrationRows] =
           await Promise.all(baseQueries);
 
         if (activeUserId.current !== currentUserId) return;
 
-        setEvents(eventRows);
+        setVisibleRegistrations(allRegistrationRows);
+        setEvents(eventRows.map(event => event.createdBy === currentUserId || accountType === "admin" ? {
+          ...event, registeredCount: allRegistrationRows.filter(row => row.event_id === event.id && row.status === "registered").length,
+        } : event));
         setRegisteredEventIds(
           registrationRows.filter((item) => item.status === "registered").map((item) => item.event_id)
         );
@@ -137,6 +144,7 @@ export function EventsProvider({ children }) {
         setBookmarkedEventIds(bookmarkIds);
         setNotifications(notificationRows);
         setAnnouncements(announcementRows);
+        setDataLoadedFor(currentUserId);
 
         if (shouldLoadAdminUsers) {
           setAdminUsers(adminUserRows || []);
@@ -169,20 +177,28 @@ export function EventsProvider({ children }) {
     setAnnouncements([]);
     setNotifications([]);
     setAdminUsers([]);
+    setVisibleRegistrations([]);
     setRegisteredEventIds([]);
     setWaitlistedEventIds([]);
     setBookmarkedEventIds([]);
     setRefreshing(false);
     setLoadError(null);
+    setDataLoadedFor(null);
     if (isAuthenticated && user?.id) {
       loadAppData(user.id, user.accountType, user.role);
       registerForPushNotificationsAsync(user.id).catch((e) => {
         console.log("Push registration error:", e);
       });
-    } else {
-      cancelAllScheduledNotificationsAsync();
     }
   }, [isAuthenticated, user?.id, user?.accountType, user?.role, loadAppData]);
+
+  useEffect(() => {
+    if (authInitializing) return;
+    if (!isAuthenticated) syncEventReminders({ userId: null }).catch(() => {});
+    else if (dataLoadedFor === user?.id && !refreshing) {
+      syncEventReminders({ userId: user.id, events, registeredEventIds }).catch(() => {});
+    }
+  }, [authInitializing, isAuthenticated, dataLoadedFor, user?.id, refreshing, events, registeredEventIds]);
 
   const handleToggleBookmark = async (eventId) => {
     const isBookmarked = bookmarkedEventIds.includes(eventId);
@@ -235,19 +251,7 @@ export function EventsProvider({ children }) {
       if (result?.status === "waitlisted") {
         Alert.alert("Waitlisted", "This event is full. You have been added to the waitlist.");
       } else {
-        const event = events.find((item) => item.id === eventId);
-        const start = eventStartTime(event);
-        let reminderId = null;
-        if (start && start.getTime() - 15 * 60000 > Date.now()) {
-          reminderId = await scheduleEventReminderAsync({
-            identifier: `nsuk-reminder:${user.id}:${eventId}`,
-            title: "Your event starts in 15 minutes",
-            body: `${event.title} · ${event.venue}`,
-            triggerDate: new Date(start.getTime() - 15 * 60000),
-            data: { eventId, type: "event-reminder" },
-          });
-        }
-        Alert.alert("Registered", `You have successfully registered for this event.${reminderId ? " A reminder is set for 15 minutes before it starts." : ""}`);
+        Alert.alert("Registered", "You have successfully registered for this event.");
       }
       return { ok: true, result };
     } catch (error) {
@@ -374,10 +378,10 @@ export function EventsProvider({ children }) {
     () => ({
       totalEvents: events.length,
       totalUsers: adminUsers.length,
-      totalRegistrations: registeredEventIds.length,
+      totalRegistrations: visibleRegistrations.filter(row => row.status === "registered").length,
       activeAnnouncements: announcements.length,
     }),
-    [events.length, adminUsers.length, registeredEventIds.length, announcements.length]
+    [events.length, adminUsers.length, visibleRegistrations, announcements.length]
   );
 
   const adminAnalytics = useMemo(() => {
@@ -396,8 +400,8 @@ export function EventsProvider({ children }) {
     return {
       totalEvents: events.length,
       totalUsers: adminUsers.length,
-      totalRegistrations: registeredEventIds.length,
-      averageAttendance: events.length ? Math.round((registeredEventIds.length / events.length) * 100) : 0,
+      totalRegistrations: visibleRegistrations.filter(row => row.status === "registered").length,
+      averageRegistrations: events.length ? Math.round(visibleRegistrations.filter(row => row.status === "registered").length / events.length) : 0,
       eventsByCategory,
       usersByDepartment,
       registrationTrend: [],
@@ -406,7 +410,7 @@ export function EventsProvider({ children }) {
         .sort((a, b) => (b.registeredCount || 0) - (a.registeredCount || 0))
         .slice(0, 5),
     };
-  }, [events, adminUsers, registeredEventIds.length]);
+  }, [events, adminUsers, visibleRegistrations]);
 
   const value = {
     events,

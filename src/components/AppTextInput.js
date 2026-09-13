@@ -7,7 +7,7 @@ import { TextInput as RNTextInput } from "react-native";
 export function AppTextInput({ style, ...props }) {
   return (
     <RNTextInput
-      style={[{ fontFamily: "Outfit_400Regular" }, style]}
+      style={[{ fontFamily: "Outfit_400Regular", minWidth: 0 }, style]}
       {...props}
     />
   );

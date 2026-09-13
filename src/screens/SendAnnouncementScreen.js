@@ -241,15 +241,6 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         >
           <AppText style={[styles.scheduleChipText, scheduleMode === "now" && styles.scheduleChipTextActive]}>Send Now</AppText>
         </Pressable>
-        <Pressable
-          style={[styles.scheduleChip, scheduleMode === "later" && styles.scheduleChipActive]}
-          onPress={() => setScheduleMode("later")}
-          accessibilityRole="button"
-          accessibilityLabel="Schedule"
-          accessibilityState={{ selected: scheduleMode === "later" }}
-        >
-          <AppText style={[styles.scheduleChipText, scheduleMode === "later" && styles.scheduleChipTextActive]}>Schedule</AppText>
-        </Pressable>
       </View>
 
       {scheduleMode === "later" && (

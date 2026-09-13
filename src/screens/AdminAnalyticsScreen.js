@@ -91,8 +91,8 @@ export default function AdminAnalyticsScreen({
         />
         <MetricCard
           icon="pie-chart"
-          title="Avg. Attendance"
-          value={`${analytics.averageAttendance}%`}
+          title="RSVPs per Event"
+          value={analytics.averageRegistrations || 0}
           colors={colors}
           styles={styles}
         />

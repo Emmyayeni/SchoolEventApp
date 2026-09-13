@@ -270,7 +270,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       </View>
 
       <AppText style={styles.terms}>
-        By clicking &quot;Create Account&quot;, you agree to NSUK&apos;s Terms of Service and Privacy Policy.
+        Staff and organizer accounts require administrator approval before signing in.
       </AppText>
 
       {/* Dynamic Academic Select Modals */}

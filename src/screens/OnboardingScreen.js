@@ -158,7 +158,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
       ) : (
         <View style={styles.bottomBadge}>
           <Ionicons name="shield-checkmark" size={scale(13)} color={colors.textSubtle} />
-          <AppText style={styles.bottomBadgeText}>Official University Platform</AppText>
+          <AppText style={styles.bottomBadgeText}>Your Campus Event Guide</AppText>
         </View>
       )}
     </View>

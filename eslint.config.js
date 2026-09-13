@@ -5,10 +5,14 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*'],
+    ignores: ['dist/**', 'dist-all/**'],
   },
   {
     files: ['supabase/functions/**/*.ts'],
     rules: { 'import/no-unresolved': ['error', { ignore: ['^npm:', '^https:'] }] },
+  },
+  {
+    files: ['tests/**/*.cjs', 'scripts/**/*.cjs'],
+    languageOptions: { globals: { __dirname: 'readonly' } },
   },
 ]);

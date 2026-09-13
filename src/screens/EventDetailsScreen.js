@@ -21,6 +21,7 @@ export default function EventDetailsScreen({
   onRegister,
   onToggleBookmark,
   onEditEvent,
+  onViewParticipants,
   onDeleteEvent,
   onBack,
 }) {
@@ -85,7 +86,7 @@ export default function EventDetailsScreen({
   
   const registrationSummary = useMemo(() => {
     const count = Number(event?.registeredCount);
-    if (!Number.isFinite(count) || count < 0) return "No registrations yet";
+    if (!Number.isFinite(count) || count < 0) return "RSVP to join this event";
     const capacity = Number(event?.capacity);
     if (Number.isFinite(capacity) && capacity > 0) {
       return `${count} registered • ${Math.max(capacity - count, 0)} spots left`;
@@ -222,6 +223,9 @@ export default function EventDetailsScreen({
 
           <AppText style={styles.sectionTitle}>About this event</AppText>
           <AppText style={styles.aboutText}>{event.description}</AppText>
+          {canManageEvent && <Pressable onPress={onViewParticipants} accessibilityRole="button" accessibilityLabel="View participants" style={{ paddingVertical: 16 }}>
+            <AppText style={{ color: colors.primary, fontWeight: "700" }}>View participants →</AppText>
+          </Pressable>}
 
           <AppText style={styles.sectionTitle}>Who can attend</AppText>
           <View style={styles.chipRow}>

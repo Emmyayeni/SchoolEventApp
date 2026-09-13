@@ -1,5 +1,5 @@
 import { Text as RNText, StyleSheet } from "react-native";
-import { typography } from "../theme/theme";
+import { typography, useAppTheme } from "../theme/theme";
 import { ms } from "../utils/responsive";
 
 function familyForWeight(weight) {
@@ -18,6 +18,7 @@ function familyForWeight(weight) {
 // Any explicit `style` wins over the variant. `maxFontSizeMultiplier` caps OS
 // font-scaling so large accessibility text sizes don't break layouts.
 export function AppText({ style, variant, maxFontSizeMultiplier = 1.4, ...props }) {
+  const { colors } = useAppTheme();
   const variantToken = variant ? typography[variant] : null;
   const variantStyle = variantToken
     ? {
@@ -33,7 +34,7 @@ export function AppText({ style, variant, maxFontSizeMultiplier = 1.4, ...props 
 
   return (
     <RNText
-      style={[{ fontFamily }, variantStyle, style]}
+      style={[{ fontFamily, color: colors.text }, variantStyle, style]}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       {...props}
     />

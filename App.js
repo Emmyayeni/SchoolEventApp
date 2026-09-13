@@ -8,17 +8,17 @@ import {
   Outfit_800ExtraBold,
   Outfit_900Black,
 } from "@expo-google-fonts/outfit";
-import { NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { ToastProvider } from "./src/components/Toast";
 import { AuthProvider } from "./src/context/AuthContext";
 import { EventsProvider } from "./src/context/EventsContext";
-import RootNavigator from "./src/navigation/RootNavigator";
+import AppNavigation from "./src/navigation/AppNavigation";
 import { ThemeProvider, useAppTheme } from "./src/theme/theme";
 
 function ThemedShell({ children }) {
@@ -33,6 +33,15 @@ function ThemedShell({ children }) {
 
 export default function App() {
   const [themeMode, setThemeMode] = useState("system");
+  const [themeReady, setThemeReady] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem("@nsuk/theme").then(mode => {
+      if (["system", "light", "dark"].includes(mode)) setThemeMode(mode);
+    }).catch(() => {}).finally(() => setThemeReady(true));
+  }, []);
+  useEffect(() => {
+    if (themeReady) AsyncStorage.setItem("@nsuk/theme", themeMode).catch(() => {});
+  }, [themeMode, themeReady]);
   const [fontsLoaded, fontError] = useFonts({
     Outfit_300Light,
     Outfit_400Regular,
@@ -54,9 +63,7 @@ export default function App() {
           <AuthProvider>
             <EventsProvider>
               <ThemedShell>
-                <NavigationContainer>
-                  <RootNavigator />
-                </NavigationContainer>
+                <AppNavigation />
               </ThemedShell>
             </EventsProvider>
           </AuthProvider>

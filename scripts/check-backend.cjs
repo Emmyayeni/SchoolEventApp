@@ -15,7 +15,7 @@ async function main() {
     events: 'id,event_date,start_time,capacity,status',
     event_registrations: 'event_id,user_id,status',
     announcements: 'id,attachment_urls,target_audience',
-    notifications: 'id,event_id,announcement_id,is_read',
+    notifications: 'id,event_id,announcement_id,is_read,source_key',
     admin_users: 'id,role',
   };
   for (const [table, columns] of Object.entries(tables)) {

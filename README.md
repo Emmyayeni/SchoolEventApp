@@ -1,50 +1,51 @@
-# Welcome to your Expo app 👋
+# NSUK Events
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native and Expo campus event information system for Nasarawa State University, Keffi. Supabase provides authentication, PostgreSQL storage, image storage and realtime updates.
 
-## Get started
+## Run locally
 
-1. Install dependencies
+1. Install Node.js and run `npm ci`.
+2. Copy `.env.example` to `.env.local` and supply your Supabase public URL and anon/publishable key. Never place a service-role key in an Expo public variable.
+3. Follow the backend steps in [the completion checklist](docs/PROJECT_COMPLETION.md). The SQL baseline and migration must match the configured database.
+4. Run `npm start` for Expo, or `npm run web` for the browser preview.
 
-   ```bash
-   npm install
-   ```
+## Verify
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+npm test
+npm run lint
+npm run check:backend
+npm run build:web
+npm run preview
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+`preview` serves the exported `dist` folder at http://127.0.0.1:4173. `check:backend` makes read-only, zero-row schema requests; it does not retrieve user records or prove that authentication and row-level security work.
 
-## Learn more
+Native notifications and custom password-reset links require an installed development build. A JavaScript export is not an APK/IPA or proof that native device features work.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Features
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Validated student, staff and organizer signup; approval-aware authentication and password recovery.
+- Event discovery, search, date/category filters, RSVP, waitlists, bookmarks and registration history.
+- Organizer event editing, banners, participant lists and profile/avatar updates.
+- Admin account approval and management, event moderation, RSVP statistics and report sharing.
+- Audience-based announcements, attachments, realtime inbox updates, event notification webhooks and local reminders.
+- Light/dark themes, loading/error states and layouts that fit phone and desktop previews.
 
-## Join the community
+## Project structure
 
-Join our community of developers creating universal apps.
+- `App.js`: fonts, theme, providers and app navigation.
+- `src/context`: authenticated session and event data state.
+- `src/navigation`: app, admin and detail routes.
+- `src/screens` and `src/components`: interface screens and reusable controls.
+- `src/services`: Supabase queries, storage and device notifications.
+- `lib/Auth.js`: authentication and profile mapping.
+- `supabase/migrations`: schema and permission changes prepared for review.
+- `supabase/functions`: announcement and event webhook handlers.
+- `tests`: regression checks using Node's test runner and mocked external services.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## School project scope and remaining verification
+
+[PROJECT_COMPLETION.md](docs/PROJECT_COMPLETION.md) maps Chapters 1–3 to the implementation, deployment requirements and demo acceptance tests. [NOTIFICATION_SETUP.md](docs/NOTIFICATION_SETUP.md) explains webhook configuration.
+
+The accompanying work does not fabricate user-study results, attendance figures or delivery guarantees. Run the real-account, permissions and phone checks in the checklist before describing the whole system as complete in the final report.

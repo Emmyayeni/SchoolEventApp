@@ -45,7 +45,7 @@ const palette = {
     textSubtle: "#94a3b8",
     primary: "#0b7a24",
     primaryContrast: "#ffffff",
-    accent: "#166534",
+    accent: "#4ade80",
     accentContrast: "#ffffff",
     accentTint: "#123b25",
     surfaceSunken: "#020617",

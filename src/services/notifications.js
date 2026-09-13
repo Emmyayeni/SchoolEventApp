@@ -2,6 +2,7 @@ import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { eventStartTime } from "../utils/eventTime";
 
 // Determine if we're running inside Expo Go
 const isExpoGo =
@@ -283,6 +284,37 @@ export async function getAllScheduledNotificationsAsync() {
     console.error("[Notifications] Error getting scheduled notifications:", err?.message || err);
     return [];
   }
+}
+
+let reminderSync = Promise.resolve();
+
+export function syncEventReminders({ userId, events = [], registeredEventIds = [] }) {
+  // Serialize updates so a stale refresh cannot recreate reminders after logout.
+  reminderSync = reminderSync.catch(() => {}).then(async () => {
+    if (!Notifications) return;
+    const desired = new Map();
+    if (userId) for (const event of events) {
+      if (!registeredEventIds.includes(event.id) || event.status !== "published") continue;
+      const start = eventStartTime(event);
+      const reminderAt = start ? start.getTime() - 15 * 60000 : 0;
+      if (reminderAt <= Date.now()) continue;
+      desired.set(`nsuk-reminder:${userId}:${event.id}`, { event, reminderAt });
+    }
+    const existing = await getAllScheduledNotificationsAsync();
+    for (const notification of existing) {
+      if (notification.content?.data?.type !== "event-reminder") continue;
+      const next = desired.get(notification.identifier);
+      if (next && notification.content.data.reminderAt === next.reminderAt && notification.content.body === `${next.event.title} · ${next.event.venue}`) {
+        desired.delete(notification.identifier);
+      } else {
+        await cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
+    for (const [identifier, { event, reminderAt }] of desired) {
+      await scheduleEventReminderAsync({ identifier, title: "Your event starts in 15 minutes", body: `${event.title} · ${event.venue}`, triggerDate: new Date(reminderAt), data: { eventId: event.id, type: "event-reminder", reminderAt } });
+    }
+  });
+  return reminderSync;
 }
 
 /**

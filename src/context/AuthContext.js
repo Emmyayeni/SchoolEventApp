@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Linking } from "react-native";
+import { supabase } from "../../lib/supabase";
 import {
   getCurrentAppUser,
   onAuthStateChange,
@@ -26,6 +27,27 @@ export function AuthProvider({ children }) {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const handleRecovery = async (url) => {
+      if (!url || !/^nsuk-events:\/\/reset-password(?:[?#]|$)/i.test(url)) return;
+      try {
+        const params = new URLSearchParams(url.split(/[?#]/).slice(1).join("&"));
+        if (params.get("error_description")) throw new Error(params.get("error_description"));
+        let result;
+        if (params.get("code")) result = await supabase.auth.exchangeCodeForSession(params.get("code"));
+        else if (params.get("access_token") && params.get("refresh_token")) result = await supabase.auth.setSession({ access_token: params.get("access_token"), refresh_token: params.get("refresh_token") });
+        else throw new Error("This reset link is incomplete. Request a new link.");
+        if (result.error) throw result.error;
+        if (active) setPasswordRecovery(true);
+      } catch (error) { if (active) Alert.alert("Password reset failed", error.message); }
+    };
+    Linking.getInitialURL().then(handleRecovery).catch(() => {});
+    const subscription = Linking.addEventListener("url", ({ url }) => handleRecovery(url));
+    return () => { active = false; subscription.remove(); };
+  }, []);
 
   const cacheProfileLocally = async (profile) => {
     try {
@@ -85,9 +107,11 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = onAuthStateChange((event, nextUser) => {
       if (!isMounted) return;
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
 
       if (!nextUser) {
         if (event === "SIGNED_OUT") {
+          setPasswordRecovery(false);
           setIsAuthenticated(false);
           setUser(null);
           setProfileDraft(null);
@@ -207,6 +231,8 @@ export function AuthProvider({ children }) {
     markOnboardingComplete,
     loginLoading,
     signupLoading,
+    passwordRecovery,
+    finishPasswordRecovery: () => setPasswordRecovery(false),
     login,
     signup,
     logout,

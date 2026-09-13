@@ -290,6 +290,20 @@ export async function fetchEventRegistrations(userId) {
   return data || [];
 }
 
+export async function fetchVisibleRegistrations() {
+  const { data, error } = await supabase.from("event_registrations").select("event_id,status,registered_at");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchEventParticipants(eventId) {
+  const { data, error } = await supabase.from("event_registrations")
+    .select("id,user_id,status,registered_at,profile:profiles!event_registrations_user_id_fkey(full_name,department,matric_number)")
+    .eq("event_id", eventId).neq("status", "cancelled").order("registered_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function registerForEvent({ eventId, userId }) {
   const { data, error } = await supabase
     .from("event_registrations")
@@ -420,18 +434,24 @@ export async function approveUserAdmin(userId) {
   const { error } = await supabase
     .from("profiles")
     .update({ account_status: "approved" })
-    .eq("id", userId);
+    .eq("id", userId).select("id").single();
 
   if (error) {
     throw error;
   }
 }
 
+export async function updateUserAccountType(userId, accountType) {
+  if (!["student", "staff", "organizer"].includes(accountType)) throw new Error("Invalid account type.");
+  const { error } = await supabase.from("profiles").update({ account_type: accountType }).eq("id", userId).select("id").single();
+  if (error) throw error;
+}
+
 export async function disableUserAdmin(userId) {
   const { error } = await supabase
     .from("profiles")
     .update({ account_status: "disabled" })
-    .eq("id", userId);
+    .eq("id", userId).select("id").single();
 
   if (error) {
     throw error;
@@ -525,7 +545,7 @@ export async function deleteEventById({ eventId, userId }) {
     .from("events")
     .delete()
     .eq("id", eventId)
-    .eq("created_by", userId);
+    .eq("created_by", userId).select("id").single();
 
   if (error) {
     throw error;
@@ -536,7 +556,7 @@ export async function deleteEventByIdAsAdmin({ eventId }) {
   const { error } = await supabase
     .from("events")
     .delete()
-    .eq("id", eventId);
+    .eq("id", eventId).select("id").single();
 
   if (error) {
     throw error;

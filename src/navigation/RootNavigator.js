@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useState, useMemo } from "react";
-import { Alert, View, StyleSheet } from "react-native";
+import { Alert, View, StyleSheet, Share } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { useAppTheme } from "../theme/theme";
@@ -16,13 +16,16 @@ import EditProfileScreen from "../screens/EditProfileScreen";
 import SendAnnouncementScreen from "../screens/SendAnnouncementScreen";
 import AnnouncementDetailsScreen from "../screens/AnnouncementDetailsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import ParticipantsScreen from "../screens/ParticipantsScreen";
+import ChangePasswordScreen from "../screens/ChangePasswordScreen";
 import AppNavigator from "./AppNavigator";
 import AdminNavigator from "./AdminNavigator";
 import Sidebar from "../components/Sidebar";
 import { filterByCategory, searchEvents } from "../utils/helpers";
-import { approveUserAdmin, disableUserAdmin } from "../services/supabaseData";
+import { approveUserAdmin, disableUserAdmin, updateUserAccountType } from "../services/supabaseData";
 import { validateEvent } from "../utils/validation";
 import { ErrorState } from "../components/ErrorState";
+import SelectPickerModal from "../components/SelectPickerModal";
 
 const Stack = createNativeStackNavigator();
 
@@ -57,6 +60,8 @@ export default function RootNavigator() {
     isStaffUser,
     loginLoading,
     signupLoading,
+    passwordRecovery,
+    finishPasswordRecovery,
   } = useAuth();
 
   const {
@@ -96,6 +101,7 @@ export default function RootNavigator() {
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState(["tech", "football", "workshop", "science"]);
   const [activeAdminScreen, setActiveAdminScreen] = useState("dashboard");
+  const [editingUserId, setEditingUserId] = useState(null);
   const [adminSettings, setAdminSettings] = useState({
     autoApproveEvents: false,
     requireEventDescription: true,
@@ -154,6 +160,7 @@ export default function RootNavigator() {
   };
 
   // Splash loading
+  if (passwordRecovery) return <ChangePasswordScreen onDone={finishPasswordRecovery} onBack={async () => { await logout(); finishPasswordRecovery(); }} />;
   if (authInitializing) {
     return <SplashScreen />;
   }
@@ -171,6 +178,14 @@ export default function RootNavigator() {
   }
 
   return (
+    <>
+    <SelectPickerModal visible={!!editingUserId} title="Change account type" options={[{ label: "Student", value: "student" }, { label: "Staff", value: "staff" }, { label: "Organizer", value: "organizer" }]} onClose={() => setEditingUserId(null)} onSelect={async (accountType) => {
+      if (!user?.privileges?.canManageUsers) return;
+      try {
+        await updateUserAccountType(editingUserId, accountType);
+        setAdminUsers(prev => prev.map(item => item.id === editingUserId ? { ...item, accountType } : item));
+      } catch (error) { Alert.alert("Update failed", error.message); }
+    }} />
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "default" }}>
       {!isAuthenticated ? (
         // Auth Stack
@@ -380,7 +395,7 @@ export default function RootNavigator() {
               }
               const isRegistered = registeredEventIds.includes(event.id);
               const isBookmarked = bookmarkedEventIds.includes(event.id);
-              const canManageEvent = event.createdBy === user?.id;
+              const canManageEvent = event.createdBy === user?.id || user?.privileges?.canManageEvents;
 
               return (
                 <EventDetailsScreen
@@ -392,6 +407,7 @@ export default function RootNavigator() {
                   canManageEvent={canManageEvent}
                   deletingEvent={false}
                   onRegister={() => handleRegisterEvent(event.id)}
+                  onViewParticipants={() => navigation.navigate("Participants", { eventId: event.id })}
                   onToggleBookmark={() => handleToggleBookmark(event.id)}
                   onEditEvent={() => {
                     setEditingEventId(event.id);
@@ -459,6 +475,14 @@ export default function RootNavigator() {
             )}
           </Stack.Screen>
 
+          <Stack.Screen name="Participants">
+            {({ route, navigation }) => {
+              const event = events.find(item => item.id === route.params?.eventId);
+              if (!event || (event.createdBy !== user?.id && !user?.privileges?.canManageEvents)) return <ErrorState title="Participants unavailable" description="Only the event organizer and authorized administrators can view this list." actionLabel="Go back" onRetry={() => navigation.goBack()} />;
+              return <ParticipantsScreen event={event} onBack={() => navigation.goBack()} />;
+            }}
+          </Stack.Screen>
+
           <Stack.Screen name="EditProfile">
             {({ navigation }) => (
               <EditProfileScreen
@@ -478,10 +502,15 @@ export default function RootNavigator() {
             )}
           </Stack.Screen>
 
+          <Stack.Screen name="ChangePassword">
+            {({ navigation }) => <ChangePasswordScreen onDone={() => navigation.goBack()} onBack={() => navigation.goBack()} />}
+          </Stack.Screen>
+
           <Stack.Screen name="Settings">
             {({ navigation }) => (
               <SettingsScreen
                 themeMode={themeMode}
+                onChangePassword={() => navigation.navigate("ChangePassword")}
                 onToggleTheme={() => setThemeMode((p) => (p === "dark" ? "light" : "dark"))}
                 onBack={() => navigation.goBack()}
                 onLogout={logout}
@@ -517,7 +546,7 @@ export default function RootNavigator() {
           </Stack.Screen>
 
           <Stack.Screen name="Admin">
-            {({ navigation }) => (
+            {({ navigation }) => !user?.privileges?.canViewDashboard ? <ErrorState title="Administrator access required" actionLabel="Go back" onRetry={() => navigation.goBack()} /> : (
               <AdminNavigator
                 activeScreen={activeAdminScreen}
                 onNavigate={setActiveAdminScreen}
@@ -574,7 +603,7 @@ export default function RootNavigator() {
                     }
                   },
                   onEditUser: (userId) => {
-                    Alert.alert("Coming Soon", "Changing account roles isn't available yet.");
+                    if (user?.privileges?.canManageUsers) setEditingUserId(userId);
                   },
                   onDisableUser: async (userId) => {
                     try {
@@ -609,19 +638,18 @@ export default function RootNavigator() {
                 analyticsProps={{
                   analytics: adminAnalytics,
                   onBack: () => setActiveAdminScreen("dashboard"),
-                  onExportReport: () => Alert.alert("Coming Soon", "Export not available yet."),
+                  onExportReport: async () => {
+                    try {
+                      await Share.share({ title: "NSUK Events Report", message: `NSUK Events Report\nGenerated: ${new Date().toLocaleDateString()}\nEvents: ${adminAnalytics.totalEvents}\nUsers: ${adminAnalytics.totalUsers}\nRegistrations: ${adminAnalytics.totalRegistrations}\nAverage RSVPs per event: ${adminAnalytics.averageRegistrations}\n\nEvents by category\n${Object.entries(adminAnalytics.eventsByCategory).map(([category, count]) => `${category}: ${count}`).join("\n")}` });
+                    } catch (error) { Alert.alert("Export failed", error.message); }
+                  },
                 }}
                 settingsProps={{
                   settings: adminSettings,
                   onBack: () => setActiveAdminScreen("dashboard"),
                   onUpdateSettings: setAdminSettings,
                   onEditProfile: () => navigation.navigate("EditProfile"),
-                  onChangePassword: () => {
-                    if (user?.email) {
-                      resetPassword(user.email);
-                      Alert.alert("Security", `Password reset email sent to ${user.email}`);
-                    }
-                  },
+                  onChangePassword: () => navigation.navigate("ChangePassword"),
                   onLogout: logout,
                 }}
               />
@@ -630,6 +658,7 @@ export default function RootNavigator() {
         </>
       )}
     </Stack.Navigator>
+    </>
   );
 }
 

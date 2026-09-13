@@ -4,6 +4,22 @@ begin;
 alter table public.profiles add column if not exists account_status text not null default 'approved'
   check (account_status in ('approved', 'pending', 'disabled'));
 alter table public.profiles add column if not exists expo_push_token text;
+alter table public.notifications add column if not exists source_key text unique;
+
+create or replace function public.is_active_account(p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $$ select exists(select 1 from public.profiles where id = p_user_id and account_status = 'approved'); $$;
+
+-- Restrictive policies apply alongside the existing ownership/audience policies.
+do $$
+declare table_name text;
+begin
+  foreach table_name in array array['events', 'event_registrations', 'event_bookmarks', 'announcements', 'notifications', 'user_settings'] loop
+    execute format('drop policy if exists approved_account_required on public.%I', table_name);
+    execute format('create policy approved_account_required on public.%I as restrictive for all to authenticated using (public.is_active_account(auth.uid())) with check (public.is_active_account(auth.uid()))', table_name);
+  end loop;
+end;
+$$;
 
 create or replace function public.can_administer(p_user_id uuid)
 returns boolean language sql stable security definer set search_path = public

@@ -1,17 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { useMemo } from "react";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
-export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLogout }) {
+export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLogout, onChangePassword }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(false);
-  const [reminderTiming, setReminderTiming] = useState("15m before");
+  const openDeviceSettings = () => Platform.OS === "web"
+    ? Alert.alert("Device notifications", "Open the installed mobile app to manage event notifications.")
+    : Linking.openSettings().catch(() => Alert.alert("Settings unavailable", "Open your device settings and select NSUK Events."));
 
   return (
     <ScrollView
@@ -37,9 +37,9 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
 
       <SectionTitle title="ACCOUNT & APPEARANCE" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-        <SettingsRow icon="lock-closed" label="Password change" colors={colors} styles={styles} />
+        <SettingsRow icon="lock-closed" label="Password change" onPress={onChangePassword} colors={colors} styles={styles} />
         <Divider styles={styles} />
-        <SettingsRow icon="shield-checkmark" label="Privacy settings" colors={colors} styles={styles} />
+        <SettingsRow icon="shield-checkmark" label="Device permissions" onPress={openDeviceSettings} colors={colors} styles={styles} />
         <Divider styles={styles} />
         <ToggleRow
           icon={themeMode === "dark" ? "moon" : "sunny"}
@@ -53,55 +53,17 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
 
       <SectionTitle title="NOTIFICATIONS" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-        <ToggleRow
-          icon="notifications"
-          label="Push Notifications"
-          value={pushEnabled}
-          onValueChange={setPushEnabled}
-          colors={colors}
-          styles={styles}
-        />
-        <Divider styles={styles} />
-        <ToggleRow
-          icon="mail"
-          label="Email Updates"
-          value={emailEnabled}
-          onValueChange={setEmailEnabled}
-          colors={colors}
-          styles={styles}
-        />
+        <SettingsRow icon="notifications" label="Manage device notifications" onPress={openDeviceSettings} colors={colors} styles={styles} />
 
         <View style={styles.reminderSection}>
           <AppText style={styles.reminderLabel}>REMINDER TIMING</AppText>
-          <View style={styles.pillRow}>
-            {[
-              "15m before",
-              "30m before",
-              "1h before",
-            ].map((item) => {
-              const active = reminderTiming === item;
-              return (
-                <Pressable
-                  key={item}
-                  style={[styles.pill, active && styles.pillActive]}
-                  onPress={() => setReminderTiming(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={item}
-                  accessibilityState={{ selected: active }}
-                >
-                  <AppText style={[styles.pillText, active && styles.pillTextActive]}>{item}</AppText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <AppText style={{ color: colors.textMuted }}>When notifications are available, registering sets a reminder 15 minutes before the event.</AppText>
         </View>
       </View>
 
       <SectionTitle title="APP INFO" colors={colors} styles={styles} />
       <View style={[styles.groupCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
-        <SettingsRow icon="document-text" label="Terms and conditions" colors={colors} styles={styles} />
-        <Divider styles={styles} />
-        <SettingsRow icon="code-slash" label="About developers" colors={colors} styles={styles} />
+        <SettingsRow icon="code-slash" label="About this project" onPress={() => Alert.alert("NSUK Events", "A campus event information system developed by Ayeni Adeniyi Emmanuel for the Department of Computer Science, Nasarawa State University, Keffi.")} colors={colors} styles={styles} />
         <Divider styles={styles} />
         <View style={styles.row}>
           <View style={styles.rowLeft}>
@@ -111,7 +73,7 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
             <AppText style={styles.rowText}>Version</AppText>
           </View>
           <View style={styles.versionTag}>
-            <AppText style={styles.versionText}>v2.4.1-stable</AppText>
+            <AppText style={styles.versionText}>v1.0.0</AppText>
           </View>
         </View>
       </View>
@@ -133,9 +95,9 @@ function SectionTitle({ title, colors, styles }) {
   return <AppText style={styles.sectionTitle}>{title}</AppText>;
 }
 
-function SettingsRow({ icon, label, colors, styles }) {
+function SettingsRow({ icon, label, colors, styles, onPress }) {
   return (
-    <Pressable style={styles.row} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable style={styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
       <View style={styles.rowLeft}>
         <View style={styles.iconWrap}>
           <Ionicons name={icon} size={15} color={colors.primary} />
