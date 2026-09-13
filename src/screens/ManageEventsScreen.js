@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -56,11 +58,23 @@ export default function ManageEventsScreen({
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.headerRow, { paddingTop: (insets?.top ?? 0) + scale(8) }]}>
-        <Pressable style={styles.backBtn} onPress={onBack}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Manage Events</Text>
-        <Pressable style={styles.backBtn} onPress={onCreateEvent}>
+        <AppText style={[styles.title, { color: colors.text }]}>Manage Events</AppText>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onCreateEvent}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Create event"
+        >
           <Ionicons name="add" size={20} color={colors.primary} />
         </Pressable>
       </View>
@@ -68,7 +82,7 @@ export default function ManageEventsScreen({
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={16} color={colors.textMuted} />
-        <TextInput
+        <AppTextInput
           style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search events..."
           placeholderTextColor={colors.textSubtle}
@@ -76,7 +90,12 @@ export default function ManageEventsScreen({
           onChangeText={setSearchText}
         />
         {searchText.length > 0 && (
-          <Pressable onPress={() => setSearchText("")}>
+          <Pressable
+            onPress={() => setSearchText("")}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close" size={16} color={colors.textMuted} />
           </Pressable>
         )}
@@ -89,8 +108,11 @@ export default function ManageEventsScreen({
             key={filter}
             style={[styles.filterTab, filterStatus === filter && styles.filterTabActive]}
             onPress={() => setFilterStatus(filter)}
+            accessibilityRole="button"
+            accessibilityLabel={filter}
+            accessibilityState={{ selected: filterStatus === filter }}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterTabText,
                 { color: filterStatus === filter ? colors.primaryContrast : colors.textMuted },
@@ -98,7 +120,7 @@ export default function ManageEventsScreen({
               ]}
             >
               {filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </Text>
+            </AppText>
           </Pressable>
         ))}
       </View>
@@ -113,9 +135,9 @@ export default function ManageEventsScreen({
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={64} color={colors.borderSoft} />
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            <AppText style={[styles.emptyText, { color: colors.textMuted }]}>
               {searchText ? "No events match your search." : "No events found."}
-            </Text>
+            </AppText>
           </View>
         )}
         renderItem={({ item }) => (
@@ -141,48 +163,61 @@ function EventManageCard({ event, colors, styles, onEdit, onDelete, onView }) {
     <Pressable
       style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
       onPress={onView}
+      accessibilityRole="button"
+      accessibilityLabel={event.title}
+      accessibilityHint="Opens event details"
     >
       {event.image && <Image source={{ uri: event.image }} style={styles.eventImage} />}
       <View style={styles.eventCardContent}>
         <View style={styles.eventCardHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
+            <AppText style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
               {event.title}
-            </Text>
-            <Text style={[styles.eventMeta, { color: colors.textMuted }]}>{event.organizer}</Text>
+            </AppText>
+            <AppText style={[styles.eventMeta, { color: colors.textMuted }]}>{event.organizer}</AppText>
           </View>
           {isPast && <View style={[styles.pastBadge, { backgroundColor: colors.error + "20" }]}>
-            <Text style={[styles.pastBadgeText, { color: colors.error }]}>Ended</Text>
+            <AppText style={[styles.pastBadgeText, { color: colors.error }]}>Ended</AppText>
           </View>}
         </View>
 
         <View style={styles.eventCardInfo}>
           <View style={styles.infoItem}>
             <Ionicons name="calendar" size={14} color={colors.textMuted} />
-            <Text style={[styles.infoText, { color: colors.textMuted }]}>{event.date}</Text>
+            <AppText style={[styles.infoText, { color: colors.textMuted }]}>{event.date}</AppText>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="location" size={14} color={colors.textMuted} />
-            <Text style={[styles.infoText, { color: colors.textMuted }]} numberOfLines={1}>
+            <AppText style={[styles.infoText, { color: colors.textMuted }]} numberOfLines={1}>
               {event.venue}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="people" size={14} color={colors.textMuted} />
-            <Text style={[styles.infoText, { color: colors.textMuted }]}>
+            <AppText style={[styles.infoText, { color: colors.textMuted }]}>
               {event.registeredCount || 0} registered
-            </Text>
+            </AppText>
           </View>
         </View>
 
         <View style={styles.eventActions}>
-          <Pressable style={[styles.actionBtn, { backgroundColor: colors.primary + "20" }]} onPress={onEdit}>
+          <Pressable
+            style={[styles.actionBtn, { backgroundColor: colors.primary + "20" }]}
+            onPress={onEdit}
+            accessibilityRole="button"
+            accessibilityLabel="Edit event"
+          >
             <Ionicons name="create" size={16} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Edit</Text>
+            <AppText style={[styles.actionBtnText, { color: colors.primary }]}>Edit</AppText>
           </Pressable>
-          <Pressable style={[styles.actionBtn, { backgroundColor: colors.error + "20" }]} onPress={onDelete}>
+          <Pressable
+            style={[styles.actionBtn, { backgroundColor: colors.error + "20" }]}
+            onPress={onDelete}
+            accessibilityRole="button"
+            accessibilityLabel="Delete event"
+          >
             <Ionicons name="trash" size={16} color={colors.error} />
-            <Text style={[styles.actionBtnText, { color: colors.error }]}>Delete</Text>
+            <AppText style={[styles.actionBtnText, { color: colors.error }]}>Delete</AppText>
           </Pressable>
         </View>
       </View>

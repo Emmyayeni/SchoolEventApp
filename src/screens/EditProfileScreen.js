@@ -1,11 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Image } from "expo-image";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
+import SelectPickerModal from "../components/SelectPickerModal";
 import { useToast } from "../components/Toast";
 import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "../services/storage";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import {
+  fetchAcademicFaculties,
+  fetchAcademicDepartments,
+  fetchAcademicLevels,
+} from "../services/academicData";
 
 const DEFAULT_EDIT_AVATAR =
   "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80";
@@ -17,6 +26,25 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const formBusy = saving || uploadingAvatar;
+
+  // Academic data states
+  const [faculties, setFaculties] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [levels, setLevels] = useState([]);
+
+  // Modal visibility
+  const [showFacultyPicker, setShowFacultyPicker] = useState(false);
+  const [showDepartmentPicker, setShowDepartmentPicker] = useState(false);
+  const [showLevelPicker, setShowLevelPicker] = useState(false);
+
+  useEffect(() => {
+    fetchAcademicFaculties().then(setFaculties);
+    fetchAcademicLevels().then(setLevels);
+  }, []);
+
+  useEffect(() => {
+    fetchAcademicDepartments(values?.faculty || "").then(setDepartments);
+  }, [values?.faculty]);
 
   const avatarUri = resolveStoragePublicUrl(values.avatar, STORAGE_BUCKETS.avatars, DEFAULT_EDIT_AVATAR);
 
@@ -73,8 +101,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
     try {
       const result = await onSave?.();
       if (result?.ok && result.mode !== "local") {
-        const seconds = Math.max(0.1, (result.durationMs || 0) / 1000).toFixed(1);
-        onSaveSuccess?.(`Profile updated successfully in ${seconds}s`);
+        onSaveSuccess?.("Profile updated successfully.");
         return;
       }
 
@@ -99,10 +126,18 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={onBack} disabled={formBusy}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onBack}
+          disabled={formBusy}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityState={{ disabled: formBusy }}
+        >
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>Edit Profile</Text>
+        <AppText style={styles.title}>Edit Profile</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -114,19 +149,34 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
             }}
             style={styles.avatar}
           />
-          <Pressable style={styles.cameraBtn} onPress={handlePickAvatar} disabled={formBusy}>
+          <Pressable
+            style={styles.cameraBtn}
+            onPress={handlePickAvatar}
+            disabled={formBusy}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo"
+            accessibilityState={{ disabled: formBusy }}
+          >
             <Ionicons name="camera" size={13} color={colors.primaryContrast} />
           </Pressable>
         </View>
-        <Text style={styles.photoTitle}>Update Photo</Text>
-        <Pressable style={[styles.uploadBtn, formBusy && styles.uploadBtnDisabled]} onPress={handlePickAvatar} disabled={formBusy}>
-          <Text style={styles.uploadText}>{uploadingAvatar ? "Uploading..." : "Upload New"}</Text>
+        <AppText style={styles.photoTitle}>Update Photo</AppText>
+        <Pressable
+          style={[styles.uploadBtn, formBusy && styles.uploadBtnDisabled]}
+          onPress={handlePickAvatar}
+          disabled={formBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Upload new photo"
+          accessibilityState={{ disabled: formBusy, busy: uploadingAvatar }}
+        >
+          <AppText style={styles.uploadText}>{uploadingAvatar ? "Uploading..." : "Upload New"}</AppText>
         </Pressable>
       </View>
 
       <View style={styles.formArea}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
+        <AppText style={styles.label}>Full Name</AppText>
+        <AppTextInput
           value={values.fullName}
           onChangeText={(value) => onChange("fullName", value)}
           placeholder="Full name"
@@ -135,15 +185,15 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           editable={!formBusy}
         />
 
-        <Text style={styles.label}>Email (Read Only)</Text>
+        <AppText style={styles.label}>Email (Read Only)</AppText>
         <View style={[styles.input, styles.readOnlyRow]}>
-          <Text style={styles.readOnlyText}>{values.email}</Text>
+          <AppText style={styles.readOnlyText}>{values.email}</AppText>
           <Ionicons name="lock-closed" size={15} color={colors.textSubtle} />
         </View>
 
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          value={values.phoneNumber || values.phone || "+234 801 234 5678"}
+        <AppText style={styles.label}>Phone Number</AppText>
+        <AppTextInput
+          value={values.phoneNumber || values.phone || ""}
           onChangeText={(value) => onChange("phoneNumber", value)}
           placeholder="Phone number"
           placeholderTextColor={colors.textSubtle}
@@ -152,42 +202,136 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           editable={!formBusy}
         />
 
+        <AppText style={styles.label}>Faculty</AppText>
+        <Pressable
+          style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+          onPress={() => setShowFacultyPicker(true)}
+          disabled={formBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Select Faculty"
+        >
+          <AppText
+            style={{
+              fontSize: ms(15),
+              color: values.faculty ? colors.text : colors.textSubtle,
+              fontFamily: "Outfit_400Regular",
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            {values.faculty || "Select Faculty"}
+          </AppText>
+          <Ionicons name="chevron-down" size={16} color={colors.textSubtle} />
+        </Pressable>
+
         <View style={styles.rowLabels}>
-          <Text style={[styles.label, styles.halfLabel]}>Department</Text>
-          <Text style={[styles.label, styles.halfLabel]}>Level</Text>
+          <AppText style={[styles.label, styles.halfLabel]}>Department</AppText>
+          <AppText style={[styles.label, styles.halfLabel]}>Level</AppText>
         </View>
 
         <View style={styles.doubleRow}>
-          <TextInput
-            value={values.department}
-            onChangeText={(value) => onChange("department", value)}
-            placeholder="E.g. Computer Science"
-            placeholderTextColor={colors.textSubtle}
-            style={[styles.input, { flex: 1 }]}
-            editable={!formBusy}
-          />
-          <TextInput
-            value={values.level}
-            onChangeText={(value) => onChange("level", value)}
-            placeholder="E.g. 400"
-            placeholderTextColor={colors.textSubtle}
-            style={[styles.input, { flex: 1 }]}
-            keyboardType="number-pad"
-            editable={!formBusy}
-          />
+          <Pressable
+            style={[styles.input, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+            onPress={() => setShowDepartmentPicker(true)}
+            disabled={formBusy}
+            accessibilityRole="button"
+            accessibilityLabel="Select Department"
+          >
+            <AppText
+              style={{
+                fontSize: ms(14),
+                color: values.department ? colors.text : colors.textSubtle,
+                fontFamily: "Outfit_400Regular",
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {values.department || "Select Dept"}
+            </AppText>
+            <Ionicons name="chevron-down" size={14} color={colors.textSubtle} />
+          </Pressable>
+
+          <Pressable
+            style={[styles.input, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+            onPress={() => setShowLevelPicker(true)}
+            disabled={formBusy}
+            accessibilityRole="button"
+            accessibilityLabel="Select Level"
+          >
+            <AppText
+              style={{
+                fontSize: ms(14),
+                color: values.level ? colors.text : colors.textSubtle,
+                fontFamily: "Outfit_400Regular",
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {values.level || "Select Level"}
+            </AppText>
+            <Ionicons name="chevron-down" size={14} color={colors.textSubtle} />
+          </Pressable>
         </View>
 
-        <Pressable style={[styles.saveBtn, formBusy && styles.saveBtnDisabled]} onPress={handleSave} disabled={formBusy}>
+        <Pressable
+          style={[styles.saveBtn, formBusy && styles.saveBtnDisabled]}
+          onPress={handleSave}
+          disabled={formBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityState={{ disabled: formBusy, busy: saving }}
+        >
           <View style={styles.saveBtnContent}>
             {saving && <ActivityIndicator size="small" color={colors.primaryContrast} />}
-            <Text style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
+            <AppText style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</AppText>
           </View>
         </Pressable>
 
-        <Pressable style={styles.discardBtn} onPress={onBack} disabled={formBusy}>
-          <Text style={styles.discardText}>Discard Changes</Text>
+        <Pressable
+          style={styles.discardBtn}
+          onPress={onBack}
+          disabled={formBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Discard changes"
+          accessibilityState={{ disabled: formBusy }}
+        >
+          <AppText style={styles.discardText}>Discard Changes</AppText>
         </Pressable>
       </View>
+
+      {/* Dynamic Academic Modals */}
+      <SelectPickerModal
+        visible={showFacultyPicker}
+        title="Select Faculty"
+        options={faculties}
+        selectedValue={values.faculty}
+        onSelect={(val) => {
+          onChange("faculty", val);
+          onChange("department", "");
+        }}
+        onClose={() => setShowFacultyPicker(false)}
+        searchPlaceholder="Search faculty..."
+      />
+
+      <SelectPickerModal
+        visible={showDepartmentPicker}
+        title={values.faculty ? `${values.faculty} Departments` : "Select Department"}
+        options={departments}
+        selectedValue={values.department}
+        onSelect={(val) => onChange("department", val)}
+        onClose={() => setShowDepartmentPicker(false)}
+        searchPlaceholder="Search department..."
+      />
+
+      <SelectPickerModal
+        visible={showLevelPicker}
+        title="Select Academic Level"
+        options={levels}
+        selectedValue={values.level}
+        onSelect={(val) => onChange("level", val)}
+        onClose={() => setShowLevelPicker(false)}
+        searchPlaceholder="Search level..."
+      />
     </ScrollView>
   );
 }
@@ -268,7 +412,7 @@ const getStyles = (colors, isDark) =>
     paddingHorizontal: scale(22),
     height: scale(34),
     borderRadius: scale(17),
-    backgroundColor: isDark ? colors.surfaceAlt : colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -276,7 +420,7 @@ const getStyles = (colors, isDark) =>
     opacity: 0.6,
   },
   uploadText: {
-    color: isDark ? colors.accent : colors.accent,
+    color: colors.accent,
     fontWeight: "700",
     fontSize: ms(13),
   },

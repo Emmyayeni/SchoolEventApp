@@ -1,22 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useMemo, useState } from "react";
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Haptics from "expo-haptics";
+import { useAudioPlayer } from 'expo-audio';
+import { useMemo, useState, useRef } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View, Dimensions, Animated } from "react-native";
+import { Image } from "expo-image";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FadeInImage } from "../components/FadeInImage";
 import { ScalePressable } from "../components/ScalePressable";
 import { EventSkeletonCard } from "../components/SkeletonLoader";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
+// Fixed ink for text/icons that always sit on a white chip/pill over the dark
+// hero imagery. Must NOT use colors.primary, which flips to near-white in dark
+// mode and would make these elements vanish against the white background.
+const HERO_CHIP_INK = "#0f172a";
+
 const CATEGORY_DATA = [
-  { label: "Today", image: "https://images.unsplash.com/photo-1506784951809-c8e39031c5df?w=200&q=80" },
-  { label: "Tomorrow", image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=200&q=80" },
-  { label: "Academic", image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&q=80" },
-  { label: "Sports", image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=200&q=80" },
-  { label: "Seminar", image: "https://images.unsplash.com/photo-1544531586-fde5298cdd40?w=200&q=80" },
-  { label: "Workshop", image: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=200&q=80" },
-  { label: "SUG", image: "https://images.unsplash.com/photo-1523580494112-071d45d41982?w=200&q=80" },
+  { label: "All", icon: "apps-outline" },
+  { label: "Today", icon: "calendar" },
+  { label: "Tomorrow", icon: "calendar-outline" },
+  { label: "Academic", icon: "school-outline" },
+  { label: "Sports", icon: "football-outline" },
+  { label: "Seminar", icon: "mic-outline" },
+  { label: "Workshop", icon: "easel-outline" },
 ];
 
 export default function HomeScreen({
@@ -26,6 +35,7 @@ export default function HomeScreen({
   events = [],
   featuredEvents = [],
   announcements = [],
+  notifications = [],
   onToggleBookmark,
   onOpenNotifications,
   onOpenEvent,
@@ -36,16 +46,22 @@ export default function HomeScreen({
   onOpenManageEvents,
   refreshing,
   onRefreshData,
+  onOpenSidebar,
 }) {
-  const { colors, mode } = useAppTheme();
-  const isDark = mode === "dark";
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
-  const [activeCategory, setActiveCategory] = useState("Today");
+  const [activeCategory, setActiveCategory] = useState("All");
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const screenWidth = Dimensions.get("window").width;
+  const CARD_WIDTH = screenWidth - scale(32);
 
-  const firstName = (user?.fullName || "John").trim().split(" ")[0] || "John";
+  // Single audio player for the Like sound effect to prevent memory leaks/crashes
+  const likePlayer = useAudioPlayer(require("../../assets/sounds/pop.mp3"));
+
   const isStudent = dashboardType !== "staff";
+  const fallbackGreeting = isStudent ? "Student" : "Staff";
+  const firstName = (user?.fullName || fallbackGreeting).trim().split(" ")[0] || fallbackGreeting;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -55,9 +71,19 @@ export default function HomeScreen({
   };
   const greeting = getGreeting();
 
+  const unreadAlertsCount = useMemo(() => {
+    return notifications.filter((n) => !n.read && !n.isRead).length;
+  }, [notifications]);
+
   const filteredEvents = useMemo(() => {
     const byCategory = events.filter((item) => {
-      if (activeCategory === "Today" || activeCategory === "Tomorrow" || activeCategory === "All") return true;
+      if (activeCategory === "Today" || activeCategory === "Tomorrow") {
+        const day = new Date();
+        if (activeCategory === "Tomorrow") day.setDate(day.getDate() + 1);
+        const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+        return item.date === dateKey;
+      }
+      if (activeCategory === "All") return true;
       if (activeCategory === "Academic") return ["Seminar", "Workshop", "Conference"].includes(item.category);
       if (activeCategory === "Workshop") return item.category === "Workshop";
       if (activeCategory === "Sports") return item.category === "Sports";
@@ -75,7 +101,7 @@ export default function HomeScreen({
   }, [activeCategory, events, searchText]);
 
   const upcoming = useMemo(() => filteredEvents, [filteredEvents]);
-  const featured = featuredEvents.length > 0 ? featuredEvents[0] : (events.length > 0 ? events[0] : null);
+  const featuredList = featuredEvents.length > 0 ? featuredEvents.slice(0, 5) : events.slice(0, 5);
 
   const staffHostedEvents = useMemo(() => {
     return events.filter(e => e.createdBy === user?.id);
@@ -98,19 +124,23 @@ export default function HomeScreen({
   const renderFaces = (count = 3, size = 18) => {
     return (
       <View style={{ flexDirection: "row", marginRight: scale(6) }}>
-        {[1, 2, 3].slice(0, count).map((num, i) => (
-          <Image
+        {[1, 2, 3].slice(0, count).map((_, i) => (
+          <View
             key={i}
-            source={{ uri: `https://randomuser.me/api/portraits/women/${(num * 10) + 1}.jpg` }}
             style={{
               width: scale(size),
               height: scale(size),
               borderRadius: scale(size / 2),
               borderWidth: 1,
               borderColor: colors.surface,
+              backgroundColor: i === 0 ? colors.primary : i === 1 ? colors.accent : "#3b82f6",
+              alignItems: "center",
+              justifyContent: "center",
               marginLeft: i > 0 ? -scale(8) : 0,
             }}
-          />
+          >
+            <Ionicons name="person" size={scale(size * 0.55)} color="#fff" />
+          </View>
         ))}
       </View>
     );
@@ -120,23 +150,39 @@ export default function HomeScreen({
     <View style={[styles.page, { paddingTop: insets.top }]}>
       {/* TOP APP BAR */}
       <View style={styles.topNav}>
-        <Pressable style={styles.menuIcon}>
-          <Ionicons name="menu-outline" size={28} color={colors.text} />
-        </Pressable>
-        <View style={styles.logoWrap}>
-          <View style={styles.shieldIconWrap}>
-            <Ionicons name="shield-checkmark" size={16} color="#fff" />
-          </View>
-          <View style={styles.logoTextWrap}>
-            <Text style={styles.logoTitle}>NSUK</Text>
-            <Text style={styles.logoSubtitle}>CAMPUS EVENTS</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Pressable
+            style={styles.menuIcon}
+            onPress={onOpenSidebar}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <Ionicons name="menu-outline" size={28} color={colors.text} />
+          </Pressable>
+          <View style={styles.logoWrap}>
+            <Image source={require("../../assets/images/logo.png")} style={styles.headerLogoImage} resizeMode="contain" />
+            <View style={styles.logoTextWrap}>
+              <AppText style={styles.logoTitle}>NSUK</AppText>
+              <AppText style={styles.logoSubtitle}>CAMPUS EVENTS</AppText>
+            </View>
           </View>
         </View>
-        <Pressable style={styles.bellWrap} onPress={onOpenNotifications}>
+        <Pressable
+          style={styles.bellWrap}
+          onPress={onOpenNotifications}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
           <Ionicons name="notifications-outline" size={24} color={colors.text} />
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationBadgeText}>3</Text>
-          </View>
+          {unreadAlertsCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <AppText style={styles.notificationBadgeText}>
+                {unreadAlertsCount > 9 ? "9+" : unreadAlertsCount}
+              </AppText>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -147,150 +193,289 @@ export default function HomeScreen({
       >
         {/* GREETING BAR */}
         <View style={styles.greetingRow}>
-          <Pressable style={styles.greetingLeft} onPress={onOpenProfile}>
-            <Image source={{ uri: user?.avatar || "https://randomuser.me/api/portraits/lego/1.jpg" }} style={styles.greetingAvatar} />
+          <Pressable style={styles.greetingLeft} onPress={onOpenProfile} accessibilityRole="button" accessibilityLabel="Open profile">
             <View>
-              <Text style={styles.greetingText}>{greeting} 👋</Text>
-              <Text style={styles.greetingName}>{firstName}</Text>
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.greetingAvatar} />
+              ) : (
+                <View style={[styles.greetingAvatar, { backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" }]}>
+                  <AppText style={{ color: colors.primary, fontWeight: "700", fontSize: ms(14) }}>
+                    {firstName.charAt(0).toUpperCase()}
+                  </AppText>
+                </View>
+              )}
+              <View style={styles.onlineDot} />
+            </View>
+            <View>
+              <AppText style={styles.greetingText}>{greeting} 👋</AppText>
+              <AppText style={styles.greetingName}>{firstName}</AppText>
             </View>
           </Pressable>
           <View style={styles.campusDropdown}>
-            <Ionicons name="location" size={12} color={colors.text} />
-            <Text style={styles.campusText}>NSUK Main Campus</Text>
-            <Ionicons name="chevron-down" size={12} color={colors.text} />
+            <Ionicons name="location" size={14} color={colors.primary} />
+            <AppText style={styles.campusText}>NSUK Main Campus</AppText>
+            <Ionicons name="chevron-down" size={14} color={colors.text} />
           </View>
         </View>
 
         {/* SEARCH AREA */}
-        <View style={styles.searchContainer}>
-          <Pressable style={styles.searchInputWrap} onPress={() => onActivateSearch?.(searchText)}>
-            <Ionicons name="search" size={20} color={colors.textSubtle} />
-            <TextInput
-              value={searchText}
-              onChangeText={setSearchText}
-              onFocus={() => onActivateSearch?.(searchText)}
-              placeholder="Search events, categories, or organizers..."
-              placeholderTextColor={colors.textSubtle}
-              style={styles.searchInput}
-              pointerEvents="none"
-            />
-          </Pressable>
-          <Pressable style={styles.filterBtn} onPress={() => onActivateSearch?.(searchText)}>
-            <Ionicons name="options-outline" size={22} color={colors.text} />
-          </Pressable>
-        </View>
+        <Pressable
+          style={styles.searchContainer}
+          onPress={() => onActivateSearch?.(searchText)}
+          accessibilityRole="button"
+          accessibilityLabel="Search events"
+        >
+          <Ionicons name="search" size={20} color={colors.textSubtle} style={{marginLeft: scale(16)}} />
+          <AppTextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search events, categories, or organizers..."
+            placeholderTextColor={colors.textSubtle}
+            style={styles.searchInput}
+            pointerEvents="none"
+            editable={false}
+          />
+          <View style={styles.filterBtn}>
+            <Ionicons name="options-outline" size={20} color={colors.text} />
+          </View>
+        </Pressable>
 
-        {/* STORY-STYLE CATEGORIES */}
+        {/* CATEGORY SQUIRCLES */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyRow}>
           {CATEGORY_DATA.map((cat, i) => {
             const active = cat.label === activeCategory;
             return (
-              <ScalePressable key={i} onPress={() => setActiveCategory(cat.label)} style={styles.storyItem}>
-                <View style={[styles.storyRing, active && styles.storyRingActive]}>
-                  <View style={styles.storyImageWrap}>
-                    {cat.label === "Today" || cat.label === "Tomorrow" ? (
-                      <View style={[styles.storyIconWrap, { backgroundColor: active ? colors.primary : colors.surfaceAlt }]}>
-                        <Ionicons name="calendar" size={24} color={active ? "#fff" : colors.primary} />
-                      </View>
-                    ) : (
-                      <Image source={{ uri: cat.image }} style={styles.storyImage} />
-                    )}
-                  </View>
+              <ScalePressable
+                key={i}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setActiveCategory(cat.label);
+                }}
+                style={styles.storyItem}
+              >
+                <View style={[styles.storySquircle, active && styles.storySquircleActive]}>
+                  <Ionicons name={cat.icon} size={18} color={active ? colors.primary : colors.text} />
                 </View>
-                <Text style={[styles.storyText, active && styles.storyTextActive]}>{cat.label}</Text>
+                <AppText style={[styles.storyText, active && styles.storyTextActive]}>{cat.label}</AppText>
+                {active && <View style={styles.storyActiveLine} />}
               </ScalePressable>
             );
           })}
         </ScrollView>
 
-        {/* FEATURED EVENT HERO CARD */}
-        {featured && isStudent && (
-          <ScalePressable style={styles.featuredHero} onPress={() => onOpenEvent?.(featured.id)}>
-            <Image source={{ uri: featured.image }} style={styles.featuredHeroBg} />
-            <LinearGradient colors={["transparent", "rgba(5, 15, 40, 0.95)"]} style={styles.featuredGradient} />
-            <View style={styles.featuredHeroContent}>
-              <View style={styles.featuredBadge}>
-                <Ionicons name="star" size={10} color="#fff" />
-                <Text style={styles.featuredBadgeText}>FEATURED EVENT</Text>
-              </View>
-              <Text style={styles.featuredHeroTitle}>{featured.title}</Text>
-              <Text style={styles.featuredHeroDesc} numberOfLines={2}>
-                {featured.description || "Explore emerging technologies, network with experts and innovators, and shape the future."}
-              </Text>
-              
-              <View style={styles.featuredHeroMetaRow}>
-                <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.featuredHeroMetaText}>{formatDate(featured.date)}</Text>
-                <Text style={styles.featuredHeroMetaDivider}>|</Text>
-                <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.featuredHeroMetaText}>{featured.time || "9:00 AM"}</Text>
-                <Text style={styles.featuredHeroMetaDivider}>|</Text>
-                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.featuredHeroMetaText} numberOfLines={1}>{featured.venue}</Text>
+        {/* CAMPUS BROADCAST ALERT BANNER */}
+        {announcements && announcements.length > 0 && (
+          <View style={styles.broadcastBannerWrap}>
+            <Pressable
+              style={styles.broadcastCard}
+              onPress={() => onOpenAnnouncementDetails?.(announcements[0].id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Campus announcement: ${announcements[0].title}`}
+            >
+              <View style={styles.broadcastHeader}>
+                <View style={styles.broadcastBadge}>
+                  <Ionicons name="megaphone" size={11} color="#fff" />
+                  <AppText style={styles.broadcastBadgeText}>CAMPUS BROADCAST</AppText>
+                </View>
+                <AppText style={styles.broadcastTime}>
+                  {formatRelativeTime(announcements[0].createdAt || announcements[0].created_at)}
+                </AppText>
               </View>
 
-              <View style={styles.featuredHeroBottom}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  {renderFaces(3, 20)}
-                  <Text style={styles.facePileText}>243 Going • 18 Interested</Text>
-                </View>
-                <Pressable style={styles.viewDetailsBtn} onPress={() => onOpenEvent?.(featured.id)}>
-                  <Text style={styles.viewDetailsText}>View Details</Text>
-                  <Ionicons name="arrow-forward" size={14} color="#000" />
-                </Pressable>
+              <AppText style={styles.broadcastTitle} numberOfLines={1}>
+                {announcements[0].title}
+              </AppText>
+              <AppText style={styles.broadcastBody} numberOfLines={2}>
+                {announcements[0].body || announcements[0].content || "Tap to view full campus notice."}
+              </AppText>
+
+              <View style={styles.broadcastActionRow}>
+                <AppText style={styles.broadcastActionText}>View Full Notice</AppText>
+                <Ionicons name="arrow-forward" size={12} color={colors.primary} />
               </View>
-            </View>
-          </ScalePressable>
+            </Pressable>
+          </View>
+        )}
+
+        {/* FEATURED EVENTS CAROUSEL */}
+        {featuredList.length > 0 && isStudent && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_WIDTH + scale(16)}
+            decelerationRate="fast"
+            contentContainerStyle={{ paddingHorizontal: scale(16), gap: scale(16), paddingBottom: scale(10) }}
+            style={{ marginBottom: scale(10) }}
+          >
+            {featuredList.map((featured) => (
+              <ScalePressable key={featured.id} style={[styles.featuredHero, { width: CARD_WIDTH, marginHorizontal: 0, marginBottom: 0 }]} onPress={() => onOpenEvent?.(featured.id)}>
+                <Image source={{ uri: featured.image }} style={styles.featuredHeroBg} />
+                <LinearGradient colors={["transparent", "rgba(0, 42, 20, 0.96)"]} style={styles.featuredGradient} />
+                <View style={styles.featuredHeroContent}>
+                  <View style={styles.featuredBadge}>
+                    <Ionicons name="star" size={10} color="#fff" />
+                    <AppText style={styles.featuredBadgeText}>FEATURED EVENT</AppText>
+                  </View>
+                  <AppText style={styles.featuredHeroTitle}>{featured.title}</AppText>
+                  <AppText style={styles.featuredHeroDesc} numberOfLines={1}>
+                    {featured.description || "Small daily habits matter"}
+                  </AppText>
+                  
+                  <View style={styles.featuredHeroMetaBlock}>
+                    <View style={styles.metaLine}>
+                      <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.8)" />
+                      <AppText style={styles.featuredHeroMetaText}>{formatDate(featured.date)}</AppText>
+                    </View>
+                    <View style={styles.metaLine}>
+                      <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
+                      <AppText style={styles.featuredHeroMetaText}>{featured.time || "9:00 AM"}</AppText>
+                    </View>
+                    <View style={styles.metaLine}>
+                      <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.8)" />
+                      <AppText style={styles.featuredHeroMetaText} numberOfLines={1}>{featured.venue}</AppText>
+                    </View>
+                  </View>
+
+                  <View style={styles.featuredHeroBottom}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      {renderFaces(2, 20)}
+                      <AppText style={styles.facePileText}>
+                        {featured.registeredCount ? `${featured.registeredCount} Registered` : "Registration Open"}
+                      </AppText>
+                    </View>
+                    <Pressable
+                      style={styles.viewDetailsBtn}
+                      onPress={() => onOpenEvent?.(featured.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View details for ${featured.title}`}
+                    >
+                      <AppText style={styles.viewDetailsText}>View Details</AppText>
+                      <Ionicons name="arrow-forward" size={14} color={HERO_CHIP_INK} />
+                    </Pressable>
+                  </View>
+                </View>
+              </ScalePressable>
+            ))}
+          </ScrollView>
         )}
 
         {/* ORGANIZER METRICS HERO CARD */}
         {!isStudent && (
           <View style={styles.organizerHero}>
             <Image source={{ uri: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=80" }} style={styles.featuredHeroBg} />
-            <LinearGradient colors={["transparent", "rgba(5, 15, 40, 0.95)"]} style={styles.featuredGradient} />
+            <LinearGradient colors={["transparent", "rgba(0, 42, 20, 0.96)"]} style={styles.featuredGradient} />
             <View style={styles.featuredHeroContent}>
               <View style={[styles.featuredBadge, { backgroundColor: "#fff" }]}>
-                <Ionicons name="stats-chart" size={10} color={colors.primary} />
-                <Text style={[styles.featuredBadgeText, { color: colors.primary }]}>ORGANIZER DASHBOARD</Text>
+                <Ionicons name="stats-chart" size={10} color={HERO_CHIP_INK} />
+                <AppText style={[styles.featuredBadgeText, { color: HERO_CHIP_INK }]}>ORGANIZER DASHBOARD</AppText>
               </View>
-              <Text style={styles.featuredHeroTitle}>Welcome back, {firstName}!</Text>
-              <Text style={styles.featuredHeroDesc}>Here is a quick overview of your campus events.</Text>
+              <AppText style={styles.featuredHeroTitle}>Welcome back, {firstName}!</AppText>
+              <AppText style={styles.featuredHeroDesc}>Here is a quick overview of your campus events.</AppText>
               
               <View style={styles.organizerStatsRow}>
                 <View style={styles.organizerStatBox}>
-                  <Text style={styles.organizerStatValue}>{activeEventsCount}</Text>
-                  <Text style={styles.organizerStatLabel}>Active Events</Text>
+                  <AppText style={styles.organizerStatValue}>{activeEventsCount}</AppText>
+                  <AppText style={styles.organizerStatLabel}>Active Events</AppText>
                 </View>
                 <View style={styles.organizerStatDivider} />
                 <View style={styles.organizerStatBox}>
-                  <Text style={styles.organizerStatValue}>{totalRegistrations}</Text>
-                  <Text style={styles.organizerStatLabel}>Total RSVPs</Text>
+                  <AppText style={styles.organizerStatValue}>{totalRegistrations}</AppText>
+                  <AppText style={styles.organizerStatLabel}>Total RSVPs</AppText>
                 </View>
               </View>
 
               <View style={styles.featuredHeroBottom}>
-                <Pressable style={styles.viewDetailsBtn} onPress={onOpenManageEvents}>
-                  <Text style={styles.viewDetailsText}>Manage Events</Text>
-                  <Ionicons name="settings-outline" size={14} color="#000" />
+                <Pressable
+                  style={styles.viewDetailsBtn}
+                  onPress={onOpenManageEvents}
+                  accessibilityRole="button"
+                  accessibilityLabel="Manage events"
+                >
+                  <AppText style={styles.viewDetailsText}>Manage Events</AppText>
+                  <Ionicons name="settings-outline" size={14} color={HERO_CHIP_INK} />
                 </Pressable>
-                <Pressable style={[styles.viewDetailsBtn, { backgroundColor: colors.primary }]} onPress={onCreateEvent}>
-                  <Text style={[styles.viewDetailsText, { color: "#fff" }]}>Create Event</Text>
-                  <Ionicons name="add" size={14} color="#fff" />
+                <Pressable
+                  style={[styles.viewDetailsBtn, { backgroundColor: colors.accent }]}
+                  onPress={onCreateEvent}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create event"
+                >
+                  <AppText style={[styles.viewDetailsText, { color: colors.accentContrast }]}>Create Event</AppText>
+                  <Ionicons name="add" size={14} color={colors.accentContrast} />
                 </Pressable>
               </View>
             </View>
           </View>
         )}
 
+        {/* TOP EVENTS FOR YOU */}
+        {isStudent && upcoming.length > 0 && (
+          <View style={styles.topEventsSection}>
+            <View style={styles.sectionHeader}>
+              <AppText style={styles.sectionTitle}>Top events for you</AppText>
+              <Pressable style={styles.seeAllBtn}>
+                <AppText style={styles.seeAllText}>See all</AppText>
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+              </Pressable>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topEventsScroll}>
+              {upcoming.slice(0, 5).map((item) => (
+                <ScalePressable key={item.id} style={styles.topEventCard} onPress={() => onOpenEvent?.(item.id)}>
+                  <View style={styles.topEventImageWrap}>
+                    <Image source={{ uri: item.image }} style={styles.topEventImage} />
+                    <Pressable
+                      style={styles.topEventBookmark}
+                      onPress={() => onToggleBookmark?.(item.id)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={bookmarkedEventIds.includes(item.id) ? "Remove from saved" : "Save event"}
+                    >
+                      <Ionicons name={bookmarkedEventIds.includes(item.id) ? "bookmark" : "bookmark-outline"} size={16} color="#fff" />
+                    </Pressable>
+                  </View>
+                  <View style={styles.topEventContent}>
+                    <View style={styles.topEventBadge}>
+                      <AppText style={[styles.topEventBadgeText, { color: colors.primary }]}>{item.category || "Academic"}</AppText>
+                    </View>
+                    <AppText style={styles.topEventTitle} numberOfLines={1}>{item.title}</AppText>
+                    <View style={styles.topEventMetaLine}>
+                      <Ionicons name="calendar-outline" size={12} color={colors.textSubtle} />
+                      <AppText style={styles.topEventMetaText}>{formatDate(item.date)} • {item.time || "10:00 AM"}</AppText>
+                    </View>
+                    <View style={styles.topEventMetaLine}>
+                      <Ionicons name="location-outline" size={12} color={colors.textSubtle} />
+                      <AppText style={styles.topEventMetaText} numberOfLines={1}>{item.venue}</AppText>
+                    </View>
+                    <View style={styles.topEventBottomRow}>
+                      <View style={{ flexDirection: "row" }}>
+                        {renderFaces(3, 16)}
+                      </View>
+                      <AppText style={styles.topEventGoingText}>112 Going</AppText>
+                    </View>
+                  </View>
+                </ScalePressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* FEED LOOP */}
         <View style={styles.feedWrap}>
+          <View style={styles.feedHeaderRow}>
+            <AppText style={styles.sectionTitle}>Feed</AppText>
+            <View style={styles.feedFilterPill}>
+              <AppText style={styles.feedFilterText}>Most recent</AppText>
+              <Ionicons name="chevron-down" size={12} color={colors.textSubtle} />
+            </View>
+          </View>
+
           {upcoming.length === 0 && refreshing ? (
             <>
               <EventSkeletonCard />
               <EventSkeletonCard />
             </>
           ) : upcoming.length === 0 ? (
-            <Text style={styles.emptyStateText}>No events found in this category.</Text>
+            <AppText style={styles.emptyStateText}>No events found in this category.</AppText>
           ) : (
             upcoming.map((item) => (
               <SocialEventPost 
@@ -298,12 +483,10 @@ export default function HomeScreen({
                 item={item} 
                 colors={colors} 
                 styles={styles}
-                isDark={isDark}
                 onPress={() => onOpenEvent?.(item.id)}
-                isStudent={isStudent}
                 bookmarked={bookmarkedEventIds.includes(item.id)}
                 onToggleBookmark={() => onToggleBookmark?.(item.id)}
-                renderFaces={renderFaces}
+                likePlayer={likePlayer}
               />
             ))
           )}
@@ -313,55 +496,99 @@ export default function HomeScreen({
   );
 }
 
-function SocialEventPost({ item, colors, styles, isDark, onPress, isStudent, bookmarked, onToggleBookmark, renderFaces }) {
+function SocialEventPost({ item, colors, styles, onPress, bookmarked, onToggleBookmark, likePlayer }) {
+  const [isLiked, setIsLiked] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
   const avatarUrl = `https://randomuser.me/api/portraits/men/${(String(item.id).charCodeAt(0) % 90) + 1}.jpg`;
   
+  const handleLike = async () => {
+    const willLike = !isLiked;
+    setIsLiked(willLike);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    if (willLike) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.3,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 3,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ]).start();
+
+      try {
+        if (likePlayer) {
+          likePlayer.seekTo(0);
+          likePlayer.play();
+        }
+      } catch (e) {
+        console.log("Audio play error:", e);
+      }
+    } else {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }
+  };
+
   return (
     <View style={styles.postCard}>
       {/* Post Header */}
       <View style={styles.postHeader}>
-        <Image source={{ uri: avatarUrl }} style={styles.postAvatar} />
+        {(!item.organizer || item.organizer === "Student Union") ? (
+          <View style={[styles.postAvatar, { backgroundColor: "#0B2A15", alignItems: "center", justifyContent: "center" }]}>
+            <AppText style={{ color: "#2EFE7E", fontFamily: "Outfit_900Black", fontSize: ms(16) }}>SU</AppText>
+          </View>
+        ) : (
+          <Image source={{ uri: avatarUrl }} style={styles.postAvatar} />
+        )}
         <View style={styles.postHeaderInfo}>
           <View style={styles.postAuthorRow}>
-            <Text style={styles.postAuthorName}>{item.organizer || "Student Affairs Division"}</Text>
-            <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+            <AppText style={styles.postAuthorName}>{item.organizer || "Student Union"}</AppText>
+            <Ionicons name="checkmark-circle" size={14} color="#1DA1F2" />
           </View>
           <View style={styles.postTimeRow}>
-            <Text style={styles.postTimeText}>2 hours ago</Text>
+            <AppText style={styles.postTimeText}>{formatRelativeTime(item.created_at || item.date)}</AppText>
+            <AppText style={{ marginHorizontal: scale(4), color: colors.textMuted }}>•</AppText>
             <Ionicons name="globe-outline" size={11} color={colors.textMuted} />
           </View>
         </View>
         <Pressable style={styles.postOptionsBtn}>
-          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+          <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
         </Pressable>
       </View>
 
-      {/* Post Body (Side by Side) */}
-      <Pressable style={styles.postBody} onPress={onPress}>
-        <Image source={{ uri: item.image }} style={styles.postBodyImage} />
-        <View style={styles.postBodyContent}>
-          <View style={styles.postBadge}>
-            <Text style={[styles.postBadgeText, { color: colors.primary }]}>{item.category || "Academic"}</Text>
-          </View>
-          <Text style={styles.postTitle} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.postDesc} numberOfLines={3}>
-            {item.description || "Join developers from across NSUK for a 24-hour coding challenge. Great prizes to be won!"}
-          </Text>
-          
-          <View style={styles.postMetaGrid}>
-            <View style={styles.postMetaRow}>
-              <Ionicons name="calendar-outline" size={12} color={colors.textSubtle} />
-              <Text style={styles.postMetaText}>{formatShortDate(item.date)}</Text>
+      {/* Post Body (Social Media Style) */}
+      <Pressable style={styles.postBodySocial} onPress={onPress}>
+        <AppText style={styles.postDescSocial} numberOfLines={3}>
+          {item.description || "Join us for this campus event."}
+        </AppText>
+        
+        <View style={styles.postImageWrapperSocial}>
+          <Image source={{ uri: item.image }} style={styles.postImageSocial} />
+          <LinearGradient colors={["transparent", "rgba(0,0,0,0.8)"]} style={styles.postImageGradientSocial} />
+          <View style={styles.postImageOverlaySocial}>
+            <AppText style={styles.postImageTitleSocial} numberOfLines={1}>{item.title}</AppText>
+            <View style={styles.postImageMetaRowSocial}>
+              <Ionicons name="calendar-outline" size={10} color="rgba(255,255,255,0.8)" />
+              <AppText style={styles.postImageMetaTextSocial}>{formatShortDate(item.date)}</AppText>
+              <AppText style={styles.postImageMetaDotSocial}>•</AppText>
+              <AppText style={styles.postImageMetaTextSocial} numberOfLines={1}>{item.venue}</AppText>
             </View>
-            <View style={styles.postMetaRow}>
-              <Ionicons name="location-outline" size={12} color={colors.textSubtle} />
-              <Text style={styles.postMetaText} numberOfLines={1}>{item.venue}</Text>
-            </View>
-          </View>
-
-          <View style={styles.postFacePileRow}>
-            {renderFaces(3, 16)}
-            <Text style={styles.postFacePileText}>132 Going   22 Interested</Text>
           </View>
         </View>
       </Pressable>
@@ -370,21 +597,28 @@ function SocialEventPost({ item, colors, styles, isDark, onPress, isStudent, boo
 
       {/* Action Footer */}
       <View style={styles.postActionFooter}>
-        <Pressable style={styles.postActionBtn}>
-          <Ionicons name="heart" size={18} color="#ff4444" />
-          <Text style={styles.postActionText}>Like</Text>
+        <Pressable
+          style={styles.postActionBtn}
+          onPress={handleLike}
+          accessibilityRole="button"
+          accessibilityLabel={isLiked ? "Unlike" : "Like"}
+        >
+          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={18} color={isLiked ? "#ff4444" : colors.textSubtle} />
+          </Animated.View>
+          <AppText style={[styles.postActionText, isLiked && { color: "#ff4444", fontWeight: "700" }]}>Like</AppText>
         </Pressable>
-        <Pressable style={styles.postActionBtn}>
-          <Ionicons name="chatbubble-outline" size={18} color={colors.textSubtle} />
-          <Text style={styles.postActionText}>Comment</Text>
-        </Pressable>
-        <Pressable style={styles.postActionBtn} onPress={onToggleBookmark}>
+        <Pressable
+          style={styles.postActionBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggleBookmark();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={bookmarked ? "Remove from saved" : "Save event"}
+        >
           <Ionicons name={bookmarked ? "bookmark" : "bookmark-outline"} size={18} color={bookmarked ? colors.primary : colors.textSubtle} />
-          <Text style={styles.postActionText}>Save</Text>
-        </Pressable>
-        <Pressable style={styles.postActionBtn}>
-          <Ionicons name="arrow-redo-outline" size={18} color={colors.textSubtle} />
-          <Text style={styles.postActionText}>Share</Text>
+          <AppText style={styles.postActionText}>Save</AppText>
         </Pressable>
       </View>
     </View>
@@ -401,6 +635,21 @@ function formatShortDate(dateText) {
   const date = new Date(dateText);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatRelativeTime(dateString) {
+  if (!dateString) return "Recently";
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return "Recently";
+  const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 const createStyles = (colors, isDark) =>
@@ -429,13 +678,9 @@ const createStyles = (colors, isDark) =>
       alignItems: "center",
       gap: scale(6),
     },
-    shieldIconWrap: {
-      backgroundColor: colors.primary,
-      width: scale(26),
-      height: scale(28),
-      borderRadius: scale(6),
-      alignItems: "center",
-      justifyContent: "center",
+    headerLogoImage: {
+      width: scale(32),
+      height: scale(32),
     },
     logoTextWrap: {
       flexDirection: "column",
@@ -494,6 +739,17 @@ const createStyles = (colors, isDark) =>
       height: scale(40),
       borderRadius: scale(20),
     },
+    onlineDot: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      width: scale(10),
+      height: scale(10),
+      backgroundColor: colors.primary,
+      borderRadius: scale(5),
+      borderWidth: 2,
+      borderColor: colors.background,
+    },
     greetingText: {
       fontSize: ms(12),
       color: colors.textSubtle,
@@ -526,36 +782,27 @@ const createStyles = (colors, isDark) =>
     searchContainer: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: scale(16),
+      marginHorizontal: scale(16),
       marginTop: scale(16),
-      gap: scale(10),
-    },
-    searchInputWrap: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
       backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSoft,
-      borderRadius: scale(12),
-      paddingHorizontal: scale(12),
-      height: scale(44),
-      gap: scale(8),
+      borderRadius: scale(24), // Pill shape
+      height: scale(48),
+      paddingRight: scale(16),
     },
     searchInput: {
       flex: 1,
       fontSize: ms(13),
-      fontFamily: "Outfit_500Medium",
+      fontFamily: "Outfit_400Regular",
       color: colors.text,
+      marginLeft: scale(8),
     },
     filterBtn: {
-      width: scale(44),
-      height: scale(44),
-      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
-      borderRadius: scale(12),
-      alignItems: "center",
+      borderLeftWidth: 1,
+      borderLeftColor: colors.borderSoft,
+      paddingLeft: scale(12),
+      height: scale(24),
       justifyContent: "center",
     },
 
@@ -563,41 +810,33 @@ const createStyles = (colors, isDark) =>
     storyRow: {
       paddingHorizontal: scale(16),
       paddingVertical: scale(16),
-      gap: scale(16),
+      gap: scale(18),
     },
     storyItem: {
       alignItems: "center",
-      gap: scale(6),
-      width: scale(64),
+      gap: scale(4),
+      width: scale(48),
     },
-    storyRing: {
-      width: scale(64),
-      height: scale(64),
-      borderRadius: scale(32),
-      borderWidth: 2,
-      borderColor: colors.border,
+    storySquircle: {
+      width: scale(44),
+      height: scale(44),
+      borderRadius: scale(14), // Squircle shape
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      backgroundColor: isDark ? colors.surfaceAlt : colors.background,
       alignItems: "center",
       justifyContent: "center",
     },
-    storyRingActive: {
+    storySquircleActive: {
+      backgroundColor: colors.primary + "15",
       borderColor: colors.primary,
     },
-    storyImageWrap: {
-      width: scale(54),
-      height: scale(54),
-      borderRadius: scale(27),
-      overflow: "hidden",
-      borderWidth: 2,
-      borderColor: colors.background,
-    },
-    storyImage: {
-      width: "100%",
-      height: "100%",
-    },
-    storyIconWrap: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
+    storyActiveLine: {
+      width: scale(16),
+      height: scale(3),
+      backgroundColor: colors.primary,
+      borderRadius: 2,
+      marginTop: scale(-2),
     },
     storyText: {
       fontSize: ms(11),
@@ -612,9 +851,8 @@ const createStyles = (colors, isDark) =>
 
     // Featured Event Hero
     featuredHero: {
-      marginHorizontal: scale(16),
-      height: scale(220),
-      borderRadius: scale(16),
+      height: scale(200),
+      borderRadius: scale(20),
       overflow: "hidden",
       marginBottom: scale(20),
     },
@@ -635,7 +873,7 @@ const createStyles = (colors, isDark) =>
       flexDirection: "row",
       alignItems: "center",
       gap: scale(4),
-      backgroundColor: colors.primary,
+      backgroundColor: colors.accent,
       alignSelf: "flex-start",
       paddingHorizontal: scale(8),
       paddingVertical: scale(4),
@@ -650,56 +888,71 @@ const createStyles = (colors, isDark) =>
     },
     featuredHeroTitle: {
       color: "#fff",
-      fontSize: ms(18),
-      fontFamily: "Outfit_900Black",
-      lineHeight: ms(24),
-      marginBottom: scale(4),
-      width: "80%",
+      fontSize: ms(22),
+      fontFamily: "Outfit_800ExtraBold",
+      lineHeight: ms(26),
+      marginBottom: scale(3),
+      width: "90%",
     },
     featuredHeroDesc: {
-      color: "rgba(255,255,255,0.8)",
-      fontSize: ms(11),
-      lineHeight: ms(16),
-      marginBottom: scale(10),
-      width: "80%",
+      color: "#fff",
+      fontSize: ms(13),
+      fontFamily: "Outfit_500Medium",
+      marginBottom: scale(12),
+      width: "90%",
     },
-    featuredHeroMetaRow: {
+    featuredHeroMetaBlock: {
+      gap: scale(4),
+      marginBottom: scale(8),
+    },
+    metaLine: {
       flexDirection: "row",
       alignItems: "center",
-      gap: scale(4),
-      marginBottom: scale(12),
+      gap: scale(6),
     },
     featuredHeroMetaText: {
-      color: "rgba(255,255,255,0.9)",
-      fontSize: ms(10),
+      color: "rgba(255,255,255,0.95)",
+      fontSize: ms(11),
       fontWeight: "600",
-    },
-    featuredHeroMetaDivider: {
-      color: "rgba(255,255,255,0.4)",
-      fontSize: ms(10),
-      marginHorizontal: scale(2),
     },
     featuredHeroBottom: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-end",
       justifyContent: "space-between",
     },
     facePileText: {
       color: "#fff",
       fontSize: ms(10),
+      fontWeight: "500",
+      marginLeft: scale(8),
+    },
+    faceMoreBadge: {
+      width: scale(24),
+      height: scale(24),
+      borderRadius: scale(12),
+      backgroundColor: "rgba(255,255,255,0.3)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: -scale(10),
+      borderWidth: 1.5,
+      borderColor: "rgba(0,0,0,0.2)",
+    },
+    faceMoreText: {
+      color: "#fff",
+      fontSize: ms(9),
       fontWeight: "700",
     },
     viewDetailsBtn: {
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: "#fff",
-      paddingHorizontal: scale(12),
-      paddingVertical: scale(8),
-      borderRadius: scale(8),
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(10),
+      borderRadius: scale(24),
       gap: scale(4),
     },
     viewDetailsText: {
-      color: "#000",
+      color: HERO_CHIP_INK,
       fontSize: ms(11),
       fontWeight: "800",
     },
@@ -738,13 +991,137 @@ const createStyles = (colors, isDark) =>
       fontWeight: "700",
     },
     organizerStatDivider: {
-      width: 1,
-      height: scale(30),
-      backgroundColor: "rgba(255,255,255,0.2)",
+      flex: 1,
+    },
+    // Top Events Section
+    topEventsSection: {
+      marginTop: scale(10),
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: scale(16),
+      marginBottom: scale(12),
+    },
+    sectionTitle: {
+      fontSize: ms(16),
+      fontFamily: "Outfit_800ExtraBold",
+      color: colors.text,
+    },
+    seeAllBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    seeAllText: {
+      fontSize: ms(12),
+      fontWeight: "700",
+      color: colors.primary,
+    },
+    topEventsScroll: {
+      paddingHorizontal: scale(16),
+      gap: scale(16),
+      paddingBottom: scale(20),
+    },
+    topEventCard: {
+      width: scale(200),
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
+      borderRadius: scale(16),
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      overflow: "hidden",
+    },
+    topEventImageWrap: {
+      width: "100%",
+      height: scale(120),
+    },
+    topEventImage: {
+      width: "100%",
+      height: "100%",
+    },
+    topEventBookmark: {
+      position: "absolute",
+      top: scale(10),
+      right: scale(10),
+      width: scale(28),
+      height: scale(28),
+      borderRadius: scale(14),
+      backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    topEventContent: {
+      padding: scale(12),
+    },
+    topEventBadge: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.primary + "20",
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(4),
+      borderRadius: scale(6),
+      marginBottom: scale(8),
+    },
+    topEventBadgeText: {
+      fontSize: ms(9),
+      fontWeight: "800",
+    },
+    topEventTitle: {
+      fontSize: ms(13),
+      fontFamily: "Outfit_800ExtraBold",
+      color: colors.text,
+      marginBottom: scale(6),
+    },
+    topEventMetaLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(6),
+      marginBottom: scale(4),
+    },
+    topEventMetaText: {
+      fontSize: ms(10),
+      color: colors.textSubtle,
+      fontWeight: "500",
+      flex: 1,
+    },
+    topEventBottomRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: scale(10),
+      gap: scale(8),
+    },
+    topEventGoingText: {
+      fontSize: ms(10),
+      color: colors.text,
+      fontWeight: "600",
     },
 
     // Feed Layout
+    feedHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: scale(16),
+      marginBottom: scale(16),
+    },
+    feedFilterPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
+      borderRadius: scale(16),
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    feedFilterText: {
+      fontSize: ms(10),
+      color: colors.textSubtle,
+      fontWeight: "600",
+    },
+    
     feedWrap: {
+      paddingBottom: scale(100),
       paddingHorizontal: scale(16),
       gap: scale(16),
     },
@@ -800,20 +1177,59 @@ const createStyles = (colors, isDark) =>
       padding: scale(4),
     },
     
-    // Side by Side Body
-    postBody: {
-      flexDirection: "row",
-      paddingHorizontal: scale(12),
-      gap: scale(12),
+    // Social Media Style Body
+    postBodySocial: {
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(12),
     },
-    postBodyImage: {
-      width: scale(120),
-      height: scale(140),
-      borderRadius: scale(12),
+    postDescSocial: {
+      fontSize: ms(13),
+      fontFamily: "Outfit_400Regular",
+      color: colors.text,
+      lineHeight: ms(18),
+      marginBottom: scale(12),
+    },
+    postImageWrapperSocial: {
+      width: "100%",
+      height: scale(180),
+      borderRadius: scale(16),
+      overflow: "hidden",
       backgroundColor: colors.background,
     },
-    postBodyContent: {
-      flex: 1,
+    postImageSocial: {
+      width: "100%",
+      height: "100%",
+    },
+    postImageGradientSocial: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    postImageOverlaySocial: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: scale(12),
+    },
+    postImageTitleSocial: {
+      color: "#fff",
+      fontSize: ms(14),
+      fontFamily: "Outfit_800ExtraBold",
+      marginBottom: scale(4),
+    },
+    postImageMetaRowSocial: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+    },
+    postImageMetaTextSocial: {
+      color: "rgba(255,255,255,0.9)",
+      fontSize: ms(10),
+      fontWeight: "500",
+    },
+    postImageMetaDotSocial: {
+      color: "rgba(255,255,255,0.5)",
+      fontSize: ms(10),
+      marginHorizontal: scale(2),
     },
     postBadge: {
       backgroundColor: colors.primary + "15",
@@ -875,7 +1291,7 @@ const createStyles = (colors, isDark) =>
     postActionFooter: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      gap: scale(28),
       paddingHorizontal: scale(16),
       paddingVertical: scale(10),
     },
@@ -897,5 +1313,74 @@ const createStyles = (colors, isDark) =>
       fontStyle: "italic",
       textAlign: "center",
       paddingVertical: scale(20),
+    },
+
+    // Campus Broadcast Alert Styles
+    broadcastBannerWrap: {
+      paddingHorizontal: scale(16),
+      marginBottom: scale(14),
+    },
+    broadcastCard: {
+      backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
+      borderWidth: 1,
+      borderColor: isDark ? colors.border : colors.borderSoft,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.accent,
+      borderRadius: scale(12),
+      padding: scale(14),
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0 : 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    broadcastHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: scale(6),
+    },
+    broadcastBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      backgroundColor: colors.accent,
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(3),
+      borderRadius: scale(4),
+    },
+    broadcastBadgeText: {
+      color: "#fff",
+      fontSize: ms(8),
+      fontWeight: "900",
+      letterSpacing: 0.6,
+    },
+    broadcastTime: {
+      color: colors.textSubtle,
+      fontSize: ms(11),
+      fontWeight: "600",
+    },
+    broadcastTitle: {
+      color: colors.text,
+      fontSize: ms(15),
+      fontWeight: "800",
+      marginBottom: scale(3),
+    },
+    broadcastBody: {
+      color: colors.textMuted,
+      fontSize: ms(13),
+      lineHeight: ms(18),
+      marginBottom: scale(8),
+    },
+    broadcastActionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      alignSelf: "flex-end",
+    },
+    broadcastActionText: {
+      color: colors.primary,
+      fontSize: ms(12),
+      fontWeight: "800",
     },
   });

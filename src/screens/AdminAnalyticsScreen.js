@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -44,11 +45,23 @@ export default function AdminAnalyticsScreen({
     >
       {/* Header */}
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={onBack}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Analytics</Text>
-        <Pressable style={styles.backBtn} onPress={onExportReport}>
+        <AppText style={[styles.title, { color: colors.text }]}>Analytics</AppText>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onExportReport}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Export report"
+        >
           <Ionicons name="download" size={18} color={colors.primary} />
         </Pressable>
       </View>
@@ -88,15 +101,15 @@ export default function AdminAnalyticsScreen({
       {/* Events by Category */}
       {categoryChartData.length > 0 && (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Events by Category</Text>
+          <AppText style={[styles.sectionTitle, { color: colors.text }]}>Events by Category</AppText>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}>
             {categoryChartData.map((item, index) => (
               <View key={item.category}>
                 <View style={styles.chartRow}>
-                  <Text style={[styles.chartLabel, { color: colors.text }]} numberOfLines={1}>
+                  <AppText style={[styles.chartLabel, { color: colors.text }]} numberOfLines={1}>
                     {item.category}
-                  </Text>
-                  <Text style={[styles.chartValue, { color: colors.primary }]}>{item.count}</Text>
+                  </AppText>
+                  <AppText style={[styles.chartValue, { color: colors.primary }]}>{item.count}</AppText>
                 </View>
                 <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
                   <View
@@ -121,7 +134,7 @@ export default function AdminAnalyticsScreen({
       {/* Top Events */}
       {topEventsData.length > 0 && (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Events</Text>
+          <AppText style={[styles.sectionTitle, { color: colors.text }]}>Top Events</AppText>
           <View style={styles.topEventsList}>
             {topEventsData.map((event, index) => (
               <View
@@ -129,19 +142,19 @@ export default function AdminAnalyticsScreen({
                 style={[styles.topEventCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
               >
                 <View style={styles.rankBadge}>
-                  <Text style={[styles.rankNumber, { color: colors.primaryContrast }]}>{index + 1}</Text>
+                  <AppText style={[styles.rankNumber, { color: colors.primaryContrast }]}>{index + 1}</AppText>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={1}>
+                  <AppText style={[styles.eventTitle, { color: colors.text }]} numberOfLines={1}>
                     {event.title}
-                  </Text>
-                  <Text style={[styles.eventStats, { color: colors.textMuted }]}>
+                  </AppText>
+                  <AppText style={[styles.eventStats, { color: colors.textMuted }]}>
                     {event.registeredCount || 0} registered
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.eventRating}>
                   <Ionicons name="star" size={14} color="#fbbf24" />
-                  <Text style={[styles.ratingText, { color: colors.text }]}>{event.rating || "N/A"}</Text>
+                  <AppText style={[styles.ratingText, { color: colors.text }]}>{event.rating || "N/A"}</AppText>
                 </View>
               </View>
             ))}
@@ -151,7 +164,7 @@ export default function AdminAnalyticsScreen({
 
       {/* Engagement Insights */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Engagement Insights</Text>
+        <AppText style={[styles.sectionTitle, { color: colors.text }]}>Engagement Insights</AppText>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}>
           <InsightRow
             icon="people-outline"
@@ -165,16 +178,18 @@ export default function AdminAnalyticsScreen({
       {/* Report Export Card */}
       <View style={[styles.reportCard, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
         <Ionicons name="document-text" size={32} color={colors.primary} />
-        <Text style={[styles.reportTitle, { color: colors.text }]}>Generate Report</Text>
-        <Text style={[styles.reportText, { color: colors.textMuted }]}>
+        <AppText style={[styles.reportTitle, { color: colors.text }]}>Generate Report</AppText>
+        <AppText style={[styles.reportText, { color: colors.textMuted }]}>
           Export analytics data as PDF for stakeholder presentations
-        </Text>
+        </AppText>
         <Pressable
           style={[styles.reportButton, { backgroundColor: colors.primary }]}
           onPress={onExportReport}
+          accessibilityRole="button"
+          accessibilityLabel="Export report"
         >
           <Ionicons name="download" size={16} color={colors.primaryContrast} />
-          <Text style={[styles.reportButtonText, { color: colors.primaryContrast }]}>Export Report</Text>
+          <AppText style={[styles.reportButtonText, { color: colors.primaryContrast }]}>Export Report</AppText>
         </Pressable>
       </View>
     </ScrollView>
@@ -187,8 +202,8 @@ function MetricCard({ icon, title, value, colors, styles }) {
       <View style={[styles.metricIcon, { backgroundColor: colors.primary + "20" }]}>
         <Ionicons name={icon} size={20} color={colors.primary} />
       </View>
-      <Text style={[styles.metricTitle, { color: colors.textMuted }]}>{title}</Text>
-      <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
+      <AppText style={[styles.metricTitle, { color: colors.textMuted }]}>{title}</AppText>
+      <AppText style={[styles.metricValue, { color: colors.text }]}>{value}</AppText>
     </View>
   );
 }
@@ -198,15 +213,11 @@ function InsightRow({ icon, label, value, colors }) {
     <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: scale(12), gap: scale(12) }}>
       <Ionicons name={icon} size={18} color={colors.primary} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: ms(12), color: colors.textMuted, marginBottom: scale(2) }}>{label}</Text>
-        <Text style={{ fontSize: ms(13), fontWeight: "700", color: colors.text }}>{value}</Text>
+        <AppText style={{ fontSize: ms(12), color: colors.textMuted, marginBottom: scale(2) }}>{label}</AppText>
+        <AppText style={{ fontSize: ms(13), fontWeight: "700", color: colors.text }}>{value}</AppText>
       </View>
     </View>
   );
-}
-
-function Divider({ colors }) {
-  return <View style={{ height: 1, backgroundColor: colors.borderSoft, marginVertical: 0 }} />;
 }
 
 const createStyles = (colors) =>

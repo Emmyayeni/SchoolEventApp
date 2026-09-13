@@ -30,6 +30,7 @@ export function ScalePressable({ children, style, onPress, scaleTo = 0.96, disab
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
+      accessibilityState={{ disabled }}
       {...props}
     >
       <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>

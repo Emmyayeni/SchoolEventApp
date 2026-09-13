@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -66,10 +68,16 @@ export default function AdminSettingsScreen({
     >
       {/* Header */}
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={onBack}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Admin Settings</Text>
+        <AppText style={[styles.title, { color: colors.text }]}>Admin Settings</AppText>
         <View style={styles.backBtn} />
       </View>
 
@@ -105,12 +113,12 @@ export default function AdminSettingsScreen({
         />
         <View style={[styles.settingItem, { borderBottomColor: colors.borderSoft }]}>
           <View style={styles.settingLabel}>
-            <Text style={[styles.settingLabelText, { color: colors.text }]}>Max Events Per User</Text>
-            <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+            <AppText style={[styles.settingLabelText, { color: colors.text }]}>Max Events Per User</AppText>
+            <AppText style={[styles.settingDesc, { color: colors.textMuted }]}>
               Limit the number of events one user can create
-            </Text>
+            </AppText>
           </View>
-          <TextInput
+          <AppTextInput
             style={[styles.numberInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
             value={maxEvents}
             onChangeText={handleMaxEventsChange}
@@ -169,8 +177,8 @@ export default function AdminSettingsScreen({
       <Section title="About" colors={colors} styles={styles}>
         <View style={[styles.settingItem, { borderBottomColor: colors.borderSoft }]}>
           <View style={styles.settingLabel}>
-            <Text style={[styles.settingLabelText, { color: colors.text }]}>App Version</Text>
-            <Text style={[styles.settingDesc, { color: colors.textMuted }]}>1.0.0</Text>
+            <AppText style={[styles.settingLabelText, { color: colors.text }]}>App Version</AppText>
+            <AppText style={[styles.settingDesc, { color: colors.textMuted }]}>1.0.0</AppText>
           </View>
         </View>
       </Section>
@@ -179,9 +187,11 @@ export default function AdminSettingsScreen({
       <Pressable
         style={[styles.logoutButton, { backgroundColor: colors.error + "20" }]}
         onPress={handleLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Logout"
       >
         <Ionicons name="log-out" size={18} color={colors.error} />
-        <Text style={[styles.logoutButtonText, { color: colors.error }]}>Logout</Text>
+        <AppText style={[styles.logoutButtonText, { color: colors.error }]}>Logout</AppText>
       </Pressable>
     </ScrollView>
   );
@@ -190,7 +200,7 @@ export default function AdminSettingsScreen({
 function Section({ title, children, colors, styles }) {
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.accent }]}>{title}</Text>
+      <AppText style={[styles.sectionTitle, { color: colors.accent }]}>{title}</AppText>
       <View style={[styles.sectionContent, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}>
         {children}
       </View>
@@ -202,14 +212,15 @@ function SettingToggle({ label, description, value, onToggle, colors, styles, wa
   return (
     <View style={[styles.settingItem, { borderBottomColor: colors.borderSoft }]}>
       <View style={styles.settingLabel}>
-        <Text style={[styles.settingLabelText, { color: colors.text }]}>{label}</Text>
-        <Text style={[styles.settingDesc, { color: colors.textMuted }]}>{description}</Text>
+        <AppText style={[styles.settingLabelText, { color: colors.text }]}>{label}</AppText>
+        <AppText style={[styles.settingDesc, { color: colors.textMuted }]}>{description}</AppText>
       </View>
       <Switch
         value={value}
         onValueChange={onToggle}
         trackColor={{ false: colors.border, true: colors.primary + "60" }}
         thumbColor={value ? colors.primary : colors.textSubtle}
+        accessibilityLabel={label}
       />
     </View>
   );
@@ -220,13 +231,15 @@ function SettingButton({ icon, label, description, onPress, colors, styles }) {
     <Pressable
       style={[styles.settingItem, { borderBottomColor: colors.borderSoft }]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <View style={[styles.buttonIcon, { backgroundColor: colors.primary + "20" }]}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
       <View style={styles.settingLabel}>
-        <Text style={[styles.settingLabelText, { color: colors.text }]}>{label}</Text>
-        <Text style={[styles.settingDesc, { color: colors.textMuted }]}>{description}</Text>
+        <AppText style={[styles.settingLabelText, { color: colors.text }]}>{label}</AppText>
+        <AppText style={[styles.settingDesc, { color: colors.textMuted }]}>{description}</AppText>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
     </Pressable>

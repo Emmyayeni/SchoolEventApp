@@ -1,14 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { useState } from "react";
+import {
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppText } from "../components/AppText";
 import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
 export default function ProfileScreen({
-  user,
-  isStaff,
-  totalRegistered,
+  user = {},
+  isStaff = false,
+  totalRegistered = 0,
   favoriteCategory,
   themeMode,
   onToggleTheme,
@@ -23,168 +34,362 @@ export default function ProfileScreen({
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const [showQrModal, setShowQrModal] = useState(false);
   const styles = getStyles(colors, isDark);
+
+  const matricOrStaffId =
+    user?.matricNumber ||
+    user?.staffId ||
+    (isStaff ? "NSUK/STF/2026/042" : "NSUK/UG/2024/7821");
+
+  const isAdmin = user?.accountType === "admin";
+
+  const getPassGradient = () => {
+    if (isAdmin) {
+      return ["#1e1b4b", "#312e81", "#4338ca"];
+    }
+    if (isStaff) {
+      return isDark ? ["#064e3b", "#065f46", "#047857"] : ["#0b7a24", "#15803d", "#14532d"];
+    }
+    return ["#0b7a24", "#15803d", "#166534"];
+  };
+
+  const handleOpenQr = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (_e) {}
+    setShowQrModal(true);
+  };
+
+  const handleCloseQr = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (_e) {}
+    setShowQrModal(false);
+  };
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(10) }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: (insets?.top ?? 0) + scale(10) },
+      ]}
       showsVerticalScrollIndicator={false}
     >
+      {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Profile</Text>
-        <ScalePressable style={styles.settingsBtn} onPress={onOpenSettings}>
-          <Ionicons name="settings-sharp" size={20} color={colors.text} />
+        <View>
+          <AppText style={styles.title}>My Identity</AppText>
+          <AppText style={styles.subtitle}>NSUK Digital Campus Hub</AppText>
+        </View>
+        <ScalePressable
+          style={styles.settingsBtn}
+          onPress={onOpenSettings}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+        >
+          <Ionicons name="settings-sharp" size={18} color={colors.text} />
         </ScalePressable>
       </View>
 
-      <View style={[styles.profileCard, isStaff ? styles.profileCardStaff : styles.profileCardStudent]}>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarWrap}>
-            <Image
-              source={{ uri: user.avatar || "https://randomuser.me/api/portraits/women/44.jpg" }}
-              style={styles.avatar}
-            />
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark" size={12} color={colors.primaryContrast} />
+      {/* Digital Campus Pass / Virtual Student ID Card */}
+      <View style={styles.cardShadowWrap}>
+        <LinearGradient
+          colors={getPassGradient()}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.passCard}
+        >
+          {/* Card Top Strip */}
+          <View style={styles.passTopRow}>
+            <View style={styles.passInstitutionGroup}>
+              <Ionicons name="school" size={14} color="rgba(255,255,255,0.9)" />
+              <AppText style={styles.passInstitutionText}>
+                NASARAWA STATE UNIVERSITY
+              </AppText>
+            </View>
+            <View style={styles.passTypeChip}>
+              <AppText style={styles.passTypeChipText}>
+                {isAdmin ? "SYSTEM ADMIN" : isStaff ? "STAFF PASS" : "STUDENT PASS"}
+              </AppText>
             </View>
           </View>
-          
-          <ScalePressable style={styles.editButton} onPress={onEditProfile}>
-            <Ionicons name="pencil" size={16} color={isStaff ? colors.primaryContrast : colors.primaryContrast} />
-          </ScalePressable>
-        </View>
 
-        <View style={styles.profileInfo}>
-          <Text style={[styles.name, isStaff && styles.textStaff, !isStaff && styles.textStudent]}>{user.fullName}</Text>
-          <Text style={[styles.department, isStaff && styles.textStaffMuted, !isStaff && styles.textStudentMuted]}>{user.department}</Text>
-          
-          <View style={styles.badgesRow}>
-            <View style={[styles.roleBadge, isStaff ? styles.roleBadgeStaff : styles.roleBadgeStudent]}>
-              <Ionicons name={isStaff ? "briefcase" : "school"} size={12} color={isStaff ? colors.primary : colors.primaryContrast} />
-              <Text style={[styles.roleBadgeText, isStaff ? styles.textPrimary : styles.textStudent]}>
-                {isStaff ? "Organizer" : "Student"}
-              </Text>
+          {/* Card Main Body */}
+          <View style={styles.passBodyRow}>
+            <View style={styles.avatarWrap}>
+              <Image
+                source={{
+                  uri:
+                    user.avatar ||
+                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+                }}
+                style={styles.avatar}
+              />
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark" size={10} color="#ffffff" />
+              </View>
             </View>
-            <View style={styles.levelBadge}>
-              <Text style={[styles.levelBadgeText, !isStaff && styles.textStudent]}>{user.level || "N/A"}</Text>
+
+            <View style={styles.passInfoCol}>
+              <AppText style={styles.passName} numberOfLines={1}>
+                {user.fullName || (isStaff ? "Faculty Member" : "Student Member")}
+              </AppText>
+              <AppText style={styles.passDepartment} numberOfLines={1}>
+                {user.department || "Faculty of Natural & Applied Sciences"}
+              </AppText>
+              <View style={styles.passIdRow}>
+                <AppText style={styles.passIdLabel}>ID: </AppText>
+                <AppText style={styles.passIdValue}>{matricOrStaffId}</AppText>
+              </View>
             </View>
+
+            <ScalePressable
+              style={styles.editButton}
+              onPress={onEditProfile}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+            >
+              <Ionicons name="pencil" size={15} color="#ffffff" />
+            </ScalePressable>
           </View>
+
+          {/* Card Bottom Bar */}
+          <View style={styles.passBottomRow}>
+            <View style={styles.badgeCluster}>
+              <View style={styles.levelBadge}>
+                <AppText style={styles.levelBadgeText}>
+                  {isAdmin
+                    ? "Admin"
+                    : isStaff
+                    ? user.roleDesignation || "Organizer"
+                    : user.level || "300 Level"}
+                </AppText>
+              </View>
+              {user.faculty && (
+                <View style={styles.facultyBadge}>
+                  <AppText style={styles.facultyBadgeText} numberOfLines={1}>
+                    {user.faculty}
+                  </AppText>
+                </View>
+              )}
+            </View>
+
+            {/* Event QR Pass Button */}
+            <ScalePressable
+              style={styles.qrPassBtn}
+              onPress={handleOpenQr}
+              accessibilityRole="button"
+              accessibilityLabel="View Event QR Pass"
+            >
+              <Ionicons name="qr-code" size={14} color="#0b7a24" />
+              <AppText style={styles.qrPassBtnText}>Event QR</AppText>
+            </ScalePressable>
+          </View>
+        </LinearGradient>
+      </View>
+
+      {/* Engagement & Activity Metrics */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <AppText style={styles.statValue}>{totalRegistered}</AppText>
+          <AppText style={styles.statLabel}>Registered</AppText>
+        </View>
+        <View style={styles.statCard}>
+          <View style={styles.verifiedDotRow}>
+            <View style={styles.statusActiveDot} />
+            <AppText style={styles.statValueText}>Active</AppText>
+          </View>
+          <AppText style={styles.statLabel}>Pass Status</AppText>
+        </View>
+        <View style={styles.statCard}>
+          <AppText style={styles.statValue}>
+            {user.level || (isStaff ? "Staff" : "General")}
+          </AppText>
+          <AppText style={styles.statLabel}>Standing</AppText>
         </View>
       </View>
 
-      <SectionTitle title={isStaff ? "ORGANIZER TOOLS" : "MY HUB"} colors={colors} />
-      
+      {/* Action Hub */}
+      <SectionTitle
+        title={isStaff ? "ORGANIZER COMMAND" : "CAMPUS ACTIVITIES"}
+        colors={colors}
+      />
+
       {isStaff ? (
         <View style={styles.actionGrid}>
-          <GridTile 
-            icon="add-circle" 
-            label="Create Event" 
-            color={colors.primary} 
-            onPress={onCreateEvent} 
-            styles={styles} 
+          <GridTile
+            icon="add-circle"
+            label="Create Event"
+            color={colors.primary}
+            onPress={onCreateEvent}
+            styles={styles}
           />
-          <GridTile 
-            icon="megaphone" 
-            label="Send Announcement" 
-            color={colors.accent} 
-            onPress={onOpenAnnouncement} 
-            styles={styles} 
+          <GridTile
+            icon="megaphone"
+            label="Broadcast Alert"
+            color={colors.accent}
+            onPress={onOpenAnnouncement}
+            styles={styles}
           />
-          <GridTile 
-            icon="calendar" 
-            label="Manage Hosted Events" 
-            color={colors.success || "#10b981"} 
-            onPress={onOpenMyEvents} 
-            styles={styles} 
+          <GridTile
+            icon="calendar"
+            label="Manage Hosted Events"
+            color="#10b981"
+            onPress={onOpenMyEvents}
+            styles={styles}
             fullWidth
           />
         </View>
       ) : (
         <View style={styles.actionGrid}>
-          <GridTile 
-            icon="bookmark" 
-            label="Saved Events" 
-            color={colors.accent} 
-            onPress={onOpenSavedEvents} 
-            styles={styles} 
+          <GridTile
+            icon="ticket"
+            label={`My Registrations (${totalRegistered})`}
+            color={colors.primary}
+            onPress={onOpenMyEvents}
+            styles={styles}
           />
-          <GridTile 
-            icon="ticket" 
-            label={`Registrations (${totalRegistered})`} 
-            color={colors.primary} 
-            onPress={onOpenMyEvents} 
-            styles={styles} 
+          <GridTile
+            icon="bookmark"
+            label="Saved Events"
+            color={colors.accent}
+            onPress={onOpenSavedEvents}
+            styles={styles}
           />
         </View>
       )}
 
+      {/* Preferences & Settings */}
       <SectionTitle title="PREFERENCES & SETTINGS" colors={colors} />
       <View style={styles.listCard}>
         <View style={styles.preferenceRow}>
           <View style={styles.rowLeft}>
-            <View style={[styles.rowIconWrap, { backgroundColor: colors.surfaceAlt }]}>
+            <View
+              style={[
+                styles.rowIconWrap,
+                { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : colors.surfaceAlt },
+              ]}
+            >
               <Ionicons name="moon" size={16} color={colors.primary} />
             </View>
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Dark Mode</Text>
+            <AppText style={[styles.rowLabel, { color: colors.text }]}>Dark Mode</AppText>
           </View>
           <Switch
             value={themeMode === "dark"}
-            onValueChange={onToggleTheme}
+            onValueChange={() => {
+              try {
+                Haptics.selectionAsync();
+              } catch (_e) {}
+              onToggleTheme();
+            }}
             trackColor={{ false: colors.borderSoft, true: colors.primary }}
             thumbColor={colors.primaryContrast}
           />
         </View>
-        
+
         <Divider colors={colors} />
-        
-        <ActionRow 
-          icon="notifications" 
-          label="Notifications" 
-          colors={colors} 
-          onPress={onOpenNotifications} 
+
+        <ActionRow
+          icon="notifications-outline"
+          label="Notification Alerts"
+          colors={colors}
+          onPress={onOpenNotifications}
         />
-        
+
         <Divider colors={colors} />
-        
-        <ActionRow 
-          icon="help-buoy" 
-          label="Help & Support" 
-          colors={colors} 
-          onPress={() => {}} 
+
+        <ActionRow
+          icon="shield-checkmark-outline"
+          label="Security & Password"
+          colors={colors}
+          onPress={onOpenSettings}
         />
       </View>
 
-      <ScalePressable style={styles.logoutBtn} onPress={onLogout}>
+      {/* Secure Logout */}
+      <ScalePressable
+        style={styles.logoutBtn}
+        onPress={onLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Log out securely"
+      >
         <Ionicons name="log-out-outline" size={18} color={colors.error} />
-        <Text style={styles.logoutText}>Log Out securely</Text>
+        <AppText style={styles.logoutText}>Log Out</AppText>
       </ScalePressable>
+
+      {/* Event QR Check-In Modal */}
+      <Modal
+        visible={showQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseQr}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <AppText style={styles.modalTitle}>Campus Event Pass</AppText>
+              <ScalePressable onPress={handleCloseQr} hitSlop={10}>
+                <Ionicons name="close-circle" size={24} color={colors.textSubtle} />
+              </ScalePressable>
+            </View>
+
+            <View style={styles.qrContainer}>
+              <View style={styles.qrPlaceholder}>
+                <Ionicons name="qr-code" size={140} color="#0f172a" />
+              </View>
+              <AppText style={styles.qrStudentName}>{user.fullName}</AppText>
+              <AppText style={styles.qrStudentId}>{matricOrStaffId}</AppText>
+              <View style={styles.qrStatusChip}>
+                <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+                <AppText style={styles.qrStatusText}>Valid for Venue Check-In</AppText>
+              </View>
+            </View>
+
+            <AppText style={styles.qrHint}>
+              Present this pass to the event usher or organizer scanner at venue entrances.
+            </AppText>
+
+            <ScalePressable style={styles.modalCloseBtn} onPress={handleCloseQr}>
+              <AppText style={styles.modalCloseBtnText}>Done</AppText>
+            </ScalePressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 function GridTile({ icon, label, color, fullWidth, onPress, styles }) {
   return (
-    <ScalePressable 
-      style={[styles.gridTile, fullWidth && styles.gridTileFull]} 
+    <ScalePressable
+      style={[styles.gridTile, fullWidth && styles.gridTileFull]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <View style={[styles.gridTileIconWrap, { backgroundColor: color + "15" }]}>
-        <Ionicons name={icon} size={24} color={color} />
+        <Ionicons name={icon} size={22} color={color} />
       </View>
-      <Text style={styles.gridTileLabel}>{label}</Text>
+      <AppText style={styles.gridTileLabel}>{label}</AppText>
     </ScalePressable>
   );
 }
 
 function ActionRow({ icon, label, colors, onPress }) {
   return (
-    <ScalePressable style={stylesStatic.actionRow} onPress={onPress}>
+    <ScalePressable
+      style={stylesStatic.actionRow}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <View style={stylesStatic.rowLeft}>
         <View style={[stylesStatic.rowIconWrap, { backgroundColor: colors.surfaceAlt }]}>
           <Ionicons name={icon} size={16} color={colors.primary} />
         </View>
-        <Text style={[stylesStatic.rowLabel, { color: colors.text }]}>{label}</Text>
+        <AppText style={[stylesStatic.rowLabel, { color: colors.text }]}>{label}</AppText>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
     </ScalePressable>
@@ -192,7 +397,7 @@ function ActionRow({ icon, label, colors, onPress }) {
 }
 
 function SectionTitle({ title, colors }) {
-  return <Text style={[stylesStatic.sectionTitle, { color: colors.textSubtle }]}>{title}</Text>;
+  return <AppText style={[stylesStatic.sectionTitle, { color: colors.textSubtle }]}>{title}</AppText>;
 }
 
 function Divider({ colors }) {
@@ -201,18 +406,18 @@ function Divider({ colors }) {
 
 const stylesStatic = StyleSheet.create({
   sectionTitle: {
-    fontSize: ms(12),
-    fontFamily: "Outfit_900Black",
+    fontSize: ms(11),
+    fontFamily: "Outfit_800ExtraBold",
     letterSpacing: 1,
-    marginBottom: scale(12),
-    marginTop: scale(10),
-    paddingHorizontal: scale(4),
+    marginBottom: scale(10),
+    marginTop: scale(18),
+    paddingHorizontal: scale(2),
   },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: scale(12),
+    paddingVertical: scale(13),
     paddingHorizontal: scale(14),
   },
   rowLeft: {
@@ -237,222 +442,406 @@ const stylesStatic = StyleSheet.create({
   },
 });
 
-const getStyles = (colors, isDark) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: scale(16),
-    paddingBottom: scale(40),
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: scale(16),
-  },
-  title: {
-    color: colors.text,
-    fontSize: ms(32),
-    fontFamily: "Outfit_900Black",
-    letterSpacing: -0.5,
-  },
-  settingsBtn: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-  },
-  profileCard: {
-    borderRadius: scale(20),
-    padding: scale(20),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  profileCardStudent: {
-    backgroundColor: colors.primary,
-  },
-  profileCardStaff: {
-    backgroundColor: isDark ? colors.surface : "#1e293b",
-  },
-  profileHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  avatarWrap: {
-    position: "relative",
-  },
-  avatar: {
-    width: scale(72),
-    height: scale(72),
-    borderRadius: scale(36),
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  verifiedBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.accent,
-    width: scale(22),
-    height: scale(22),
-    borderRadius: scale(11),
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.primaryContrast,
-  },
-  editButton: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileInfo: {
-    marginTop: scale(16),
-  },
-  name: {
-    fontSize: ms(24),
-    fontFamily: "Outfit_900Black",
-    marginBottom: scale(2),
-    color: colors.primaryContrast,
-  },
-  department: {
-    fontSize: ms(13),
-    fontWeight: "600",
-    color: colors.primaryContrast,
-    opacity: 0.8,
-    marginBottom: scale(12),
-  },
-  textStaff: { color: "#ffffff" },
-  textStaffMuted: { color: "rgba(255, 255, 255, 0.7)" },
-  textStudent: { color: colors.primaryContrast },
-  textStudentMuted: { color: colors.primaryContrast, opacity: 0.8 },
-  textPrimary: { color: colors.primary },
-  badgesRow: {
-    flexDirection: "row",
-    gap: scale(8),
-  },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(6),
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
-    borderRadius: 999,
-  },
-  roleBadgeStudent: { backgroundColor: "rgba(255,255,255,0.2)" },
-  roleBadgeStaff: { backgroundColor: colors.surfaceAlt },
-  roleBadgeText: {
-    fontSize: ms(11),
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  levelBadge: {
-    backgroundColor: "rgba(0,0,0,0.2)",
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
-    borderRadius: 999,
-  },
-  levelBadgeText: {
-    color: colors.primaryContrast,
-    fontSize: ms(11),
-    fontWeight: "800",
-  },
-  actionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: scale(12),
-  },
-  gridTile: {
-    flex: 1,
-    minWidth: "45%",
-    backgroundColor: colors.surface,
-    padding: scale(16),
-    borderRadius: scale(16),
-    alignItems: "flex-start",
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  gridTileFull: {
-    minWidth: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(12),
-  },
-  gridTileIconWrap: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: scale(14),
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: scale(12),
-  },
-  gridTileLabel: {
-    fontSize: ms(13),
-    fontWeight: "800",
-    color: colors.text,
-  },
-  listCard: {
-    backgroundColor: colors.surface,
-    borderRadius: scale(16),
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    overflow: "hidden",
-  },
-  preferenceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: scale(12),
-    paddingHorizontal: scale(14),
-  },
-  rowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(12),
-  },
-  rowIconWrap: {
-    width: scale(32),
-    height: scale(32),
-    borderRadius: scale(16),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowLabel: {
-    fontSize: ms(14),
-    fontWeight: "600",
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: scale(8),
-    marginTop: scale(24),
-    padding: scale(14),
-    borderRadius: scale(14),
-    backgroundColor: colors.error + "15",
-  },
-  logoutText: {
-    color: colors.error,
-    fontSize: ms(14),
-    fontWeight: "800",
-  },
-});
+const getStyles = (colors, isDark) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(60),
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: scale(16),
+    },
+    title: {
+      color: colors.text,
+      fontSize: ms(26),
+      fontFamily: "Outfit_900Black",
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSubtle,
+      fontSize: ms(12),
+      fontWeight: "600",
+      marginTop: scale(1),
+    },
+    settingsBtn: {
+      width: scale(38),
+      height: scale(38),
+      borderRadius: scale(19),
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    cardShadowWrap: {
+      borderRadius: scale(22),
+      shadowColor: "#0b7a24",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: isDark ? 0.35 : 0.18,
+      shadowRadius: 18,
+      elevation: 8,
+      marginBottom: scale(16),
+    },
+    passCard: {
+      borderRadius: scale(22),
+      padding: scale(18),
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: "rgba(255, 255, 255, 0.2)",
+    },
+    passTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: scale(14),
+    },
+    passInstitutionGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(6),
+    },
+    passInstitutionText: {
+      color: "rgba(255,255,255,0.92)",
+      fontSize: ms(10),
+      fontFamily: "Outfit_800ExtraBold",
+      letterSpacing: 0.8,
+    },
+    passTypeChip: {
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(3),
+      borderRadius: scale(10),
+    },
+    passTypeChipText: {
+      color: "#ffffff",
+      fontSize: ms(9),
+      fontFamily: "Outfit_800ExtraBold",
+      letterSpacing: 0.5,
+    },
+    passBodyRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: scale(16),
+    },
+    avatarWrap: {
+      position: "relative",
+    },
+    avatar: {
+      width: scale(62),
+      height: scale(62),
+      borderRadius: scale(31),
+      borderWidth: 2.5,
+      borderColor: "rgba(255, 255, 255, 0.4)",
+    },
+    verifiedBadge: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      backgroundColor: "#10b981",
+      width: scale(18),
+      height: scale(18),
+      borderRadius: scale(9),
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
+      borderColor: "#ffffff",
+    },
+    passInfoCol: {
+      flex: 1,
+      marginLeft: scale(14),
+    },
+    passName: {
+      color: "#ffffff",
+      fontSize: ms(18),
+      fontFamily: "Outfit_900Black",
+    },
+    passDepartment: {
+      color: "rgba(255, 255, 255, 0.82)",
+      fontSize: ms(12),
+      fontWeight: "500",
+      marginTop: 2,
+    },
+    passIdRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 4,
+    },
+    passIdLabel: {
+      color: "rgba(255, 255, 255, 0.65)",
+      fontSize: ms(10),
+      fontFamily: "Outfit_700Bold",
+    },
+    passIdValue: {
+      color: "#ffffff",
+      fontSize: ms(11),
+      fontFamily: "Outfit_700Bold",
+      letterSpacing: 0.5,
+    },
+    editButton: {
+      width: scale(34),
+      height: scale(34),
+      borderRadius: scale(17),
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    passBottomRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderTopWidth: 1,
+      borderTopColor: "rgba(255, 255, 255, 0.15)",
+      paddingTop: scale(12),
+    },
+    badgeCluster: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(6),
+      flex: 1,
+    },
+    levelBadge: {
+      backgroundColor: "rgba(255, 255, 255, 0.22)",
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(4),
+      borderRadius: 999,
+    },
+    levelBadgeText: {
+      color: "#ffffff",
+      fontSize: ms(10),
+      fontFamily: "Outfit_800ExtraBold",
+    },
+    facultyBadge: {
+      backgroundColor: "rgba(0, 0, 0, 0.2)",
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(4),
+      borderRadius: 999,
+      maxWidth: scale(110),
+    },
+    facultyBadgeText: {
+      color: "rgba(255, 255, 255, 0.9)",
+      fontSize: ms(10),
+      fontWeight: "600",
+    },
+    qrPassBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      backgroundColor: "#ffffff",
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(5),
+      borderRadius: 999,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    qrPassBtnText: {
+      color: "#0b7a24",
+      fontSize: ms(11),
+      fontFamily: "Outfit_800ExtraBold",
+    },
+    statsRow: {
+      flexDirection: "row",
+      gap: scale(10),
+      marginBottom: scale(8),
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: scale(14),
+      paddingVertical: scale(12),
+      paddingHorizontal: scale(10),
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    statValue: {
+      fontSize: ms(17),
+      fontFamily: "Outfit_800ExtraBold",
+      color: colors.text,
+    },
+    statValueText: {
+      fontSize: ms(14),
+      fontFamily: "Outfit_800ExtraBold",
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: ms(11),
+      fontWeight: "500",
+      color: colors.textSubtle,
+      marginTop: scale(2),
+    },
+    verifiedDotRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(5),
+    },
+    statusActiveDot: {
+      width: scale(8),
+      height: scale(8),
+      borderRadius: scale(4),
+      backgroundColor: "#10b981",
+    },
+    actionGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: scale(10),
+    },
+    gridTile: {
+      flex: 1,
+      minWidth: "46%",
+      backgroundColor: colors.surface,
+      padding: scale(14),
+      borderRadius: scale(16),
+      alignItems: "flex-start",
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    gridTileFull: {
+      minWidth: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(12),
+    },
+    gridTileIconWrap: {
+      width: scale(40),
+      height: scale(40),
+      borderRadius: scale(12),
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: scale(10),
+    },
+    gridTileLabel: {
+      fontSize: ms(13),
+      fontFamily: "Outfit_700Bold",
+      color: colors.text,
+    },
+    listCard: {
+      backgroundColor: colors.surface,
+      borderRadius: scale(16),
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      overflow: "hidden",
+    },
+    preferenceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: scale(12),
+      paddingHorizontal: scale(14),
+    },
+    logoutBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: scale(8),
+      marginTop: scale(20),
+      padding: scale(14),
+      borderRadius: scale(14),
+      backgroundColor: colors.error + "15",
+    },
+    logoutText: {
+      color: colors.error,
+      fontSize: ms(14),
+      fontFamily: "Outfit_800ExtraBold",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: scale(20),
+    },
+    modalContent: {
+      width: "100%",
+      maxWidth: scale(340),
+      backgroundColor: colors.surface,
+      borderRadius: scale(24),
+      padding: scale(20),
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    modalHeader: {
+      width: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: scale(16),
+    },
+    modalTitle: {
+      fontSize: ms(17),
+      fontFamily: "Outfit_800ExtraBold",
+      color: colors.text,
+    },
+    qrContainer: {
+      alignItems: "center",
+      backgroundColor: "#ffffff",
+      borderRadius: scale(18),
+      padding: scale(16),
+      width: "100%",
+      borderWidth: 1,
+      borderColor: "#e2e8f0",
+    },
+    qrPlaceholder: {
+      padding: scale(10),
+      backgroundColor: "#f8fafc",
+      borderRadius: scale(12),
+      marginBottom: scale(10),
+    },
+    qrStudentName: {
+      fontSize: ms(16),
+      fontFamily: "Outfit_900Black",
+      color: "#0f172a",
+    },
+    qrStudentId: {
+      fontSize: ms(12),
+      fontFamily: "Outfit_700Bold",
+      color: "#64748b",
+      marginTop: 2,
+    },
+    qrStatusChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      marginTop: scale(10),
+      backgroundColor: "#ecfdf5",
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(4),
+      borderRadius: 999,
+    },
+    qrStatusText: {
+      fontSize: ms(11),
+      fontFamily: "Outfit_700Bold",
+      color: "#065f46",
+    },
+    qrHint: {
+      fontSize: ms(11),
+      color: colors.textSubtle,
+      textAlign: "center",
+      marginTop: scale(14),
+      marginBottom: scale(16),
+      lineHeight: ms(16),
+    },
+    modalCloseBtn: {
+      width: "100%",
+      backgroundColor: colors.primary,
+      paddingVertical: scale(12),
+      borderRadius: scale(14),
+      alignItems: "center",
+    },
+    modalCloseBtnText: {
+      color: "#ffffff",
+      fontSize: ms(14),
+      fontFamily: "Outfit_800ExtraBold",
+    },
+  });

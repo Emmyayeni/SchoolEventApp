@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
 import { useAppTheme } from "../theme/theme";
@@ -44,12 +45,23 @@ export default function NotificationsScreen({ notifications, onPressItem, onMark
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={onBack}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
-        <Pressable onPress={onMarkAllRead}>
-          <Text style={styles.markRead}>Mark all as read</Text>
+        <AppText style={[styles.title, { color: colors.text }]}>Notifications</AppText>
+        <Pressable
+          onPress={onMarkAllRead}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Mark all as read"
+        >
+          <AppText style={styles.markRead}>Mark all as read</AppText>
         </Pressable>
       </View>
 
@@ -77,18 +89,25 @@ function Section({ title, items, onPressItem, colors, isDark, styles }) {
 
   return (
     <View style={styles.sectionWrap}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <AppText style={styles.sectionTitle}>{title}</AppText>
       {items.map((item) => (
-        <Pressable key={String(item.id)} style={[styles.row, { borderBottomColor: colors.borderSoft }]} onPress={() => onPressItem?.(item)}>
+        <Pressable
+          key={String(item.id)}
+          style={[styles.row, { borderBottomColor: colors.borderSoft }]}
+          onPress={() => onPressItem?.(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.title}: ${item.message}`}
+          accessibilityHint="Opens notification details"
+        >
           <View style={[styles.iconWrap, getToneWrap(item, colors)]}>
             <Ionicons name={getIcon(item)} size={16} color={getToneColor(item, colors)} />
           </View>
           <View style={styles.rowBody}>
             <View style={styles.rowTop}>
-              <Text style={[styles.itemTitle, { color: getToneColor(item, colors) }]}>{item.title}</Text>
-              <Text style={styles.itemTime}>{item.time}</Text>
+              <AppText style={[styles.itemTitle, { color: getToneColor(item, colors) }]}>{item.title}</AppText>
+              <AppText style={styles.itemTime}>{item.time}</AppText>
             </View>
-            <Text style={[styles.itemMessage, { color: isDark ? colors.textMuted : colors.text }]}>{item.message}</Text>
+            <AppText style={[styles.itemMessage, { color: isDark ? colors.textMuted : colors.text }]}>{item.message}</AppText>
           </View>
         </Pressable>
       ))}

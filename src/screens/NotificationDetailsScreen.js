@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -21,17 +22,23 @@ export default function NotificationDetailsScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
-        <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Notification Details</Text>
+        <AppText style={[styles.title, { color: colors.text }]}>Notification Details</AppText>
         <View style={styles.backBtn} />
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}>
-        <Text style={styles.type}>{notification?.title || "NOTICE"}</Text>
-        <Text style={[styles.message, { color: colors.text }]}>{notification?.message || "No notification details available."}</Text>
-        <Text style={styles.time}>{notification?.time || ""}</Text>
+        <AppText style={styles.type}>{notification?.title || "NOTICE"}</AppText>
+        <AppText style={[styles.message, { color: colors.text }]}>{notification?.message || "No notification details available."}</AppText>
+        <AppText style={styles.time}>{notification?.time || ""}</AppText>
       </View>
     </ScrollView>
   );

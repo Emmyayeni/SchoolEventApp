@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
 import { FadeInImage } from "../components/FadeInImage";
@@ -28,35 +29,50 @@ export default function SavedEventsScreen({
         contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
         ListHeaderComponent={
           <View style={styles.headerRow}>
-            <Pressable style={styles.backBtn} onPress={onBack}>
+            <Pressable
+              style={styles.backBtn}
+              onPress={onBack}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
               <Ionicons name="arrow-back" size={18} color={colors.accent} />
             </Pressable>
-            <Text style={[styles.title, { color: colors.text }]}>Saved Events</Text>
+            <AppText style={[styles.title, { color: colors.text }]}>Saved Events</AppText>
             <View style={styles.backBtn} />
           </View>
         }
         ListEmptyComponent={
-          <EmptyState 
-            title="No bookmarked events yet" 
-            message="Open an event and tap the bookmark icon to save it here." 
-            icon="bookmark-outline" 
+          <EmptyState
+            title="No bookmarked events yet"
+            description="Open an event and tap the bookmark icon to save it here."
+            icon="bookmark-outline"
           />
         }
         renderItem={({ item }) => (
           <ScalePressable
             style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
             onPress={() => onOpenEvent(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel={item.title}
+            accessibilityHint="Opens event details"
           >
             <FadeInImage source={{ uri: item.image }} style={styles.image} />
             <View style={styles.cardBody}>
-              <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+              <AppText style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
                 {item.title}
-              </Text>
-              <Text style={[styles.metaText, { color: colors.textSubtle }]} numberOfLines={1}>
+              </AppText>
+              <AppText style={[styles.metaText, { color: colors.textSubtle }]} numberOfLines={1}>
                 {item.category} • {item.time}
-              </Text>
+              </AppText>
             </View>
-            <Pressable style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]} onPress={() => onToggleBookmark(item.id)}>
+            <Pressable
+              style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}
+              onPress={() => onToggleBookmark(item.id)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Remove bookmark"
+            >
               <Ionicons name="bookmark" size={16} color={colors.primary} />
             </Pressable>
           </ScalePressable>

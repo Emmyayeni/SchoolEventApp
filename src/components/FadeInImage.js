@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Animated, Image, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import { useAppTheme } from "../theme/theme";
 
 export function FadeInImage({ source, style, resizeMode = "cover", ...props }) {

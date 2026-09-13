@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Image, ScrollView, StyleSheet, Text, View, RefreshControl } from "react-native";
+import { Animated, Image, ScrollView, StyleSheet, View, RefreshControl, Pressable } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
@@ -22,8 +23,10 @@ export default function AdminDashboard({
   onManageAnnouncements,
   onViewAnalytics,
   onBack,
+  onSwitchToUser,
   refreshing,
   onRefreshData,
+  onCreateEvent,
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -72,24 +75,36 @@ export default function AdminDashboard({
           style={[styles.headerGradient, { paddingTop: (insets?.top ?? 0) + scale(10) }]}
         >
           <View style={styles.headerTop}>
+            {onSwitchToUser && (
+              <Pressable
+                style={styles.backButton}
+                onPress={onSwitchToUser}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Switch to app view"
+              >
+                <Ionicons name="arrow-back" size={18} color={colors.primaryContrast} />
+                <AppText style={styles.backButtonText}>App View</AppText>
+              </Pressable>
+            )}
             <View style={styles.headerRight}>
               <View style={styles.roleBadge}>
                 <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
-                <Text style={styles.roleText}>{currentUser?.role || "Admin"}</Text>
+                <AppText style={styles.roleText}>{currentUser?.role || "Admin"}</AppText>
               </View>
             </View>
           </View>
 
           <View style={styles.headerContent}>
             <View style={styles.headerTextWrap}>
-              <Text style={styles.greeting}>Welcome back,</Text>
-              <Text style={styles.title} numberOfLines={1}>{displayName}</Text>
+              <AppText style={styles.greeting}>Welcome back,</AppText>
+              <AppText style={styles.title} numberOfLines={1}>{displayName}</AppText>
             </View>
             <View style={styles.avatarWrap}>
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.avatarInitials}>{initials || "A"}</Text>
+                <AppText style={styles.avatarInitials}>{initials || "A"}</AppText>
               )}
             </View>
           </View>
@@ -106,7 +121,7 @@ export default function AdminDashboard({
 
           {/* Stats Grid */}
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>Overview</Text>
+            <AppText style={styles.sectionTitle}>Overview</AppText>
             <View style={styles.statsGrid}>
               <StatCard icon="calendar-outline" label="Total Events" value={stats.totalEvents} colors={colors} styles={styles} />
               <StatCard icon="people-outline" label="Total Users" value={stats.totalUsers} colors={colors} styles={styles} />
@@ -117,18 +132,18 @@ export default function AdminDashboard({
 
           {/* System Health */}
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>System Health</Text>
+            <AppText style={styles.sectionTitle}>System Health</AppText>
             <View style={styles.healthCard}>
               <View style={styles.healthRow}>
                 <View style={styles.healthIconWrap}>
                   <Ionicons name="server" size={24} color={colors.primary} />
                 </View>
                 <View style={styles.healthTextWrap}>
-                  <Text style={styles.healthTitle}>All systems operational</Text>
-                  <Text style={styles.healthSubtitle}>Database, Auth, and Storage are running smoothly.</Text>
+                  <AppText style={styles.healthTitle}>All systems operational</AppText>
+                  <AppText style={styles.healthSubtitle}>Database, Auth, and Storage are running smoothly.</AppText>
                 </View>
                 <View style={styles.healthBadge}>
-                  <Text style={styles.healthBadgeText}>99.9% Uptime</Text>
+                  <AppText style={styles.healthBadgeText}>99.9% Uptime</AppText>
                 </View>
               </View>
             </View>
@@ -136,10 +151,10 @@ export default function AdminDashboard({
 
           {/* Activity Feed */}
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <AppText style={styles.sectionTitle}>Recent Activity</AppText>
             <View style={styles.activityFeed}>
               {recentEvents.length === 0 && recentUsers.length === 0 ? (
-                <Text style={styles.emptyText}>No recent activity</Text>
+                <AppText style={styles.emptyText}>No recent activity</AppText>
               ) : (
                 <>
                   {recentEvents.slice(0, 2).map((event) => (
@@ -170,6 +185,25 @@ export default function AdminDashboard({
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* FLOATING ACTION BUTTON */}
+      {onCreateEvent && (
+        <ScalePressable
+          style={[styles.fab, { bottom: insets.bottom + scale(24) }]}
+          onPress={onCreateEvent}
+          accessibilityRole="button"
+          accessibilityLabel="Create event"
+        >
+          <LinearGradient
+            colors={["#0e8a2b", "#0b7a24"]}
+            style={styles.fabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="add" size={32} color="#0B2A15" />
+          </LinearGradient>
+        </ScalePressable>
+      )}
     </View>
   );
 }
@@ -181,8 +215,8 @@ function StatCard({ icon, label, value, colors, styles }) {
         <Ionicons name={icon} size={22} color={colors.primary} />
       </View>
       <View style={styles.statTextWrap}>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
+        <AppText style={styles.statValue}>{value}</AppText>
+        <AppText style={styles.statLabel}>{label}</AppText>
       </View>
     </View>
   );
@@ -190,11 +224,16 @@ function StatCard({ icon, label, value, colors, styles }) {
 
 function ActionButton({ icon, label, onPress, colors, styles, color }) {
   return (
-    <ScalePressable style={styles.actionBtn} onPress={onPress}>
+    <ScalePressable
+      style={styles.actionBtn}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <View style={[styles.actionIconWrap, { backgroundColor: color + "15" }]}>
         <Ionicons name={icon} size={24} color={color} />
       </View>
-      <Text style={styles.actionLabel}>{label}</Text>
+      <AppText style={styles.actionLabel}>{label}</AppText>
     </ScalePressable>
   );
 }
@@ -206,8 +245,8 @@ function ActivityItem({ icon, color, title, subtitle, colors, styles }) {
         <Ionicons name={icon} size={18} color={color} />
       </View>
       <View style={styles.activityTextWrap}>
-        <Text style={styles.activityTitle} numberOfLines={1}>{title}</Text>
-        <Text style={styles.activitySubtitle} numberOfLines={1}>{subtitle}</Text>
+        <AppText style={styles.activityTitle} numberOfLines={1}>{title}</AppText>
+        <AppText style={styles.activitySubtitle} numberOfLines={1}>{subtitle}</AppText>
       </View>
     </View>
   );
@@ -230,9 +269,23 @@ const createStyles = (colors, isDark) =>
     },
     headerTop: {
       flexDirection: "row",
-      justifyContent: "flex-end",
+      justifyContent: "space-between",
       alignItems: "center",
       marginBottom: scale(20),
+    },
+    backButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      backgroundColor: "rgba(255,255,255,0.15)",
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
+      borderRadius: 999,
+    },
+    backButtonText: {
+      color: colors.primaryContrast,
+      fontSize: ms(12),
+      fontWeight: "700",
     },
     roleBadge: {
       flexDirection: "row",
@@ -260,9 +313,10 @@ const createStyles = (colors, isDark) =>
     },
     greeting: {
       fontSize: ms(14),
-      color: "rgba(255,255,255,0.8)",
+      color: colors.primaryContrast,
       fontWeight: "600",
       marginBottom: scale(4),
+      opacity: 0.85,
     },
     title: {
       fontSize: ms(26),
@@ -469,8 +523,27 @@ const createStyles = (colors, isDark) =>
     },
     emptyText: {
       textAlign: "center",
-      color: colors.textSubtle,
-      fontStyle: "italic",
-      paddingVertical: scale(10),
+      color: colors.textMuted,
+      fontSize: ms(14),
+      marginTop: scale(10),
+    },
+    fab: {
+      position: "absolute",
+      right: scale(20),
+      width: scale(60),
+      height: scale(60),
+      borderRadius: scale(30),
+      shadowColor: "#0b7a24",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    fabGradient: {
+      width: "100%",
+      height: "100%",
+      borderRadius: scale(30),
+      alignItems: "center",
+      justifyContent: "center",
     },
   });

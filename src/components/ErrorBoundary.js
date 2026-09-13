@@ -1,6 +1,30 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { AppText } from "./AppText";
+import CustomButton from "./CustomButton";
+import { useAppTheme } from "../theme/theme";
+import { scale } from "../utils/responsive";
+
+// Themed fallback UI. A function component so it can use useAppTheme() — the
+// class below can't use hooks, so it delegates rendering to this.
+function ErrorFallback({ onReset }) {
+  const { colors } = useAppTheme();
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.iconWrap, { backgroundColor: colors.surfaceAlt }]}>
+        <Ionicons name="warning-outline" size={44} color={colors.error} />
+      </View>
+      <AppText variant="h2" style={{ color: colors.text, textAlign: "center", marginBottom: scale(8) }}>
+        Something went wrong
+      </AppText>
+      <AppText variant="body" style={{ color: colors.textMuted, textAlign: "center", marginBottom: scale(24) }}>
+        An unexpected error occurred. Please try reloading the app.
+      </AppText>
+      <CustomButton title="Reload app" onPress={onReset} variant="primary" leftIcon="refresh" fullWidth={false} />
+    </View>
+  );
+}
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -22,20 +46,8 @@ export class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <View style={styles.container}>
-          <Ionicons name="warning" size={64} color="#ef4444" style={styles.icon} />
-          <Text style={styles.title}>Oops! Something went wrong.</Text>
-          <Text style={styles.subtitle}>
-            An unexpected error occurred. Please try reloading the app.
-          </Text>
-          <Pressable style={styles.button} onPress={this.handleReset}>
-            <Text style={styles.buttonText}>Reload App</Text>
-          </Pressable>
-        </View>
-      );
+      return <ErrorFallback onReset={this.handleReset} />;
     }
-
     return this.props.children;
   }
 }
@@ -45,35 +57,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    padding: 24,
+    padding: scale(32),
   },
-  icon: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  button: {
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "bold",
+  iconWrap: {
+    width: scale(88),
+    height: scale(88),
+    borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: scale(20),
   },
 });

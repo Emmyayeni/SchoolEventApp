@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Share } from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, View, Share } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -38,7 +39,7 @@ export default function AnnouncementDetailsScreen({ onBack, announcement }) {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Campus Announcement: ${announcement?.subject || "Update"}\nRead more in the app!`,
+        message: `NSUK Campus Announcement: ${announcement?.subject || "Update"}\n\n${announcement?.message || ""}`,
       });
     } catch (error) {
       Alert.alert("Error", error.message);
@@ -52,76 +53,93 @@ export default function AnnouncementDetailsScreen({ onBack, announcement }) {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.topRow}>
-        <Pressable style={styles.iconBtn} onPress={onBack}>
+        <Pressable
+          style={styles.iconBtn}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.text} />
         </Pressable>
-        <Text style={styles.screenTitle}>Announcement</Text>
+        <AppText style={styles.screenTitle}>Announcement</AppText>
         <Pressable
           style={styles.iconBtn}
           onPress={handleShare}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Share announcement"
         >
           <Ionicons name="share-social-outline" size={18} color={colors.text} />
         </Pressable>
       </View>
 
       <View style={styles.dateChip}>
-        <Text style={styles.dateChipText}>{announcement?.displayDate || "-"}</Text>
+        <AppText style={styles.dateChipText}>{announcement?.displayDate || "-"}</AppText>
       </View>
 
-      <Text style={styles.title}>{announcement?.subject || "Announcement unavailable"}</Text>
+      <AppText style={styles.title}>{announcement?.subject || "Announcement unavailable"}</AppText>
 
       <View style={styles.officeRow}>
         <View style={styles.officeAvatar}>
           <Ionicons name="person" size={11} color={colors.primary} />
         </View>
-        <Text style={styles.officeText}>{announcement?.senderName || "Campus Office"}</Text>
+        <AppText style={styles.officeText}>{announcement?.senderName || "Campus Office"}</AppText>
       </View>
 
       <Image source={{ uri: mainImage }} style={styles.heroImage} resizeMode="cover" />
 
-      <Text style={styles.bodyText}>{announcement?.message || "No details found for this announcement."}</Text>
+      <AppText style={styles.bodyText}>{announcement?.message || "No details found for this announcement."}</AppText>
 
       <View style={styles.keyBox}>
         <View style={styles.keyHeader}>
           <View style={styles.keyDot}>
             <Ionicons name="alert" size={10} color={colors.primaryContrast} />
           </View>
-          <Text style={styles.keyTitle}>Target Audience</Text>
+          <AppText style={styles.keyTitle}>Target Audience</AppText>
         </View>
-        <Text style={styles.keyBody}>{formatAudienceLabel(announcement?.targetAudience || [])}</Text>
+        <AppText style={styles.keyBody}>{formatAudienceLabel(announcement?.targetAudience || [])}</AppText>
       </View>
 
-      <Text style={styles.attachLabel}>ATTACHMENTS</Text>
+      <AppText style={styles.attachLabel}>ATTACHMENTS</AppText>
       <Pressable
         style={styles.attachmentRow}
-        onPress={() => Alert.alert("Attachment", attachmentCount > 0 ? "Download will be connected next." : "No attachment available.")}
+        onPress={() => attachmentCount > 0 && Linking.openURL(announcement.attachments[0]).catch(() => Alert.alert("Open failed", "Could not open this attachment."))}
+        disabled={!attachmentCount}
+        accessibilityRole="button"
+        accessibilityLabel={attachmentCount > 0 ? `${attachmentCount} attachment(s)` : "No files attached"}
       >
         <View style={styles.attachmentIconWrap}>
           <Ionicons name="document-text-outline" size={16} color={colors.primary} />
         </View>
         <View style={styles.attachmentBody}>
-          <Text style={styles.attachmentName}>{attachmentCount > 0 ? `${attachmentCount} file(s)` : "No files attached"}</Text>
-          <Text style={styles.attachmentMeta}>{hasAnnouncement ? "Sent via campus notice board" : ""}</Text>
+          <AppText style={styles.attachmentName}>{attachmentCount > 0 ? `${attachmentCount} file(s)` : "No files attached"}</AppText>
+          <AppText style={styles.attachmentMeta}>{hasAnnouncement ? "Sent via campus notice board" : ""}</AppText>
         </View>
         <Ionicons name="download-outline" size={16} color={colors.textSubtle} />
       </Pressable>
       {attachmentCount > 0 && (
         <View style={styles.attachmentPreviewRow}>
           {announcement.attachments.map((uri, index) => (
-            <Image key={`${uri}-${index}`} source={{ uri }} style={styles.attachmentThumb} resizeMode="cover" />
+            <Pressable key={`${uri}-${index}`} onPress={() => Linking.openURL(uri).catch(() => Alert.alert("Open failed", "Could not open this attachment."))} accessibilityRole="link" accessibilityLabel={`Open attachment ${index + 1}`}>
+              <Image source={{ uri }} style={styles.attachmentThumb} resizeMode="cover" />
+            </Pressable>
           ))}
         </View>
       )}
 
       <Pressable
         style={styles.whatsappBtn}
-        onPress={() => Alert.alert("Forward", "WhatsApp forwarding will be connected next.")}
+        onPress={() => Linking.openURL(`https://wa.me/?text=${encodeURIComponent(`NSUK: ${announcement?.subject || ""}\n\n${announcement?.message || ""}`)}`).catch(() => Alert.alert("Open failed", "Could not open WhatsApp."))}
+        disabled={!hasAnnouncement}
+        accessibilityRole="button"
+        accessibilityLabel="Forward to WhatsApp group"
       >
         <Ionicons name="logo-whatsapp" size={14} color={colors.primaryContrast} />
-        <Text style={styles.whatsappText}>Forward to WhatsApp Group</Text>
+        <AppText style={styles.whatsappText}>Forward to WhatsApp Group</AppText>
       </Pressable>
 
-      <Text style={styles.footerHint}>Was this information helpful?</Text>
+      <AppText style={styles.footerHint}>Was this information helpful?</AppText>
     </ScrollView>
   );
 }

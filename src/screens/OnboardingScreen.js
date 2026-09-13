@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, PanResponder, Pressable, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { hp, ms, scale } from "../utils/responsive";
@@ -65,10 +66,16 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
     <View style={styles.container} {...panResponder.panHandlers}>
       {isThirdSlide ? (
         <View style={styles.topRowThird}>
-          <Pressable onPress={onPrev} style={styles.backTopBtn}>
+          <Pressable
+            onPress={onPrev}
+            style={styles.backTopBtn}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="arrow-back" size={scale(18)} color={colors.text} />
           </Pressable>
-          <Text style={styles.stepTopText}>STEP 3 OF 3</Text>
+          <AppText style={styles.stepTopText}>STEP 3 OF 3</AppText>
           <View style={styles.topSpacer} />
         </View>
       ) : (
@@ -77,10 +84,10 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
             <View style={styles.brandIconWrap}>
               <Ionicons name="school" size={scale(12)} color={colors.primaryContrast} />
             </View>
-            <Text style={styles.brandText}>UniHub</Text>
+            <AppText style={styles.brandText}>NSUK Events</AppText>
           </View>
-          <Pressable onPress={onSkip}>
-            <Text style={styles.skipTop}>Skip</Text>
+          <Pressable onPress={onSkip} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip onboarding">
+            <AppText style={styles.skipTop}>Skip</AppText>
           </Pressable>
         </View>
       )}
@@ -95,19 +102,19 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
       </View>
 
       <View style={styles.textBlock}>
-        {isThirdSlide && <Text style={styles.slideBadge}>{slide.badge}</Text>}
+        {isThirdSlide && <AppText style={styles.slideBadge}>{slide.badge}</AppText>}
         {isFirstSlide ? (
-          <Text style={[styles.title, styles.titleFirst]}>
-            Discover <Text style={styles.titleAccent}>Campus</Text>
+          <AppText style={[styles.title, styles.titleFirst]}>
+            Discover <AppText style={styles.titleAccent}>Campus</AppText>
             {"\n"}
             Events
-          </Text>
+          </AppText>
         ) : (
-          <Text style={[styles.title, isSecondSlide && styles.titleSecond, isThirdSlide && styles.titleThird]}>
+          <AppText style={[styles.title, isSecondSlide && styles.titleSecond, isThirdSlide && styles.titleThird]}>
             {slide.title}
-          </Text>
+          </AppText>
         )}
-        <Text
+        <AppText
           style={[
             styles.description,
             isFirstSlide && styles.descriptionFirst,
@@ -116,7 +123,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
           ]}
         >
           {slide.description}
-        </Text>
+        </AppText>
       </View>
 
       <View style={styles.dotsRow}>
@@ -125,23 +132,33 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
         ))}
       </View>
 
-      <Pressable style={styles.ctaButton} onPress={isLast ? onGetStarted : onNext}>
-        <Text style={styles.ctaText}>{isLast || isFirstSlide ? "Get Started" : "Next"}</Text>
+      <Pressable
+        style={styles.ctaButton}
+        onPress={isLast ? onGetStarted : onNext}
+        accessibilityRole="button"
+        accessibilityLabel={isLast || isFirstSlide ? "Get Started" : "Next"}
+      >
+        <AppText style={styles.ctaText}>{isLast || isFirstSlide ? "Get Started" : "Next"}</AppText>
         <Ionicons name={isLast ? "rocket" : "arrow-forward"} size={scale(18)} color={colors.primaryContrast} />
       </Pressable>
 
       {isThirdSlide ? (
-        <Pressable style={styles.remindWrap} onPress={onSkip}>
-          <Text style={styles.remindText}>Remind me later</Text>
+        <Pressable
+          style={styles.remindWrap}
+          onPress={onSkip}
+          accessibilityRole="button"
+          accessibilityLabel="Remind me later"
+        >
+          <AppText style={styles.remindText}>Remind me later</AppText>
         </Pressable>
       ) : isSecondSlide ? (
         <View style={styles.remindWrap}>
-          <Text style={styles.stepBottomText}>Step 2 of 3</Text>
+          <AppText style={styles.stepBottomText}>Step 2 of 3</AppText>
         </View>
       ) : (
         <View style={styles.bottomBadge}>
           <Ionicons name="shield-checkmark" size={scale(13)} color={colors.textSubtle} />
-          <Text style={styles.bottomBadgeText}>Official University Platform</Text>
+          <AppText style={styles.bottomBadgeText}>Official University Platform</AppText>
         </View>
       )}
     </View>

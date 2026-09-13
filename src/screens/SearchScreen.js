@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "../components/EmptyState";
 import { FadeInImage } from "../components/FadeInImage";
@@ -13,6 +16,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState("All Events");
+  const [dateFilter, setDateFilter] = useState("Any Date");
   const [viewMode, setViewMode] = useState("list");
   const [nowTs, setNowTs] = useState(Date.now());
 
@@ -31,25 +35,34 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
     { label: "Sports", icon: "football" },
   ];
 
+  const cycleDateFilter = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (dateFilter === "Any Date") setDateFilter("Today");
+    else if (dateFilter === "Today") setDateFilter("Upcoming");
+    else setDateFilter("Any Date");
+  };
+
   const filtered = useMemo(() => {
-    if (activeCategory === "All Events") {
-      return results;
-    }
+    let list = results || [];
 
     if (activeCategory === "Academic") {
-      return results.filter((item) => ["Seminar", "Workshop", "Conference"].includes(item.category));
+      list = list.filter((item) => ["Seminar", "Workshop", "Conference"].includes(item.category));
+    } else if (activeCategory === "Social") {
+      list = list.filter((item) => item.category === "Social");
+    } else if (activeCategory === "Sports") {
+      list = list.filter((item) => item.category === "Sports");
     }
 
-    if (activeCategory === "Social") {
-      return results.filter((item) => item.category === "Social");
+    if (dateFilter === "Today") {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      list = list.filter((item) => String(item.date || "").startsWith(todayStr));
+    } else if (dateFilter === "Upcoming") {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      list = list.filter((item) => String(item.date || "") >= todayStr);
     }
 
-    if (activeCategory === "Sports") {
-      return results.filter((item) => item.category === "Sports");
-    }
-
-    return results;
-  }, [activeCategory, results]);
+    return list;
+  }, [activeCategory, dateFilter, results]);
 
   return (
     <FlatList
@@ -83,7 +96,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
           <View style={styles.topRow}>
             <View style={styles.brandRow}>
               <Ionicons name="school" size={14} color={colors.accent} />
-              <Text style={styles.brandText}>NSUK Events</Text>
+              <AppText style={styles.brandText}>NSUK Events</AppText>
             </View>
             <Pressable style={styles.actionBtn}>
               <Ionicons name="options-outline" size={14} color={colors.accent} />
@@ -93,38 +106,101 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
           <View style={styles.searchRow}>
             <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
               <Ionicons name="search" size={15} color={colors.textSubtle} />
-              <TextInput
+              <AppTextInput
                 value={value}
                 onChangeText={onChange}
                 placeholder="Search events, workshops..."
                 placeholderTextColor={colors.textSubtle}
                 style={[styles.searchInput, { color: colors.text }]}
               />
+              {!!value && (
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onChange("");
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
+                  <Ionicons name="close-circle" size={16} color={colors.textSubtle} />
+                </Pressable>
+              )}
             </View>
-            <Pressable style={styles.filterBtn}>
+            <Pressable
+              style={styles.filterBtn}
+              onPress={cycleDateFilter}
+              accessibilityRole="button"
+              accessibilityLabel="Toggle date filter"
+            >
               <Ionicons name="funnel" size={15} color={colors.primaryContrast} />
             </Pressable>
           </View>
 
           <View style={styles.metaFilterRow}>
-            <Pressable style={styles.metaFilterChip}>
-              <Ionicons name="calendar-outline" size={11} color={colors.textMuted} />
-              <Text style={styles.metaFilterText}>Any Date</Text>
-              <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
+            <Pressable
+              style={[
+                styles.metaFilterChip,
+                dateFilter !== "Any Date" && { borderColor: colors.primary, backgroundColor: colors.accentTint },
+              ]}
+              onPress={cycleDateFilter}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter date: ${dateFilter}`}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={11}
+                color={dateFilter !== "Any Date" ? colors.primary : colors.textMuted}
+              />
+              <AppText
+                style={[
+                  styles.metaFilterText,
+                  dateFilter !== "Any Date" && { color: colors.primary, fontWeight: "700" },
+                ]}
+              >
+                {dateFilter}
+              </AppText>
+              <Ionicons
+                name="swap-vertical"
+                size={11}
+                color={dateFilter !== "Any Date" ? colors.primary : colors.textMuted}
+              />
             </Pressable>
-            <Pressable style={styles.metaFilterChip}>
+            <Pressable
+              style={styles.metaFilterChip}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
               <Ionicons name="location-outline" size={11} color={colors.textMuted} />
-              <Text style={styles.metaFilterText}>Any Venue</Text>
-              <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
+              <AppText style={styles.metaFilterText}>NSUK Campus</AppText>
             </Pressable>
           </View>
 
           <View style={styles.switchRow}>
-            <Pressable onPress={() => setViewMode("list")} style={styles.switchItem}>
-              <Text style={[styles.switchText, viewMode === "list" && styles.switchTextActive]}>List View</Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setViewMode("list");
+              }}
+              style={styles.switchItem}
+              accessibilityRole="button"
+              accessibilityLabel="List view"
+              accessibilityState={{ selected: viewMode === "list" }}
+            >
+              <AppText style={[styles.switchText, viewMode === "list" && styles.switchTextActive]}>List View</AppText>
             </Pressable>
-            <Pressable onPress={() => setViewMode("grid")} style={styles.switchItem}>
-              <Text style={[styles.switchText, viewMode === "grid" && styles.switchTextActive]}>Grid View</Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setViewMode("grid");
+              }}
+              style={styles.switchItem}
+              accessibilityRole="button"
+              accessibilityLabel="Grid view"
+              accessibilityState={{ selected: viewMode === "grid" }}
+            >
+              <AppText style={[styles.switchText, viewMode === "grid" && styles.switchTextActive]}>Grid View</AppText>
             </Pressable>
           </View>
 
@@ -140,10 +216,16 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
               return (
                 <Pressable
                   style={[styles.categoryChip, active && styles.categoryChipActive]}
-                  onPress={() => setActiveCategory(item.label)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setActiveCategory(item.label);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
+                  accessibilityState={{ selected: active }}
                 >
                   <Ionicons name={item.icon} size={12} color={iconColor} />
-                  <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{item.label}</Text>
+                  <AppText style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{item.label}</AppText>
                 </Pressable>
               );
             }}
@@ -162,6 +244,9 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
     <ScalePressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={event.title}
+      accessibilityHint={disabled ? "Event has ended" : "Opens event details"}
       style={[
         styles.card,
         { backgroundColor: colors.surface, borderColor: colors.borderSoft },
@@ -172,10 +257,10 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
       <View style={styles.imageWrap}>
         <FadeInImage source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
         <View style={styles.badgeOverlay}>
-          <Text style={[styles.badgeTag, status.type === "past" && styles.badgeGray]}>{status.label}</Text>
-          <Text style={styles.badgeTagSecondary} numberOfLines={1}>
+          <AppText style={[styles.badgeTag, status.type === "past" && styles.badgeGray]}>{status.label}</AppText>
+          <AppText style={styles.badgeTagSecondary} numberOfLines={1}>
             {toCategoryLabel(event.category)}
-          </Text>
+          </AppText>
         </View>
         {index === 1 && (
           <View style={styles.bookmarkBadge}>
@@ -185,30 +270,30 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
       </View>
 
       <View style={styles.cardBody}>
-        <Text style={[styles.eventTitle, { color: colors.text }, disabled && styles.textMuted]} numberOfLines={2}>
+        <AppText style={[styles.eventTitle, { color: colors.text }, disabled && styles.textMuted]} numberOfLines={2}>
           {event.title}
-        </Text>
+        </AppText>
 
         <View style={styles.metaLine}>
           <Ionicons name="calendar-outline" size={11} color={colors.textSubtle} />
-          <Text style={styles.metaText}>{formatDate(event.date)}</Text>
+          <AppText style={styles.metaText}>{formatDate(event.date)}</AppText>
           <Ionicons name="time-outline" size={11} color={colors.textSubtle} style={styles.timeIcon} />
-          <Text style={styles.metaText}>{event.time}</Text>
+          <AppText style={styles.metaText}>{event.time}</AppText>
         </View>
 
         <View style={styles.metaLine}>
           <Ionicons name="location-outline" size={11} color={colors.textSubtle} />
-          <Text style={styles.metaText} numberOfLines={1}>
+          <AppText style={styles.metaText} numberOfLines={1}>
             {event.venue}
-          </Text>
+          </AppText>
         </View>
 
         <View style={styles.bottomRow}>
-          <Text style={styles.attendingText}>{getAttending(status.type)}</Text>
+          <AppText style={styles.attendingText}>{getAttending(status.type)}</AppText>
           <Pressable disabled={disabled} style={[styles.actionButton, disabled && styles.actionButtonDisabled]}>
-            <Text style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>
+            <AppText style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>
               {disabled ? "View Results" : status.type === "ongoing" ? "Join Now" : "Register"}
-            </Text>
+            </AppText>
           </Pressable>
         </View>
       </View>

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import HomeScreen from "../screens/HomeScreen";
 import MyEventsScreen from "../screens/MyEventsScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
@@ -7,6 +7,7 @@ import SavedEventsScreen from "../screens/SavedEventsScreen";
 import SearchScreen from "../screens/SearchScreen";
 import { useAppTheme } from "../theme/theme";
 import BottomTabs from "./BottomTabs";
+import { AppText } from "../components/AppText";
 
 export default function AppNavigator({
   activeTab,
@@ -19,7 +20,9 @@ export default function AppNavigator({
   profileProps,
   savedEventsProps,
   refreshing,
+  loadError,
   onRefreshData,
+  onCreateEvent,
 }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
@@ -30,6 +33,9 @@ export default function AppNavigator({
     }
     if (activeTab === "search") {
       return <SearchScreen {...searchProps} />;
+    }
+    if (activeTab === "registrations") {
+      return <MyEventsScreen {...myEventsProps} isStaff={false} refreshing={refreshing} onRefreshData={onRefreshData} />;
     }
     if (activeTab === "my-events") {
       return isStaff ? (
@@ -44,13 +50,26 @@ export default function AppNavigator({
     return <ProfileScreen {...profileProps} />;
   };
 
+  const unreadCount = (notificationsProps?.notifications || []).filter(
+    (n) => !n.read && !n.isRead
+  ).length;
+
   return (
     <View style={styles.container}>
+      {!!loadError && <Pressable onPress={onRefreshData} accessibilityRole="button" accessibilityLabel="Retry loading campus updates" style={{ padding: 12, backgroundColor: colors.surfaceAlt }}>
+        <AppText style={{ color: colors.error }}>Could not refresh campus updates. Tap to retry.</AppText>
+      </Pressable>}
       <View style={styles.contentFrame}>
         <View style={styles.content}>{renderActiveScreen()}</View>
       </View>
       <View style={styles.tabBarWrap}>
-        <BottomTabs activeTab={activeTab} onChange={onTabChange} isStaff={isStaff} />
+        <BottomTabs
+          activeTab={activeTab}
+          onChange={onTabChange}
+          isStaff={isStaff}
+          onCreateEvent={onCreateEvent}
+          unreadCount={unreadCount}
+        />
       </View>
     </View>
   );
@@ -73,10 +92,8 @@ const getStyles = (colors) =>
     },
     tabBarWrap: {
       width: "100%",
-      alignSelf: "stretch",
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: 0,
-      backgroundColor: colors.background,
+      alignSelf: "center",
+      maxWidth: 760,
+      backgroundColor: "transparent",
     },
   });

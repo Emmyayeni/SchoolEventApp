@@ -2,19 +2,22 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-const TARGET_AUDIENCE = ["All Students", "Faculty of Science", "Staff Only"];
+const TARGET_AUDIENCE = ["All Students", "Staff Only"];
 
 export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark);
 
-  const [selectedAudience, setSelectedAudience] = useState(["All Students", "Faculty of Science", "Staff Only"]);
+  const [selectedAudience, setSelectedAudience] = useState(["All Students", "Staff Only"]);
+  const [sending, setSending] = useState(false);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [scheduleMode, setScheduleMode] = useState("now");
@@ -92,6 +95,7 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   };
 
   const handleSend = async () => {
+    if (sending) return;
     if (!subject.trim()) {
       Alert.alert("Required", "Please enter announcement title.");
       return;
@@ -101,6 +105,8 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
       return;
     }
 
+    setSending(true);
+    try {
     if (onSendAnnouncement) {
       const result = await onSendAnnouncement({
         subject,
@@ -115,17 +121,18 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         return;
       }
     } else {
-      if (scheduleMode === "later") {
-        Alert.alert("Announcement scheduled", `This announcement is set for ${scheduledLabel}.`);
-      } else {
-        Alert.alert("Announcement saved", "Announcement flow is local for now.");
-      }
+      throw new Error("Announcement service is unavailable.");
     }
 
     setSubject("");
     setMessage("");
     setMainImageUri("");
     setAttachmentUris([]);
+    } catch (error) {
+      Alert.alert("Send failed", error?.message || "Could not send this announcement.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -135,14 +142,20 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
-        <Pressable style={styles.backButton} onPress={onBack}>
+        <Pressable
+          style={styles.backButton}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={20} color={colors.accent} />
         </Pressable>
-        <Text style={styles.headerTitle}>Send Announcement</Text>
+        <AppText style={styles.headerTitle}>Send Announcement</AppText>
         <View style={styles.backButton} />
       </View>
 
-      <Text style={styles.sectionTitle}>TARGET AUDIENCE</Text>
+      <AppText style={styles.sectionTitle}>TARGET AUDIENCE</AppText>
       <View style={styles.audienceRow}>
         {TARGET_AUDIENCE.map((item) => {
           const active = selectedAudience.includes(item);
@@ -151,8 +164,11 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
               key={item}
               style={[styles.audienceChip, active && styles.audienceChipActive]}
               onPress={() => toggleAudience(item)}
+              accessibilityRole="button"
+              accessibilityLabel={item}
+              accessibilityState={{ selected: active }}
             >
-              <Text style={[styles.audienceText, active && styles.audienceTextActive]}>{item}</Text>
+              <AppText style={[styles.audienceText, active && styles.audienceTextActive]}>{item}</AppText>
               <Ionicons
                 name={active ? "close-circle" : "chevron-down"}
                 size={13}
@@ -163,8 +179,8 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         })}
       </View>
 
-      <Text style={styles.label}>Subject</Text>
-      <TextInput
+      <AppText style={styles.label}>Subject</AppText>
+      <AppTextInput
         style={styles.input}
         value={subject}
         onChangeText={setSubject}
@@ -172,8 +188,8 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         placeholderTextColor={colors.textSubtle}
       />
 
-      <Text style={styles.label}>Message Content</Text>
-      <TextInput
+      <AppText style={styles.label}>Message Content</AppText>
+      <AppTextInput
         style={[styles.input, styles.messageInput]}
         value={message}
         onChangeText={setMessage}
@@ -183,15 +199,23 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         textAlignVertical="top"
       />
 
-      <Text style={styles.label}>Main Image (Optional)</Text>
+      <AppText style={styles.label}>Main Image (Optional)</AppText>
       <Pressable
         style={styles.attachBox}
         onPress={() => pickImage({ onSelect: setMainImageUri })}
+        accessibilityRole="button"
+        accessibilityLabel="Add cover image"
       >
         {mainImageUri ? (
           <View style={styles.previewWrap}>
             <Image source={{ uri: mainImageUri }} style={styles.previewImage} resizeMode="cover" />
-            <Pressable style={styles.removeBadge} onPress={() => setMainImageUri("")}>
+            <Pressable
+              style={styles.removeBadge}
+              onPress={() => setMainImageUri("")}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Remove image"
+            >
               <Ionicons name="close" size={12} color={colors.primaryContrast} />
             </Pressable>
           </View>
@@ -200,42 +224,58 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
             <View style={styles.attachIconWrap}>
               <Ionicons name="image-outline" size={18} color={colors.accent} />
             </View>
-            <Text style={styles.attachText}>Tap to choose announcement cover image</Text>
-            <Text style={styles.attachHint}>JPG, PNG, WEBP</Text>
+            <AppText style={styles.attachText}>Tap to choose announcement cover image</AppText>
+            <AppText style={styles.attachHint}>JPG, PNG, WEBP</AppText>
           </>
         )}
       </Pressable>
 
-      <Text style={styles.sectionTitle}>DELIVERY</Text>
+      <AppText style={styles.sectionTitle}>DELIVERY</AppText>
       <View style={styles.scheduleRow}>
         <Pressable
           style={[styles.scheduleChip, scheduleMode === "now" && styles.scheduleChipActive]}
           onPress={() => setScheduleMode("now")}
+          accessibilityRole="button"
+          accessibilityLabel="Send now"
+          accessibilityState={{ selected: scheduleMode === "now" }}
         >
-          <Text style={[styles.scheduleChipText, scheduleMode === "now" && styles.scheduleChipTextActive]}>Send Now</Text>
+          <AppText style={[styles.scheduleChipText, scheduleMode === "now" && styles.scheduleChipTextActive]}>Send Now</AppText>
         </Pressable>
         <Pressable
           style={[styles.scheduleChip, scheduleMode === "later" && styles.scheduleChipActive]}
           onPress={() => setScheduleMode("later")}
+          accessibilityRole="button"
+          accessibilityLabel="Schedule"
+          accessibilityState={{ selected: scheduleMode === "later" }}
         >
-          <Text style={[styles.scheduleChipText, scheduleMode === "later" && styles.scheduleChipTextActive]}>Schedule</Text>
+          <AppText style={[styles.scheduleChipText, scheduleMode === "later" && styles.scheduleChipTextActive]}>Schedule</AppText>
         </Pressable>
       </View>
 
       {scheduleMode === "later" && (
         <View style={styles.schedulePanel}>
-          <Text style={styles.scheduleLabel}>Scheduled For</Text>
-          <Text style={styles.scheduleValue}>{scheduledLabel}</Text>
+          <AppText style={styles.scheduleLabel}>Scheduled For</AppText>
+          <AppText style={styles.scheduleValue}>{scheduledLabel}</AppText>
 
           <View style={styles.scheduleActions}>
-            <Pressable style={styles.scheduleBtn} onPress={() => setShowDatePicker(true)}>
+            <Pressable
+              style={styles.scheduleBtn}
+              onPress={() => setShowDatePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Pick date"
+            >
               <Ionicons name="calendar-outline" size={14} color={colors.accent} />
-              <Text style={styles.scheduleBtnText}>Pick Date</Text>
+              <AppText style={styles.scheduleBtnText}>Pick Date</AppText>
             </Pressable>
 
-            <Pressable style={styles.scheduleBtn} onPress={() => setShowTimePicker(true)}>
+            <Pressable
+              style={styles.scheduleBtn}
+              onPress={() => setShowTimePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Pick time"
+            >
               <Ionicons name="time-outline" size={14} color={colors.accent} />
-              <Text style={styles.scheduleBtnText}>Pick Time</Text>
+              <AppText style={styles.scheduleBtnText}>Pick Time</AppText>
             </Pressable>
           </View>
 
@@ -263,7 +303,7 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         </View>
       )}
 
-      <Text style={styles.label}>Attachments (Optional)</Text>
+      <AppText style={styles.label}>Attachments (Optional)</AppText>
       <Pressable
         style={styles.attachBox}
         onPress={() =>
@@ -278,12 +318,14 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
             },
           })
         }
+        accessibilityRole="button"
+        accessibilityLabel="Add attachment image"
       >
         <View style={styles.attachIconWrap}>
           <Ionicons name="document-attach" size={18} color={colors.accent} />
         </View>
-        <Text style={styles.attachText}>Tap to add attachment images ({attachmentUris.length}/5)</Text>
-        <Text style={styles.attachHint}>JPG, PNG, WEBP</Text>
+        <AppText style={styles.attachText}>Tap to add attachment images ({attachmentUris.length}/5)</AppText>
+        <AppText style={styles.attachHint}>JPG, PNG, WEBP</AppText>
       </Pressable>
 
       {attachmentUris.length > 0 && (
@@ -294,6 +336,9 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
               <Pressable
                 style={styles.removeAttachmentBtn}
                 onPress={() => setAttachmentUris((prev) => prev.filter((item) => item !== uri))}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Remove attachment"
               >
                 <Ionicons name="close" size={10} color={colors.primaryContrast} />
               </Pressable>
@@ -302,14 +347,20 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         </View>
       )}
 
-      <Pressable style={styles.sendBtn} onPress={handleSend}>
+      <Pressable
+        style={styles.sendBtn}
+        onPress={handleSend}
+        disabled={sending}
+        accessibilityRole="button"
+        accessibilityLabel="Send notification"
+      >
         <Ionicons name="paper-plane" size={14} color={colors.primaryContrast} />
-        <Text style={styles.sendText}>Send Notification</Text>
+        <AppText style={styles.sendText}>{sending ? "Sending…" : "Send Announcement"}</AppText>
       </Pressable>
 
-      <Text style={styles.footerHint}>
-        Sending this announcement will trigger a push notification to all users in the selected target audience.
-      </Text>
+      <AppText style={styles.footerHint}>
+        Publish this announcement for the selected audience. Device alerts require notification permission.
+      </AppText>
     </ScrollView>
   );
 }

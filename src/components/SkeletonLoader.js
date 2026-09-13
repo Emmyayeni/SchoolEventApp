@@ -3,7 +3,7 @@ import { Animated, StyleSheet, View } from "react-native";
 import { useAppTheme } from "../theme/theme";
 
 export function SkeletonLoader({ width, height, borderRadius = 8, style }) {
-  const { isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const pulseAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export function SkeletonLoader({ width, height, borderRadius = 8, style }) {
     ).start();
   }, [pulseAnim]);
 
-  const backgroundColor = isDark ? "#374151" : "#e5e7eb";
+  const backgroundColor = colors.borderStrong;
 
   return (
     <Animated.View

@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View, RefreshControl } from "react-native";
+import { FlatList, Pressable, StyleSheet, View, RefreshControl } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FadeInImage } from "../components/FadeInImage";
 import { EmptyState } from "../components/EmptyState";
@@ -15,19 +17,19 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
   const [searchText, setSearchText] = useState("");
   const [activeTab, setActiveTab] = useState("All");
 
-  const tabs = isStaff ? ["All", "Published", "Draft", "Cancelled", "Closed"] : ["All", "Workshop", "Seminar", "Sports"];
+  const tabs = isStaff ? ["All", "Published", "Draft", "Cancelled", "Past"] : ["All", "Upcoming", "Past"];
 
   const preparedEvents = useMemo(() => {
-    const withStatus = events.map((item, index) => {
-      const statuses = ["Published", "Draft", "Closed", "Published"];
-      return { ...item, status: statuses[index % statuses.length] };
+    const withStatus = events.map((item) => {
+      const isPast = new Date(`${item.date}T23:59:59`).getTime() < Date.now();
+      return { ...item, status: isPast ? "Past" : (item.status || "published") };
     });
 
     const byTab = activeTab === "All"
       ? withStatus
-      : isStaff
-        ? withStatus.filter((item) => item.status.toLowerCase() === activeTab.toLowerCase())
-        : withStatus.filter((item) => item.category.toLowerCase() === activeTab.toLowerCase());
+      : activeTab === "Upcoming"
+        ? withStatus.filter((item) => item.status !== "Past" && item.status !== "cancelled")
+        : withStatus.filter((item) => item.status.toLowerCase() === activeTab.toLowerCase());
 
     const needle = searchText.trim().toLowerCase();
     if (!needle) {
@@ -35,7 +37,7 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
     }
 
     return byTab.filter((item) => [item.title, item.category].join(" ").toLowerCase().includes(needle));
-  }, [activeTab, events, isStaff, searchText]);
+  }, [activeTab, events, searchText]);
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}> 
@@ -58,31 +60,48 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             <View style={styles.topRow}>
-              <Pressable style={styles.iconBtn} onPress={onBack}>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={onBack}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
                 <Ionicons name="arrow-back" size={17} color={colors.accent} />
               </Pressable>
-              <Text style={[styles.title, { color: colors.text }]}>{isStaff ? "Manage Events" : "Discover Events"}</Text>
-              <Pressable style={styles.iconBtn} onPress={onOpenNotifications}>
+              <AppText style={[styles.title, { color: colors.text }]}>{isStaff ? "Manage Events" : "My Events"}</AppText>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={onOpenNotifications}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+              >
                 <Ionicons name="notifications" size={16} color={colors.primary} />
               </Pressable>
             </View>
 
-            <Text style={styles.subtitle}>
+            <AppText style={styles.subtitle}>
               {isStaff
                 ? "Create events, publish updates, and manage registrations."
-                : "Browse event details, save favorites, and RSVP quickly."}
-            </Text>
+                : "Your registrations and campus event history."}
+            </AppText>
 
             {isStaff && (
-              <Pressable style={styles.announcementBtn} onPress={onOpenAnnouncement}>
+              <Pressable
+                style={styles.announcementBtn}
+                onPress={onOpenAnnouncement}
+                accessibilityRole="button"
+                accessibilityLabel="Create announcement"
+              >
                 <Ionicons name="megaphone-outline" size={14} color={colors.primaryContrast} />
-                <Text style={styles.announcementBtnText}>Create Announcement</Text>
+                <AppText style={styles.announcementBtnText}>Create Announcement</AppText>
               </Pressable>
             )}
 
             <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
               <Ionicons name="search" size={16} color={colors.textSubtle} />
-              <TextInput
+              <AppTextInput
                 value={searchText}
                 onChangeText={setSearchText}
                 placeholder={isStaff ? "Search events by name or status" : "Search events to join"}
@@ -100,8 +119,14 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
               renderItem={({ item }) => {
                 const active = item === activeTab;
                 return (
-                  <Pressable style={styles.tabItem} onPress={() => setActiveTab(item)}>
-                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{item}</Text>
+                  <Pressable
+                    style={styles.tabItem}
+                    onPress={() => setActiveTab(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={item}
+                    accessibilityState={{ selected: active }}
+                  >
+                    <AppText style={[styles.tabText, active && styles.tabTextActive]}>{item}</AppText>
                     {active && <View style={styles.tabIndicator} />}
                   </Pressable>
                 );
@@ -112,7 +137,12 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
       />
 
       {isStaff && (
-        <Pressable style={styles.fab} onPress={onCreateEvent}>
+        <Pressable
+          style={styles.fab}
+          onPress={onCreateEvent}
+          accessibilityRole="button"
+          accessibilityLabel="Create event"
+        >
           <Ionicons name="add" size={28} color={colors.primaryContrast} />
         </Pressable>
       )}
@@ -125,24 +155,30 @@ function ManageEventCard({ event, onOpenEvent, colors, styles }) {
     event.status === "Published" ? colors.primary : event.status === "Draft" ? colors.error : colors.textSubtle;
 
   return (
-    <ScalePressable style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]} onPress={() => onOpenEvent(event.id)}>
+    <ScalePressable
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
+      onPress={() => onOpenEvent(event.id)}
+      accessibilityRole="button"
+      accessibilityLabel={event.title}
+      accessibilityHint="Opens event details"
+    >
       <FadeInImage source={{ uri: event.image }} style={styles.cardImage} />
       <View style={styles.cardBody}>
         <View style={styles.titleRow}>
-          <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
+          <AppText style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
             {event.title}
-          </Text>
+          </AppText>
           <Ionicons name="ellipsis-vertical" size={16} color={colors.textSubtle} />
         </View>
 
         <View style={styles.badgesRow}>
-          <Text style={[styles.badge, styles.badgeGreen]}>{event.category.toUpperCase()}</Text>
-          <Text style={[styles.badge, { color: statusColor, backgroundColor: colors.surfaceAlt }]}>{event.status.toUpperCase()}</Text>
+          <AppText style={[styles.badge, styles.badgeGreen]}>{event.category.toUpperCase()}</AppText>
+          <AppText style={[styles.badge, { color: statusColor, backgroundColor: colors.surfaceAlt }]}>{event.status.toUpperCase()}</AppText>
         </View>
 
         <View style={styles.metaRow}>
           <Ionicons name="calendar-outline" size={12} color={colors.textSubtle} />
-          <Text style={styles.metaText}>{formatDate(event.date)} • {event.time}</Text>
+          <AppText style={styles.metaText}>{formatDate(event.date)} • {event.time}</AppText>
         </View>
       </View>
     </ScalePressable>

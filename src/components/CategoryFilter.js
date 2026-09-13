@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { AppText } from "./AppText";
 import { useAppTheme } from "../theme/theme";
+import { ms, scale } from "../utils/responsive";
 
 function getCategoryIcon(category) {
   const value = String(category || "").trim().toLowerCase();
@@ -59,13 +61,12 @@ export default function CategoryFilter({ categories, selectedCategory, onSelectC
             key={category}
             onPress={() => onSelectCategory(category)}
             style={[styles.item, active && styles.itemActive]}
+            accessibilityRole="button"
+            accessibilityLabel={category}
+            accessibilityState={{ selected: active }}
           >
-            <Ionicons
-              name={iconName}
-              size={12}
-              color={active ? colors.primaryContrast : colors.accent}
-            />
-            <Text style={[styles.itemText, active && styles.itemTextActive]}>{category}</Text>
+            <Ionicons name={iconName} size={14} color={active ? colors.accent : colors.textMuted} />
+            <AppText style={[styles.itemText, active && styles.itemTextActive]}>{category}</AppText>
           </Pressable>
         );
       })}
@@ -75,31 +76,31 @@ export default function CategoryFilter({ categories, selectedCategory, onSelectC
 
 const getStyles = (colors) =>
   StyleSheet.create({
-  row: {
-    gap: 8,
-    paddingVertical: 2,
-  },
-  item: {
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  itemActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  itemText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  itemTextActive: {
-    color: colors.primaryContrast,
-  },
+    row: {
+      gap: scale(8),
+      paddingVertical: scale(2),
+    },
+    item: {
+      borderRadius: 999,
+      paddingVertical: scale(8),
+      paddingHorizontal: scale(14),
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(6),
+    },
+    itemActive: {
+      backgroundColor: colors.accentTint,
+      borderColor: colors.accent,
+    },
+    itemText: {
+      fontSize: ms(13),
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    itemTextActive: {
+      color: colors.accent,
+    },
   });

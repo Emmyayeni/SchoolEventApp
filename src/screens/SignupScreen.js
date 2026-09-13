@@ -1,9 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { Field, SelectField } from "../components/Field";
+import SelectPickerModal from "../components/SelectPickerModal";
+import CustomButton from "../components/CustomButton";
+import { IconButton } from "../components/Header";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import {
+  fetchAcademicFaculties,
+  fetchAcademicDepartments,
+  fetchAcademicLevels,
+} from "../services/academicData";
+
+const ACCOUNT_TYPES = [
+  { key: "student", label: "Student" },
+  { key: "staff", label: "Staff" },
+  { key: "organizer", label: "Organizer" },
+];
 
 export default function SignupScreen({ values, errors, loading, onChange, onRegister, onSwitchToLogin }) {
   const { colors } = useAppTheme();
@@ -12,6 +28,25 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const accountType = values?.accountType || "student";
+
+  // Dynamic academic data states
+  const [faculties, setFaculties] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [levels, setLevels] = useState([]);
+
+  // Modal visibility states
+  const [showFacultyPicker, setShowFacultyPicker] = useState(false);
+  const [showDepartmentPicker, setShowDepartmentPicker] = useState(false);
+  const [showLevelPicker, setShowLevelPicker] = useState(false);
+
+  useEffect(() => {
+    fetchAcademicFaculties().then(setFaculties);
+    fetchAcademicLevels().then(setLevels);
+  }, []);
+
+  useEffect(() => {
+    fetchAcademicDepartments(values.faculty || "").then(setDepartments);
+  }, [values.faculty]);
 
   const switchAccountType = (type) => {
     onChange("accountType", type);
@@ -25,174 +60,174 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
     onChange("matricNumber", "");
   };
 
+  const renderEye = (visible, toggle, label) => (
+    <Pressable
+      onPress={toggle}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={visible ? `Hide ${label}` : `Show ${label}`}
+    >
+      <Ionicons name={visible ? "eye-off" : "eye"} size={18} color={colors.textSubtle} />
+    </Pressable>
+  );
+
   return (
     <ScrollView
       style={[styles.page, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(10), paddingBottom: Math.max(insets?.bottom ?? 0, scale(22)) }]}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: (insets?.top ?? 0) + scale(10),
+          paddingBottom: Math.max(insets?.bottom ?? 0, scale(22)),
+        },
+      ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.topRow}>
-        <Pressable style={styles.backButton} onPress={onSwitchToLogin}>
-          <Ionicons name="arrow-back" size={18} color={colors.accent} />
-        </Pressable>
-        <Text style={[styles.brand, { color: colors.text }]}>NSUK Events</Text>
+        <IconButton name="arrow-back" label="Go back" onPress={onSwitchToLogin} color={colors.text} />
+        <AppText style={styles.brand}>NSUK Events</AppText>
         <View style={styles.topSpacer} />
       </View>
 
-      <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
-      <Text style={styles.subtitle}>Choose your role to access the right campus event tools.</Text>
+      <AppText variant="h1" style={styles.title}>
+        Create Account
+      </AppText>
+      <AppText style={styles.subtitle}>Choose your role to access the right campus event tools.</AppText>
 
-      <View style={styles.segmentWrap}>
-        <Pressable
-          style={[styles.segmentButton, accountType === "student" && styles.segmentButtonActive]}
-          onPress={() => switchAccountType("student")}
-        >
-          <Text style={[styles.segmentText, { color: colors.textMuted }, accountType === "student" && styles.segmentTextActive]}>Student</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.segmentButton, accountType === "staff" && styles.segmentButtonActive]}
-          onPress={() => switchAccountType("staff")}
-        >
-          <Text style={[styles.segmentText, { color: colors.textMuted }, accountType === "staff" && styles.segmentTextActive]}>Staff</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.segmentButton, accountType === "organizer" && styles.segmentButtonActive]}
-          onPress={() => switchAccountType("organizer")}
-        >
-          <Text style={[styles.segmentText, { color: colors.textMuted }, accountType === "organizer" && styles.segmentTextActive]}>Organizer</Text>
-        </Pressable>
+      <View style={styles.segmentWrap} accessibilityRole="tablist">
+        {ACCOUNT_TYPES.map((type) => {
+          const active = accountType === type.key;
+          return (
+            <Pressable
+              key={type.key}
+              style={[styles.segmentButton, active && styles.segmentButtonActive]}
+              onPress={() => switchAccountType(type.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={type.label}
+            >
+              <AppText style={[styles.segmentText, active && styles.segmentTextActive]}>{type.label}</AppText>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Field
-        colors={colors}
-        styles={styles}
         label="Full Name"
         value={values.fullName}
         onChangeText={(v) => onChange("fullName", v)}
         placeholder="John Doe"
-        icon="person"
+        autoCapitalize="words"
+        leftIcon="person-outline"
         error={errors.fullName}
       />
 
       <Field
-        colors={colors}
-        styles={styles}
         label="Email Address"
         value={values.email}
         onChangeText={(v) => onChange("email", v)}
         placeholder="name@nsuk.edu.ng"
-        icon="mail"
+        autoCapitalize="none"
         keyboardType="email-address"
+        leftIcon="mail-outline"
         error={errors.email}
       />
 
       <Field
-        colors={colors}
-        styles={styles}
         label="Password"
         value={values.password}
         onChangeText={(v) => onChange("password", v)}
         placeholder="Min. 8 characters"
-        icon="lock-closed"
+        autoCapitalize="none"
         secureTextEntry={!showPassword}
-        rightNode={
-          <Pressable onPress={() => setShowPassword((p) => !p)} style={styles.eyeButton}>
-            <Ionicons name={showPassword ? "eye-off" : "eye"} size={16} color={colors.textSubtle} />
-          </Pressable>
-        }
+        leftIcon="lock-closed-outline"
+        rightNode={renderEye(showPassword, () => setShowPassword((p) => !p), "password")}
         error={errors.password}
       />
 
       <Field
-        colors={colors}
-        styles={styles}
         label="Confirm Password"
         value={values.confirmPassword}
         onChangeText={(v) => onChange("confirmPassword", v)}
         placeholder="Re-enter password"
-        icon="lock-closed"
+        autoCapitalize="none"
         secureTextEntry={!showConfirmPassword}
-        rightNode={
-          <Pressable onPress={() => setShowConfirmPassword((p) => !p)} style={styles.eyeButton}>
-            <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={16} color={colors.textSubtle} />
-          </Pressable>
-        }
+        leftIcon="lock-closed-outline"
+        rightNode={renderEye(showConfirmPassword, () => setShowConfirmPassword((p) => !p), "confirm password")}
         error={errors.confirmPassword}
       />
 
       {accountType === "student" ? (
         <>
           <Field
-            colors={colors}
-            styles={styles}
             label="Matric Number"
             value={values.matricNumber}
             onChangeText={(v) => onChange("matricNumber", v)}
             placeholder="e.g 20/SCI/1234"
+            leftIcon="card-outline"
             error={errors.matricNumber}
           />
-          <Field
-            colors={colors}
-            styles={styles}
+          <SelectField
             label="Faculty"
             value={values.faculty}
-            onChangeText={(v) => onChange("faculty", v)}
-            placeholder="e.g Faculty of Science"
+            onPress={() => setShowFacultyPicker(true)}
+            placeholder="Select Faculty"
+            leftIcon="school-outline"
             error={errors.faculty}
           />
-          <Field
-            colors={colors}
-            styles={styles}
+          <SelectField
             label="Department"
             value={values.department}
-            onChangeText={(v) => onChange("department", v)}
-            placeholder="e.g Computer Science"
+            onPress={() => setShowDepartmentPicker(true)}
+            placeholder="Select Department"
+            leftIcon="business-outline"
             error={errors.department}
           />
-          <Field
-            colors={colors}
-            styles={styles}
+          <SelectField
             label="Level"
             value={values.level}
-            onChangeText={(v) => onChange("level", v)}
-            placeholder="e.g 100"
+            onPress={() => setShowLevelPicker(true)}
+            placeholder="Select Academic Level"
+            leftIcon="stats-chart-outline"
             error={errors.level}
           />
         </>
       ) : accountType === "staff" ? (
         <>
-          <Field
-            colors={colors}
-            styles={styles}
-            label="Department / Faculty"
+          <SelectField
+            label="Faculty"
+            value={values.faculty}
+            onPress={() => setShowFacultyPicker(true)}
+            placeholder="Select Faculty"
+            leftIcon="school-outline"
+            error={errors.faculty}
+          />
+          <SelectField
+            label="Department"
             value={values.department}
-            onChangeText={(v) => onChange("department", v)}
-            placeholder="E.g. Science"
-            icon="business"
+            onPress={() => setShowDepartmentPicker(true)}
+            placeholder="Select Department"
+            leftIcon="business-outline"
             error={errors.department}
           />
           <View style={styles.row}>
             <Field
-              colors={colors}
-              styles={styles}
               label="Staff ID"
               value={values.staffId}
               onChangeText={(v) => onChange("staffId", v)}
               placeholder="E.g. STF-001"
-              icon="id-card"
-              wrapperStyle={styles.halfWidth}
+              leftIcon="card-outline"
+              containerStyle={styles.halfWidth}
               error={errors.staffId}
             />
             <Field
-              colors={colors}
-              styles={styles}
               label="Role"
               value={values.roleDesignation}
               onChangeText={(v) => onChange("roleDesignation", v)}
               placeholder="Lecturer"
-              icon="briefcase"
-              wrapperStyle={styles.halfWidth}
+              leftIcon="briefcase-outline"
+              containerStyle={styles.halfWidth}
               error={errors.roleDesignation}
             />
           </View>
@@ -200,247 +235,176 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       ) : (
         <>
           <Field
-            colors={colors}
-            styles={styles}
             label="Organization / Group"
             value={values.department}
             onChangeText={(v) => onChange("department", v)}
             placeholder="E.g. Tech Club"
-            icon="business"
+            leftIcon="business-outline"
             error={errors.department}
           />
           <Field
-            colors={colors}
-            styles={styles}
             label="Role in Organization"
             value={values.roleDesignation}
             onChangeText={(v) => onChange("roleDesignation", v)}
             placeholder="E.g. Event Coordinator"
-            icon="briefcase"
+            leftIcon="briefcase-outline"
             error={errors.roleDesignation}
           />
         </>
       )}
 
-      {!!errors.general && <Text style={styles.errorText}>{errors.general}</Text>}
+      {!!errors.general && <AppText style={styles.errorText}>{errors.general}</AppText>}
 
-      <Pressable style={[styles.cta, loading && styles.ctaDisabled]} onPress={onRegister} disabled={loading}>
-        {loading ? <ActivityIndicator color={colors.primaryContrast} size="small" /> : <Text style={styles.ctaText}>Create Account</Text>}
-      </Pressable>
+      <CustomButton
+        title="Create Account"
+        onPress={onRegister}
+        loading={loading}
+        style={{ marginTop: scale(6), marginBottom: scale(12) }}
+      />
 
       <View style={styles.footerRow}>
-        <Text style={styles.footerText}>Already have an account? </Text>
-        <Pressable onPress={onSwitchToLogin}>
-          <Text style={styles.loginLink}>Login</Text>
+        <AppText style={styles.footerText}>Already have an account? </AppText>
+        <Pressable onPress={onSwitchToLogin} hitSlop={8} accessibilityRole="button" accessibilityLabel="Login">
+          <AppText style={styles.loginLink}>Login</AppText>
         </Pressable>
       </View>
 
-      <Text style={styles.terms}>
+      <AppText style={styles.terms}>
         By clicking &quot;Create Account&quot;, you agree to NSUK&apos;s Terms of Service and Privacy Policy.
-      </Text>
-    </ScrollView>
-  );
-}
+      </AppText>
 
-function Field({
-  colors,
-  styles,
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  icon,
-  rightIcon,
-  rightNode,
-  secureTextEntry,
-  keyboardType,
-  error,
-  compact,
-}) {
-  return (
-    <View style={[styles.field, compact && styles.fieldCompact]}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputWrap}>
-        {!!icon && <Ionicons name={icon} size={15} color={colors.textSubtle} style={styles.leftIcon} />}
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textSubtle}
-          style={[styles.input, !!icon && styles.inputWithIcon, (!!rightIcon || !!rightNode) && styles.inputWithRight]}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType}
-          autoCapitalize="none"
-        />
-        {!!rightIcon && <Ionicons name={rightIcon} size={16} color={colors.textSubtle} style={styles.rightIcon} />}
-        {!!rightNode && rightNode}
-      </View>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
+      {/* Dynamic Academic Select Modals */}
+      <SelectPickerModal
+        visible={showFacultyPicker}
+        title="Select Faculty"
+        options={faculties}
+        selectedValue={values.faculty}
+        onSelect={(val) => {
+          onChange("faculty", val);
+          onChange("department", "");
+        }}
+        onClose={() => setShowFacultyPicker(false)}
+        searchPlaceholder="Search faculty..."
+      />
+
+      <SelectPickerModal
+        visible={showDepartmentPicker}
+        title={values.faculty ? `${values.faculty} Departments` : "Select Department"}
+        options={departments}
+        selectedValue={values.department}
+        onSelect={(val) => onChange("department", val)}
+        onClose={() => setShowDepartmentPicker(false)}
+        searchPlaceholder="Search department..."
+      />
+
+      <SelectPickerModal
+        visible={showLevelPicker}
+        title="Select Academic Level"
+        options={levels}
+        selectedValue={values.level}
+        onSelect={(val) => onChange("level", val)}
+        onClose={() => setShowLevelPicker(false)}
+        searchPlaceholder="Search level..."
+      />
+    </ScrollView>
   );
 }
 
 const getStyles = (colors) =>
   StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: scale(16),
-    paddingBottom: scale(22),
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: scale(12),
-  },
-  backButton: {
-    width: scale(26),
-    height: scale(26),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  brand: {
-    color: colors.text,
-    fontSize: ms(15),
-    fontWeight: "800",
-  },
-  topSpacer: {
-    width: scale(26),
-  },
-  title: {
-    color: colors.text,
-    fontSize: ms(28),
-    fontWeight: "900",
-    lineHeight: ms(34),
-  },
-  subtitle: {
-    marginTop: scale(4),
-    marginBottom: scale(12),
-    color: colors.accent,
-    fontSize: ms(13),
-    fontWeight: "500",
-  },
-  segmentWrap: {
-    height: scale(40),
-    borderRadius: scale(20),
-    backgroundColor: colors.border,
-    padding: scale(3),
-    flexDirection: "row",
-    marginBottom: scale(12),
-  },
-  segmentButton: {
-    flex: 1,
-    borderRadius: scale(17),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.surface,
-  },
-  segmentText: {
-    color: colors.textMuted,
-    fontSize: ms(14),
-    fontWeight: "700",
-  },
-  segmentTextActive: {
-    color: colors.primary,
-  },
-  field: {
-    marginBottom: scale(10),
-  },
-  fieldCompact: {
-    marginBottom: 0,
-  },
-  label: {
-    marginBottom: scale(5),
-    color: colors.text,
-    fontSize: ms(12),
-    fontWeight: "700",
-  },
-  inputWrap: {
-    height: scale(46),
-    borderRadius: scale(23),
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: scale(12),
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  leftIcon: {
-    marginRight: scale(8),
-  },
-  rightIcon: {
-    marginLeft: scale(8),
-  },
-  input: {
-    flex: 1,
-    color: colors.text,
-    fontSize: ms(13),
-    paddingVertical: 0,
-  },
-  inputWithIcon: {
-    paddingLeft: 0,
-  },
-  inputWithRight: {
-    paddingRight: scale(6),
-  },
-  row2: {
-    flexDirection: "row",
-    gap: scale(8),
-    marginBottom: scale(10),
-  },
-  col2: {
-    flex: 1,
-  },
-  eyeButton: {
-    padding: scale(4),
-  },
-  errorText: {
-    marginTop: scale(4),
-    color: colors.error,
-    fontSize: ms(11),
-  },
-  cta: {
-    height: scale(50),
-    borderRadius: scale(25),
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: scale(14),
-    marginBottom: scale(12),
-  },
-  ctaDisabled: {
-    opacity: 0.7,
-  },
-  ctaText: {
-    color: colors.primaryContrast,
-    fontSize: ms(16),
-    fontWeight: "800",
-  },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: scale(6),
-  },
-  footerText: {
-    color: colors.textMuted,
-    fontSize: ms(13),
-    fontWeight: "500",
-  },
-  loginLink: {
-    color: colors.primary,
-    fontSize: ms(13),
-    fontWeight: "800",
-  },
-  terms: {
-    textAlign: "center",
-    color: colors.textSubtle,
-    fontSize: ms(10),
-    lineHeight: ms(14),
-  },
+    page: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(22),
+    },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: scale(12),
+    },
+    brand: {
+      color: colors.text,
+      fontSize: ms(16),
+      fontWeight: "800",
+    },
+    topSpacer: {
+      width: scale(40),
+    },
+    title: {
+      color: colors.text,
+    },
+    subtitle: {
+      marginTop: scale(4),
+      marginBottom: scale(16),
+      color: colors.textMuted,
+      fontSize: ms(14),
+      fontWeight: "500",
+    },
+    segmentWrap: {
+      height: scale(44),
+      borderRadius: scale(12),
+      backgroundColor: colors.surfaceSunken,
+      padding: scale(4),
+      flexDirection: "row",
+      marginBottom: scale(20),
+    },
+    segmentButton: {
+      flex: 1,
+      borderRadius: scale(9),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    segmentButtonActive: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    segmentText: {
+      color: colors.textMuted,
+      fontSize: ms(14),
+      fontWeight: "600",
+    },
+    segmentTextActive: {
+      color: colors.text,
+      fontWeight: "700",
+    },
+    row: {
+      flexDirection: "row",
+      gap: scale(10),
+    },
+    halfWidth: {
+      flex: 1,
+    },
+    errorText: {
+      marginTop: scale(2),
+      marginBottom: scale(4),
+      color: colors.error,
+      fontSize: ms(12),
+    },
+    footerRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: scale(10),
+    },
+    footerText: {
+      color: colors.textMuted,
+      fontSize: ms(14),
+      fontWeight: "500",
+    },
+    loginLink: {
+      color: colors.accent,
+      fontSize: ms(14),
+      fontWeight: "700",
+    },
+    terms: {
+      textAlign: "center",
+      color: colors.textSubtle,
+      fontSize: ms(11),
+      lineHeight: ms(16),
+    },
   });

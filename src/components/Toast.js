@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useRef, useCallback } from "react";
-import { Animated, StyleSheet, Text, View, Platform } from "react-native";
+import { createContext, useContext, useState, useRef, useCallback } from "react";
+import { Animated, StyleSheet, View } from "react-native";
+import { AppText } from "./AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
+import { ms, scale } from "../utils/responsive";
 
 const ToastContext = createContext(null);
 
@@ -54,37 +56,39 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {toastConfig && (
-        <ToastMessage
-          message={toastConfig.message}
-          type={toastConfig.type}
-          slideAnim={slideAnim}
-        />
+        <ToastMessage message={toastConfig.message} type={toastConfig.type} slideAnim={slideAnim} />
       )}
     </ToastContext.Provider>
   );
 }
 
 function ToastMessage({ message, type, slideAnim }) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  
-  const isSuccess = type === "success";
-  const iconName = isSuccess ? "checkmark-circle" : "alert-circle";
-  const bgColor = isSuccess ? "#10b981" : "#ef4444";
+
+  const config = {
+    success: { bg: colors.success, icon: "checkmark-circle" },
+    error: { bg: colors.error, icon: "alert-circle" },
+    info: { bg: colors.accent, icon: "information-circle" },
+    warning: { bg: colors.warning, icon: "warning" },
+  };
+  const { bg, icon } = config[type] || config.success;
+  // Dark-mode semantic colors are light, so flip the content color to keep contrast.
+  const contentColor = isDark ? "#0b0f14" : "#ffffff";
 
   return (
     <Animated.View
       style={[
         styles.toastContainer,
-        {
-          transform: [{ translateY: slideAnim }],
-          paddingTop: Math.max(insets.top, 20) + 10,
-        },
+        { transform: [{ translateY: slideAnim }], paddingTop: Math.max(insets.top, 20) + 10 },
       ]}
+      accessibilityLiveRegion="polite"
+      accessible
+      accessibilityLabel={message}
     >
-      <View style={[styles.toastContent, { backgroundColor: bgColor }]}>
-        <Ionicons name={iconName} size={24} color="#ffffff" style={styles.icon} />
-        <Text style={styles.message}>{message}</Text>
+      <View style={[styles.toastContent, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={22} color={contentColor} style={styles.icon} />
+        <AppText style={[styles.message, { color: contentColor }]}>{message}</AppText>
       </View>
     </Animated.View>
   );
@@ -98,15 +102,15 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9999,
     elevation: 9999,
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
     alignItems: "center",
   },
   toastContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
+    borderRadius: scale(12),
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -116,11 +120,10 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   icon: {
-    marginRight: 12,
+    marginRight: scale(12),
   },
   message: {
-    color: "#ffffff",
-    fontSize: 16,
+    fontSize: ms(15),
     fontWeight: "600",
     flex: 1,
   },

@@ -198,6 +198,14 @@ create unique index if not exists idx_profiles_staff_id_unique
 create index if not exists idx_profiles_account_type on public.profiles(account_type);
 create index if not exists idx_profiles_department on public.profiles(department);
 
+-- This table must exist before is_staff references it on a fresh database.
+create table if not exists public.admin_users (
+  id uuid primary key references public.profiles(id) on delete cascade,
+  role text not null default 'viewer' check (role in ('superadmin', 'moderator', 'viewer')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function public.is_staff(p_user_id uuid)
 returns boolean
 language sql
@@ -875,5 +883,83 @@ exception
   when undefined_table then
     null;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Academic Reference Data (Faculties & Departments)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.academic_faculties (
+  id uuid primary key default gen_random_uuid(),
+  name text unique not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.academic_departments (
+  id uuid primary key default gen_random_uuid(),
+  faculty_name text not null,
+  name text unique not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_academic_departments_faculty on public.academic_departments(faculty_name);
+
+alter table public.academic_faculties enable row level security;
+alter table public.academic_departments enable row level security;
+
+-- Public read access so any student or staff can view academic options
+create policy "Public read faculties" on public.academic_faculties for select using (true);
+create policy "Public read departments" on public.academic_departments for select using (true);
+
+-- Pre-seed official NSUK Faculties
+insert into public.academic_faculties (name) values
+  ('Faculty of Natural and Applied Sciences'),
+  ('Faculty of Social Sciences'),
+  ('Faculty of Arts'),
+  ('Faculty of Administration'),
+  ('Faculty of Law'),
+  ('Faculty of Education'),
+  ('Faculty of Agriculture'),
+  ('Faculty of Environmental Science')
+on conflict (name) do nothing;
+
+-- Pre-seed official NSUK Departments
+insert into public.academic_departments (faculty_name, name) values
+  ('Faculty of Natural and Applied Sciences', 'Computer Science'),
+  ('Faculty of Natural and Applied Sciences', 'Mathematics'),
+  ('Faculty of Natural and Applied Sciences', 'Physics'),
+  ('Faculty of Natural and Applied Sciences', 'Chemistry'),
+  ('Faculty of Natural and Applied Sciences', 'Microbiology'),
+  ('Faculty of Natural and Applied Sciences', 'Biochemistry'),
+  ('Faculty of Natural and Applied Sciences', 'Zoology'),
+  ('Faculty of Natural and Applied Sciences', 'Botany'),
+  ('Faculty of Natural and Applied Sciences', 'Geology'),
+  ('Faculty of Social Sciences', 'Economics'),
+  ('Faculty of Social Sciences', 'Mass Communication'),
+  ('Faculty of Social Sciences', 'Political Science'),
+  ('Faculty of Social Sciences', 'Sociology'),
+  ('Faculty of Social Sciences', 'Psychology'),
+  ('Faculty of Arts', 'English'),
+  ('Faculty of Arts', 'History and International Studies'),
+  ('Faculty of Arts', 'Theatre Arts'),
+  ('Faculty of Arts', 'Languages and Linguistics'),
+  ('Faculty of Arts', 'Religious Studies'),
+  ('Faculty of Arts', 'Philosophy'),
+  ('Faculty of Administration', 'Business Administration'),
+  ('Faculty of Administration', 'Accounting'),
+  ('Faculty of Administration', 'Public Administration'),
+  ('Faculty of Administration', 'Banking and Finance'),
+  ('Faculty of Law', 'Commercial Law'),
+  ('Faculty of Law', 'Public Law'),
+  ('Faculty of Law', 'Private Law'),
+  ('Faculty of Education', 'Educational Foundations'),
+  ('Faculty of Education', 'Science Education'),
+  ('Faculty of Education', 'Arts Education'),
+  ('Faculty of Agriculture', 'Agronomy'),
+  ('Faculty of Agriculture', 'Animal Science'),
+  ('Faculty of Agriculture', 'Agricultural Economics and Extension'),
+  ('Faculty of Environmental Science', 'Architecture'),
+  ('Faculty of Environmental Science', 'Urban and Regional Planning'),
+  ('Faculty of Environmental Science', 'Geography')
+on conflict (name) do nothing;
 
 commit;

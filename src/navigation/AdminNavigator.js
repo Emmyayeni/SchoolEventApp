@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
 import AdminAnalyticsScreen from "../screens/AdminAnalyticsScreen";
 import AdminDashboard from "../screens/AdminDashboard";
 import AdminSettingsScreen from "../screens/AdminSettingsScreen";
@@ -91,7 +92,7 @@ function AdminTab({ label, icon, active, onPress, colors, styles }) {
   return (
     <Pressable style={styles.tabButton} onPress={onPress}>
       <Ionicons name={icon} size={18} color={active ? colors.primary : colors.textMuted} />
-      <Text style={[styles.tabLabel, { color: active ? colors.primary : colors.textMuted }]}>{label}</Text>
+      <AppText style={[styles.tabLabel, { color: active ? colors.primary : colors.textMuted }]}>{label}</AppText>
     </Pressable>
   );
 }

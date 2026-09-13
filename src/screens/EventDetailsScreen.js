@@ -1,13 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Share } from "react-native";
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, View, Share } from "react-native";
+import { Image } from "expo-image";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import { eventCalendarUrl, eventStartTime } from "../utils/eventTime";
 
 export default function EventDetailsScreen({
   event,
   isRegistered,
+  isWaitlisted = false,
   isBookmarked,
   registering,
   canManageEvent,
@@ -18,11 +24,12 @@ export default function EventDetailsScreen({
   onDeleteEvent,
   onBack,
 }) {
-  const { colors, mode } = useAppTheme();
-  const isDark = mode === "dark";
+  const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
   const [nowTs, setNowTs] = useState(Date.now());
+  const [showTicketModal, setShowTicketModal] = useState(false);
   
   const eventStatus = useMemo(() => getEventTimeStatus(event, nowTs), [event, nowTs]);
   const isPast = eventStatus === "PAST";
@@ -35,14 +42,15 @@ export default function EventDetailsScreen({
   if (isPast) {
     registerLabel = "Event Ended";
   } else if (isFull && !isRegistered) {
-    registerLabel = "Sold Out";
+    registerLabel = "Join Waitlist";
   } else if (isRegistered) {
     registerLabel = "Registered";
   } else if (registering) {
     registerLabel = "Registering...";
   }
+  if (isWaitlisted) registerLabel = "Waitlisted";
 
-  const isRegistrationDisabled = isPast || isRegistered || registering || (isFull && !isRegistered);
+  const isRegistrationDisabled = isPast || isRegistered || isWaitlisted || registering || event.status === "cancelled" || event.status === "draft";
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,6 +66,14 @@ export default function EventDetailsScreen({
       });
     } catch (error) {
       Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleAddToCalendar = async () => {
+    try {
+      await Linking.openURL(eventCalendarUrl(event));
+    } catch (_err) {
+      Alert.alert("Calendar", "Could not open calendar link.");
     }
   };
 
@@ -81,30 +97,62 @@ export default function EventDetailsScreen({
     <View style={styles.page}>
       {/* Absolute Edge-to-Edge Header */}
       <View style={styles.absoluteHeader}>
-        <Image source={{ uri: event.image }} style={styles.absoluteImage} resizeMode="cover" />
+        <Image
+          source={{ uri: event.image }}
+          style={styles.absoluteImage}
+          contentFit="cover"
+          transition={300}
+          cachePolicy="memory-disk"
+        />
         <View style={styles.absoluteOverlay} />
       </View>
 
       {/* Floating Top Actions */}
       <View style={[styles.topBarAbsolute, { top: Math.max(insets.top, scale(12)) }]}>
-        <Pressable onPress={onBack} style={styles.glassBtn}>
+        <Pressable onPress={onBack} style={styles.glassBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </Pressable>
         <View style={styles.topActionsRight}>
-          <Pressable style={styles.glassBtn} onPress={onToggleBookmark}>
+          <Pressable
+            style={styles.glassBtn}
+            onPress={handleAddToCalendar}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Add to calendar"
+          >
+            <Ionicons name="calendar-outline" size={18} color="#fff" />
+          </Pressable>
+          <Pressable
+            style={styles.glassBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onToggleBookmark();
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isBookmarked ? "Remove bookmark" : "Bookmark event"}
+          >
             <Ionicons name={isBookmarked ? "bookmark" : "bookmark-outline"} size={18} color="#fff" />
           </Pressable>
           {canManageEvent && (
-            <Pressable style={styles.glassBtn} onPress={onEditEvent}>
+            <Pressable style={styles.glassBtn} onPress={onEditEvent} hitSlop={8} accessibilityRole="button" accessibilityLabel="Edit event">
               <Ionicons name="create-outline" size={18} color="#fff" />
             </Pressable>
           )}
           {canManageEvent && (
-            <Pressable style={styles.glassBtn} onPress={onDeleteEvent} disabled={deletingEvent}>
-              <Ionicons name="trash-outline" size={18} color="#ff4444" />
+            <Pressable
+              style={styles.glassBtn}
+              onPress={onDeleteEvent}
+              disabled={deletingEvent}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Delete event"
+              accessibilityState={{ disabled: deletingEvent }}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.error} />
             </Pressable>
           )}
-          <Pressable style={styles.glassBtn} onPress={handleShare}>
+          <Pressable style={styles.glassBtn} onPress={handleShare} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share event">
             <Ionicons name="share-social" size={18} color="#fff" />
           </Pressable>
         </View>
@@ -118,19 +166,19 @@ export default function EventDetailsScreen({
       >
         <View style={styles.mainContentSheet}>
           <View style={styles.badgeRow}>
-            <Text style={[styles.badge, styles.badgeGreen]}>{event.category || "CAMPUS EVENT"}</Text>
-            {eventStatus === "ONGOING" && <Text style={[styles.badge, styles.badgeLive]}>LIVE</Text>}
+            <AppText style={[styles.badge, styles.badgeGreen]}>{event.category || "CAMPUS EVENT"}</AppText>
+            {eventStatus === "ONGOING" && <AppText style={[styles.badge, styles.badgeLive]}>LIVE</AppText>}
           </View>
 
-          <Text style={styles.eventTitle}>{event.title}</Text>
+          <AppText style={styles.eventTitle}>{event.title}</AppText>
 
           <View style={styles.organizerRow}>
             <View style={styles.organizerIconWrap}>
               <Ionicons name="person" size={12} color={colors.primary} />
             </View>
             <View>
-              <Text style={styles.organizerLabel}>Organized by</Text>
-              <Text style={styles.organizerName}>{event.organizer}</Text>
+              <AppText style={styles.organizerLabel}>Organized by</AppText>
+              <AppText style={styles.organizerName}>{event.organizer}</AppText>
             </View>
           </View>
 
@@ -139,8 +187,8 @@ export default function EventDetailsScreen({
               <Ionicons name="calendar" size={16} color={colors.accent} />
             </View>
             <View>
-              <Text style={styles.infoLabel}>Date & Time</Text>
-              <Text style={styles.infoValue}>{formatEventDate(event.date)} • {event.time}</Text>
+              <AppText style={styles.infoLabel}>Date & Time</AppText>
+              <AppText style={styles.infoValue}>{formatEventDate(event.date)} • {event.time}</AppText>
             </View>
           </View>
 
@@ -149,8 +197,8 @@ export default function EventDetailsScreen({
               <Ionicons name="location" size={16} color={colors.accent} />
             </View>
             <View>
-              <Text style={styles.infoValue}>{event.venue}</Text>
-              <Text style={styles.locationLink}>View on campus map</Text>
+              <AppText style={styles.infoValue}>{event.venue}</AppText>
+              <AppText style={styles.locationLink}>View on campus map</AppText>
             </View>
           </View>
 
@@ -168,35 +216,20 @@ export default function EventDetailsScreen({
                 </View>
               ))}
             </View>
-            <Text style={styles.registeredText}>{registrationSummary}</Text>
-            <Text style={styles.statusText}>{eventStatus}</Text>
+            <AppText style={styles.registeredText}>{registrationSummary}</AppText>
+            <AppText style={styles.statusText}>{eventStatus}</AppText>
           </View>
 
-          <Text style={styles.sectionTitle}>About this event</Text>
-          <Text style={styles.aboutText}>{event.description}</Text>
+          <AppText style={styles.sectionTitle}>About this event</AppText>
+          <AppText style={styles.aboutText}>{event.description}</AppText>
 
-          <Text style={styles.sectionTitle}>Who can attend</Text>
+          <AppText style={styles.sectionTitle}>Who can attend</AppText>
           <View style={styles.chipRow}>
             {audienceLabels.map((label) => (
-              <Text key={label} style={styles.chip}>{label}</Text>
+              <AppText key={label} style={styles.chip}>{label}</AppText>
             ))}
           </View>
 
-          <Text style={styles.sectionTitle}>Event agenda</Text>
-          <View style={styles.agendaList}>
-            <AgendaItem
-              time="10:00 AM - 10:30 AM"
-              title="Registration & Welcome"
-              subtitle="Grab your badge and settle in."
-              styles={styles}
-            />
-            <AgendaItem
-              time="10:30 AM - 12:00 PM"
-              title="Main Session"
-              subtitle="Expert speakers and presentations."
-              styles={styles}
-            />
-          </View>
         </View>
       </ScrollView>
 
@@ -204,72 +237,150 @@ export default function EventDetailsScreen({
       <View style={[styles.floatingFooter, { paddingBottom: Math.max(insets.bottom, scale(12)) }]}>
         <View style={styles.footerInner}>
           <View>
-            <Text style={styles.priceLabel}>Price</Text>
-            <Text style={styles.priceValue}>FREE</Text>
+            <AppText style={styles.priceLabel}>Price</AppText>
+            <AppText style={styles.priceValue}>FREE</AppText>
           </View>
-          <Pressable
-            style={[styles.registerButton, isRegistrationDisabled && styles.registerButtonDisabled]}
-            onPress={onRegister}
-            disabled={isRegistrationDisabled}
-          >
-            <Text style={styles.registerText}>{registerLabel}</Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.primaryContrast} />
-          </Pressable>
+          {isRegistered ? (
+            <View style={{ flexDirection: "row", gap: scale(8), alignItems: "center" }}>
+              <Pressable
+                style={[styles.ticketButton, { backgroundColor: colors.accentTint, borderColor: colors.primary }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowTicketModal(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="View admission ticket"
+              >
+                <Ionicons name="qr-code-outline" size={16} color={colors.primary} />
+                <AppText style={[styles.ticketButtonText, { color: colors.primary }]}>View Ticket</AppText>
+              </Pressable>
+              <View style={[styles.registerButton, styles.registeredBadge]}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.primaryContrast} />
+                <AppText style={styles.registerText}>Registered</AppText>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              style={[styles.registerButton, isRegistrationDisabled && styles.registerButtonDisabled]}
+              onPress={async () => {
+                const result = await onRegister();
+                if (result?.ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }}
+              disabled={isRegistrationDisabled}
+              accessibilityRole="button"
+              accessibilityLabel={registerLabel}
+              accessibilityState={{ disabled: isRegistrationDisabled, busy: registering }}
+            >
+              <AppText style={styles.registerText}>{registerLabel}</AppText>
+              <Ionicons name="arrow-forward" size={14} color={colors.primaryContrast} />
+            </Pressable>
+          )}
         </View>
       </View>
-    </View>
-  );
-}
 
-function AgendaItem({ time, title, subtitle, styles }) {
-  return (
-    <View style={styles.agendaItem}>
-      <Text style={styles.agendaTime}>{time}</Text>
-      <Text style={styles.agendaTitle}>{title}</Text>
-      <Text style={styles.agendaSubtitle}>{subtitle}</Text>
+      {/* Digital Admission Pass Modal */}
+      <Modal
+        visible={showTicketModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTicketModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalDismiss} onPress={() => setShowTicketModal(false)} />
+          <View style={[styles.ticketCard, { backgroundColor: colors.surface }]}>
+            <View style={styles.ticketTopBanner}>
+              <View style={styles.ticketBrandRow}>
+                <Ionicons name="school" size={20} color="#fff" />
+                <AppText style={styles.ticketBrandText}>NSUK EVENT PASS</AppText>
+              </View>
+              <AppText style={styles.ticketEventTitle} numberOfLines={2}>
+                {event.title}
+              </AppText>
+              <View style={styles.ticketBadgeRow}>
+                <View style={styles.confirmedBadge}>
+                  <Ionicons name="checkmark-circle" size={12} color="#059669" />
+                  <AppText style={styles.confirmedText}>CONFIRMED ADMISSION</AppText>
+                </View>
+              </View>
+            </View>
+
+            {/* Perforated Divider */}
+            <View style={styles.perforatedRow}>
+              <View style={[styles.cutoutCircle, styles.cutoutLeft, { backgroundColor: "rgba(0,0,0,0.6)" }]} />
+              <View style={styles.dashedLine} />
+              <View style={[styles.cutoutCircle, styles.cutoutRight, { backgroundColor: "rgba(0,0,0,0.6)" }]} />
+            </View>
+
+            {/* Ticket Details */}
+            <View style={styles.ticketBody}>
+              <View style={styles.ticketDetailRow}>
+                <View style={{ flex: 1 }}>
+                  <AppText style={styles.ticketFieldLabel}>ATTENDEE</AppText>
+                  <AppText style={styles.ticketFieldValue} numberOfLines={1}>
+                    {user?.fullName || "Student Attendee"}
+                  </AppText>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <AppText style={styles.ticketFieldLabel}>ID / MATRIC</AppText>
+                  <AppText style={styles.ticketFieldValue}>
+                    {user?.matricNumber || user?.staffId || "NSUK-VERIFIED"}
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={[styles.ticketDetailRow, { marginTop: scale(12) }]}>
+                <View style={{ flex: 1 }}>
+                  <AppText style={styles.ticketFieldLabel}>DATE & TIME</AppText>
+                  <AppText style={styles.ticketFieldValue}>
+                    {formatEventDate(event.date)} • {event.time || "TBA"}
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={[styles.ticketDetailRow, { marginTop: scale(12) }]}>
+                <View style={{ flex: 1 }}>
+                  <AppText style={styles.ticketFieldLabel}>VENUE</AppText>
+                  <AppText style={styles.ticketFieldValue} numberOfLines={1}>
+                    {event.venue || "NSUK Campus"}
+                  </AppText>
+                </View>
+              </View>
+
+              {/* QR Code Pass */}
+              <View style={styles.qrContainer}>
+                <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
+                <AppText style={styles.qrCodeText}>
+                  PASS: {`NSUK-${String(event.id || "").slice(0, 8).toUpperCase()}`}
+                </AppText>
+                <AppText style={styles.qrInstruction}>
+                  Your RSVP is recorded. Follow the organizer&apos;s instructions for entry.
+                </AppText>
+              </View>
+
+              <Pressable
+                style={[styles.closeTicketBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setShowTicketModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close ticket"
+              >
+                <AppText style={styles.closeTicketText}>Done</AppText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 function formatEventDate(dateText) {
-  const parsed = new Date(dateText);
+  const parsed = new Date(`${dateText}T12:00:00`);
   if (Number.isNaN(parsed.getTime())) return dateText;
   return `${parsed.toLocaleString("en-US", { month: "short" })} ${parsed.getDate()}, ${parsed.getFullYear()}`;
 }
 
-function parseEventStartDateTime(dateText, timeText) {
-  if (!dateText) return null;
-  const baseDate = new Date(dateText);
-  if (Number.isNaN(baseDate.getTime())) return null;
-  const start = new Date(baseDate);
-  start.setHours(0, 0, 0, 0);
-
-  const rawTime = String(timeText || "").trim();
-  if (!rawTime) return start;
-
-  const twelveHour = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (twelveHour) {
-    let hour = Number(twelveHour[1]);
-    const minute = Number(twelveHour[2]);
-    const period = twelveHour[3].toUpperCase();
-    if (period === "PM" && hour < 12) hour += 12;
-    if (period === "AM" && hour === 12) hour = 0;
-    start.setHours(hour, minute, 0, 0);
-    return start;
-  }
-
-  const twentyFourHour = rawTime.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (twentyFourHour) {
-    const hour = Number(twentyFourHour[1]);
-    const minute = Number(twentyFourHour[2]);
-    start.setHours(hour, minute, 0, 0);
-    return start;
-  }
-  return start;
-}
-
 function getEventTimeStatus(event, nowTimestamp) {
-  const start = parseEventStartDateTime(event?.date, event?.time);
+  const start = eventStartTime(event);
   if (!start) return "UPCOMING";
   const hasTime = !!String(event?.time || "").trim();
   const end = new Date(start);
@@ -601,5 +712,169 @@ const getStyles = (colors, isDark) =>
       color: colors.primaryContrast,
       fontSize: ms(15),
       fontWeight: "900",
+    },
+    ticketButton: {
+      minHeight: scale(48),
+      borderRadius: 999,
+      paddingHorizontal: scale(16),
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(6),
+      borderWidth: 1.5,
+    },
+    ticketButtonText: {
+      fontSize: ms(14),
+      fontWeight: "800",
+    },
+    registeredBadge: {
+      backgroundColor: "#059669",
+      paddingHorizontal: scale(16),
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.65)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: scale(20),
+    },
+    modalDismiss: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    ticketCard: {
+      width: "100%",
+      maxWidth: 380,
+      borderRadius: scale(20),
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.35,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    ticketTopBanner: {
+      backgroundColor: colors.primary,
+      padding: scale(20),
+    },
+    ticketBrandRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(8),
+      marginBottom: scale(10),
+    },
+    ticketBrandText: {
+      color: "#fff",
+      fontSize: ms(12),
+      fontWeight: "900",
+      letterSpacing: 1,
+    },
+    ticketEventTitle: {
+      color: "#fff",
+      fontSize: ms(20),
+      fontWeight: "800",
+      lineHeight: ms(24),
+    },
+    ticketBadgeRow: {
+      marginTop: scale(12),
+    },
+    confirmedBadge: {
+      backgroundColor: "#fff",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(4),
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(4),
+      borderRadius: scale(6),
+      alignSelf: "flex-start",
+    },
+    confirmedText: {
+      color: "#059669",
+      fontSize: ms(11),
+      fontWeight: "800",
+      letterSpacing: 0.5,
+    },
+    perforatedRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      height: scale(24),
+      backgroundColor: colors.surface,
+      position: "relative",
+    },
+    cutoutCircle: {
+      width: scale(24),
+      height: scale(24),
+      borderRadius: scale(12),
+      position: "absolute",
+    },
+    cutoutLeft: {
+      left: -scale(12),
+    },
+    cutoutRight: {
+      right: -scale(12),
+    },
+    dashedLine: {
+      flex: 1,
+      height: 1,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderStyle: "dashed",
+      marginHorizontal: scale(18),
+    },
+    ticketBody: {
+      padding: scale(20),
+      paddingTop: scale(10),
+    },
+    ticketDetailRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    ticketFieldLabel: {
+      color: colors.textSubtle,
+      fontSize: ms(10),
+      fontWeight: "800",
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      marginBottom: scale(2),
+    },
+    ticketFieldValue: {
+      color: colors.text,
+      fontSize: ms(14),
+      fontWeight: "700",
+    },
+    qrContainer: {
+      alignItems: "center",
+      marginTop: scale(16),
+      paddingVertical: scale(12),
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: scale(12),
+    },
+    qrImage: {
+      width: scale(140),
+      height: scale(140),
+      borderRadius: scale(8),
+    },
+    qrCodeText: {
+      marginTop: scale(8),
+      fontSize: ms(12),
+      fontWeight: "800",
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    qrInstruction: {
+      marginTop: scale(4),
+      fontSize: ms(11),
+      color: colors.textMuted,
+      textAlign: "center",
+      paddingHorizontal: scale(10),
+    },
+    closeTicketBtn: {
+      marginTop: scale(16),
+      paddingVertical: scale(12),
+      borderRadius: scale(12),
+      alignItems: "center",
+    },
+    closeTicketText: {
+      color: "#fff",
+      fontSize: ms(15),
+      fontWeight: "800",
     },
   });

@@ -14,6 +14,12 @@ const palette = {
     primary: "#0b7a24",
     primaryContrast: "#ffffff",
     accent: "#166534",
+    accentContrast: "#ffffff",
+    accentTint: "#dcfce7",
+    surfaceSunken: "#f1f5f9",
+    borderStrong: "#94a3b8",
+    success: "#15803d",
+    warning: "#a16207",
     error: "#ef4444",
     unreadBg: "#f1f5f9",
     unreadBorder: "#0b7a24",
@@ -40,6 +46,12 @@ const palette = {
     primary: "#0b7a24",
     primaryContrast: "#ffffff",
     accent: "#166534",
+    accentContrast: "#ffffff",
+    accentTint: "#123b25",
+    surfaceSunken: "#020617",
+    borderStrong: "#64748b",
+    success: "#4ade80",
+    warning: "#facc15",
     error: "#ef4444",
     unreadBg: "#0f172a",
     unreadBorder: "#0b7a24",
@@ -55,6 +67,50 @@ const palette = {
     alphaTextLow: "rgba(226, 232, 240, 0.55)",
   },
 };
+
+export const typography = {
+  display: { fontSize: 30, lineHeight: 36, fontWeight: "700" },
+  h1: { fontSize: 24, lineHeight: 30, fontWeight: "700" },
+  h2: { fontSize: 20, lineHeight: 26, fontWeight: "600" },
+  h3: { fontSize: 17, lineHeight: 24, fontWeight: "600" },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
+  bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: "600" },
+  caption: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
+  label: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+};
+
+export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, "2xl": 24, "3xl": 32, "4xl": 40 };
+
+export const radii = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
+
+export function makeShadows(colors, isDark) {
+  if (isDark) {
+    return { none: {}, sm: {}, card: {} };
+  }
+  return {
+    none: {},
+    sm: {
+      shadowColor: colors.border,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    card: {
+      shadowColor: colors.border,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+  };
+}
 
 const ThemeContext = createContext({
   mode: "system",

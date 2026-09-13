@@ -1,7 +1,12 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { AppText } from "./AppText";
 import { useAppTheme } from "../theme/theme";
-import CustomButton from "./CustomButton";
+import { ms, scale } from "../utils/responsive";
 
+// Canonical event card (Home feed + lists). Modern Minimal: hairline border,
+// no shadow, category pill over the image, compact icon meta rows. The whole
+// card is the tap target (the old redundant "View Details" button is gone).
 export default function EventCard({
   id,
   title,
@@ -15,30 +20,47 @@ export default function EventCard({
 }) {
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
+  const a11yLabel = [title, category, date, venue].filter(Boolean).join(", ");
 
   return (
-    <Pressable style={styles.card} onPress={() => onPress(id)}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
+      onPress={() => onPress(id)}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityHint="Opens event details"
+    >
       <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: image }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
+        {!!category && (
+          <View style={styles.categoryChip}>
+            <AppText style={styles.categoryText}>{category}</AppText>
+          </View>
+        )}
       </View>
       <View style={styles.body}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.category}>{category}</Text>
-        </View>
+        <AppText variant="h3" numberOfLines={2} style={{ color: colors.text }}>
+          {title}
+        </AppText>
         {!!description && (
-          <Text style={styles.description} numberOfLines={2}>
+          <AppText variant="caption" numberOfLines={2} style={{ color: colors.textSubtle }}>
             {description}
-          </Text>
+          </AppText>
         )}
-        <Text style={styles.meta}>{date}</Text>
-        <Text style={styles.meta}>{time}</Text>
-        <Text style={styles.meta}>{venue}</Text>
-        <CustomButton title="View Details" onPress={() => onPress(id)} />
+        <View style={styles.metaRow}>
+          <Ionicons name="calendar-outline" size={14} color={colors.textSubtle} />
+          <AppText style={styles.meta} numberOfLines={1}>
+            {[date, time].filter(Boolean).join("  •  ")}
+          </AppText>
+        </View>
+        {!!venue && (
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={colors.textSubtle} />
+            <AppText style={styles.meta} numberOfLines={1}>
+              {venue}
+            </AppText>
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -46,65 +68,41 @@ export default function EventCard({
 
 const getStyles = (colors) =>
   StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    marginBottom: 14,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-  imageWrap: {
-    width: "100%",
-    height: 160,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceAlt,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-  },
-  body: {
-    padding: 12,
-    gap: 6,
-  },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    alignItems: "center",
-  },
-  title: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  category: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.textMuted,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  description: {
-    fontSize: 13,
-    color: colors.textSubtle,
-  },
-  meta: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
+    card: {
+      borderRadius: scale(16),
+      backgroundColor: colors.surface,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: scale(14),
+    },
+    imageWrap: {
+      width: "100%",
+      height: scale(150),
+      backgroundColor: colors.surfaceAlt,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    image: { width: "100%", height: "100%" },
+    categoryChip: {
+      position: "absolute",
+      top: scale(10),
+      left: scale(10),
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(4),
+      borderRadius: 999,
+    },
+    categoryText: {
+      fontSize: ms(11),
+      fontWeight: "600",
+      color: colors.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    body: { padding: scale(14), gap: scale(6) },
+    metaRow: { flexDirection: "row", alignItems: "center", gap: scale(6) },
+    meta: { flex: 1, fontSize: ms(13), color: colors.textMuted },
   });

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -19,10 +20,16 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
-        <Pressable onPress={onBack} style={styles.backButton}>
+        <Pressable
+          onPress={onBack}
+          style={styles.backButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
+        <AppText style={[styles.headerTitle, { color: colors.text }]}>Settings</AppText>
         <View style={styles.headerBadge}>
           <Ionicons name="settings" size={10} color={colors.primary} />
         </View>
@@ -65,7 +72,7 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
         />
 
         <View style={styles.reminderSection}>
-          <Text style={styles.reminderLabel}>REMINDER TIMING</Text>
+          <AppText style={styles.reminderLabel}>REMINDER TIMING</AppText>
           <View style={styles.pillRow}>
             {[
               "15m before",
@@ -78,8 +85,11 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
                   key={item}
                   style={[styles.pill, active && styles.pillActive]}
                   onPress={() => setReminderTiming(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={item}
+                  accessibilityState={{ selected: active }}
                 >
-                  <Text style={[styles.pillText, active && styles.pillTextActive]}>{item}</Text>
+                  <AppText style={[styles.pillText, active && styles.pillTextActive]}>{item}</AppText>
                 </Pressable>
               );
             })}
@@ -98,34 +108,39 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
             <View style={styles.iconWrap}>
               <Ionicons name="information-circle" size={15} color={colors.primary} />
             </View>
-            <Text style={styles.rowText}>Version</Text>
+            <AppText style={styles.rowText}>Version</AppText>
           </View>
           <View style={styles.versionTag}>
-            <Text style={styles.versionText}>v2.4.1-stable</Text>
+            <AppText style={styles.versionText}>v2.4.1-stable</AppText>
           </View>
         </View>
       </View>
 
-      <Pressable style={styles.logoutBtn} onPress={onLogout}>
+      <Pressable
+        style={styles.logoutBtn}
+        onPress={onLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Logout"
+      >
         <Ionicons name="log-out-outline" size={16} color={colors.error} />
-        <Text style={styles.logoutText}>Logout</Text>
+        <AppText style={styles.logoutText}>Logout</AppText>
       </Pressable>
     </ScrollView>
   );
 }
 
 function SectionTitle({ title, colors, styles }) {
-  return <Text style={styles.sectionTitle}>{title}</Text>;
+  return <AppText style={styles.sectionTitle}>{title}</AppText>;
 }
 
 function SettingsRow({ icon, label, colors, styles }) {
   return (
-    <Pressable style={styles.row}>
+    <Pressable style={styles.row} accessibilityRole="button" accessibilityLabel={label}>
       <View style={styles.rowLeft}>
         <View style={styles.iconWrap}>
           <Ionicons name={icon} size={15} color={colors.primary} />
         </View>
-        <Text style={styles.rowText}>{label}</Text>
+        <AppText style={styles.rowText}>{label}</AppText>
       </View>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
@@ -139,7 +154,7 @@ function ToggleRow({ icon, label, value, onValueChange, colors, styles }) {
         <View style={styles.iconWrap}>
           <Ionicons name={icon} size={15} color={colors.primary} />
         </View>
-        <Text style={styles.rowText}>{label}</Text>
+        <AppText style={styles.rowText}>{label}</AppText>
       </View>
       <Switch
         value={value}

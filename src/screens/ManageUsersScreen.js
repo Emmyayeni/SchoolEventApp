@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -102,10 +104,16 @@ export default function ManageUsersScreen({
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.headerRow, { paddingTop: (insets?.top ?? 0) + scale(8) }]}>
-        <Pressable style={styles.backBtn} onPress={onBack}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Manage Users</Text>
+        <AppText style={[styles.title, { color: colors.text }]}>Manage Users</AppText>
         <View style={styles.backBtn} />
       </View>
 
@@ -119,7 +127,7 @@ export default function ManageUsersScreen({
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={16} color={colors.textMuted} />
-        <TextInput
+        <AppTextInput
           style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search users..."
           placeholderTextColor={colors.textSubtle}
@@ -127,7 +135,12 @@ export default function ManageUsersScreen({
           onChangeText={setSearchText}
         />
         {searchText.length > 0 && (
-          <Pressable onPress={() => setSearchText("")}>
+          <Pressable
+            onPress={() => setSearchText("")}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close" size={16} color={colors.textMuted} />
           </Pressable>
         )}
@@ -140,8 +153,11 @@ export default function ManageUsersScreen({
             key={filter}
             style={[styles.filterTab, filterRole === filter && styles.filterTabActive]}
             onPress={() => setFilterRole(filter)}
+            accessibilityRole="button"
+            accessibilityLabel={filter}
+            accessibilityState={{ selected: filterRole === filter }}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterTabText,
                 { color: filterRole === filter ? colors.primaryContrast : colors.textMuted },
@@ -149,7 +165,7 @@ export default function ManageUsersScreen({
               ]}
             >
               {filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </Text>
+            </AppText>
           </Pressable>
         ))}
       </View>
@@ -164,9 +180,9 @@ export default function ManageUsersScreen({
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color={colors.borderSoft} />
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            <AppText style={[styles.emptyText, { color: colors.textMuted }]}>
               {searchText ? "No users match your search." : "No users found."}
-            </Text>
+            </AppText>
           </View>
         )}
         renderItem={({ item }) => (
@@ -194,6 +210,9 @@ function UserManageCard({ user, isMe, colors, styles, onView, onEdit, onDisable,
     <Pressable
       style={[styles.userCard, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
       onPress={onView}
+      accessibilityRole="button"
+      accessibilityLabel={user.fullName}
+      accessibilityHint="Opens user details"
     >
       <View style={styles.userCardHeader}>
         <View style={styles.userInfo}>
@@ -201,38 +220,42 @@ function UserManageCard({ user, isMe, colors, styles, onView, onEdit, onDisable,
             <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
           ) : (
             <View style={[styles.userAvatar, { backgroundColor: colors.primary + "30" }]}>
-              <Text style={{ color: colors.primary, fontWeight: "700", fontSize: ms(16) }}>
+              <AppText style={{ color: colors.primary, fontWeight: "700", fontSize: ms(16) }}>
                 {user.fullName?.charAt(0).toUpperCase()}
-              </Text>
+              </AppText>
             </View>
           )}
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Text style={[styles.userName, { color: isMe ? colors.primary : colors.text }]} numberOfLines={1}>
+              <AppText style={[styles.userName, { color: isMe ? colors.primary : colors.text }]} numberOfLines={1}>
                 {user.fullName} {isMe ? "(You)" : ""}
-              </Text>
+              </AppText>
               {isMe && (
                 <View style={{ backgroundColor: colors.primary + "20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}>
-                  <Text style={{ color: colors.primary, fontSize: ms(10), fontWeight: "bold" }}>Me</Text>
+                  <AppText style={{ color: colors.primary, fontSize: ms(10), fontWeight: "bold" }}>Me</AppText>
                 </View>
               )}
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-              <Text style={[styles.userRole, { color: colors.textMuted, marginTop: 0 }]}>
+              <AppText style={[styles.userRole, { color: colors.textMuted, marginTop: 0 }]}>
                 {user.accountType === "student" ? `${user.level || ''} Level • ${user.department || ''}` : user.roleDesignation || user.accountType}
-              </Text>
+              </AppText>
               {user.accountStatus === "pending" && (
                 <View style={{ backgroundColor: "#f59e0b20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                  <Text style={{ color: "#f59e0b", fontSize: ms(9), fontWeight: "bold", textTransform: "uppercase" }}>Pending</Text>
+                  <AppText style={{ color: "#f59e0b", fontSize: ms(9), fontWeight: "bold", textTransform: "uppercase" }}>Pending</AppText>
                 </View>
               )}
             </View>
-            <Text style={[styles.userEmail, { color: colors.textSubtle }]}>{user.email}</Text>
+            <AppText style={[styles.userEmail, { color: colors.textSubtle }]}>{user.email}</AppText>
           </View>
         </View>
         <Pressable
           style={styles.moreBtn}
           onPress={() => setShowActions(!showActions)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="More actions"
+          accessibilityState={{ expanded: showActions }}
         >
           <Ionicons name="ellipsis-vertical" size={16} color={colors.textMuted} />
         </Pressable>
@@ -279,8 +302,8 @@ function UserManageCard({ user, isMe, colors, styles, onView, onEdit, onDisable,
 function StatBadge({ label, value, colors, styles, isWarning }) {
   return (
     <View style={[styles.statBadge, { backgroundColor: isWarning ? "#f59e0b10" : colors.surface, borderColor: isWarning ? "#f59e0b50" : colors.borderSoft }]}>
-      <Text style={[styles.statValue, { color: isWarning ? "#f59e0b" : colors.primary }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: isWarning ? "#f59e0b" : colors.textMuted }]}>{label}</Text>
+      <AppText style={[styles.statValue, { color: isWarning ? "#f59e0b" : colors.primary }]}>{value}</AppText>
+      <AppText style={[styles.statLabel, { color: isWarning ? "#f59e0b" : colors.textMuted }]}>{label}</AppText>
     </View>
   );
 }
@@ -298,11 +321,13 @@ function ActionButton({ icon, label, onPress, colors, iconColor }) {
         },
       ]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Ionicons name={icon} size={16} color={iconColor} />
-      <Text style={{ marginLeft: scale(10), color: colors.text, fontSize: ms(12), fontWeight: "600" }}>
+      <AppText style={{ marginLeft: scale(10), color: colors.text, fontSize: ms(12), fontWeight: "600" }}>
         {label}
-      </Text>
+      </AppText>
     </Pressable>
   );
 }

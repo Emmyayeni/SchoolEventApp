@@ -510,7 +510,6 @@ export async function updateEventFromForm({ eventId, form, userId }) {
     .from("events")
     .update(payload)
     .eq("id", eventId)
-    .eq("created_by", userId)
     .select("*")
     .single();
 

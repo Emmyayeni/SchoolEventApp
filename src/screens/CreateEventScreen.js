@@ -2,7 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText } from "../components/AppText";
+import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { EVENT_CATEGORY_OPTIONS } from "../utils/constants";
@@ -149,11 +151,13 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
     }
 
     setSubmitting(true);
-    const success = await onSubmit();
     try {
+      const success = await onSubmit();
       if (success) {
         Alert.alert("Success", isEditMode ? "Event updated successfully" : "Event created successfully");
       }
+    } catch (error) {
+      Alert.alert("Save failed", error?.message || "Could not save this event.");
     } finally {
       setSubmitting(false);
     }
@@ -167,25 +171,36 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.topRow}>
-        <Pressable onPress={onBack} style={styles.backButton} disabled={formBusy}>
+        <Pressable
+          onPress={onBack}
+          style={styles.backButton}
+          disabled={formBusy}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityState={{ disabled: formBusy }}
+        >
           <Ionicons name="arrow-back" size={18} color={colors.accent} />
         </Pressable>
-        <Text style={styles.title}>{isEditMode ? "Edit Event" : "Create Event"}</Text>
+        <AppText style={styles.title}>{isEditMode ? "Edit Event" : "Create Event"}</AppText>
       </View>
 
-      <Text style={styles.sectionLabel}>Event Banner</Text>
+      <AppText style={styles.sectionLabel}>Event Banner</AppText>
       <Pressable
         style={[styles.bannerUpload, formBusy && styles.bannerUploadDisabled, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={handleUploadBanner}
         disabled={formBusy}
+        accessibilityRole="button"
+        accessibilityLabel="Upload event banner"
+        accessibilityState={{ disabled: formBusy, busy: uploadingBanner }}
       >
         <View style={styles.bannerIconWrap}>
           {uploadingBanner ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="camera" size={20} color={colors.primary} />}
         </View>
-        <Text style={styles.bannerText}>{uploadingBanner ? "Uploading image..." : "Click to upload image"}</Text>
-        <Text style={styles.bannerHint}>
+        <AppText style={styles.bannerText}>{uploadingBanner ? "Uploading image..." : "Click to upload image"}</AppText>
+        <AppText style={styles.bannerHint}>
           {values.image?.trim() ? "Image selected and ready" : "Recommended: 1200 x 675 pixels"}
-        </Text>
+        </AppText>
       </Pressable>
 
       <FormCard title="BASIC DETAILS" icon="ellipse" iconColor={colors.primary} styles={styles}>
@@ -316,13 +331,27 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
         </View>
       </FormCard>
 
-      <Pressable style={[styles.publishButton, formBusy && styles.buttonDisabled]} onPress={handleSubmit} disabled={formBusy}>
+      <Pressable
+        style={[styles.publishButton, formBusy && styles.buttonDisabled]}
+        onPress={handleSubmit}
+        disabled={formBusy}
+        accessibilityRole="button"
+        accessibilityLabel={isEditMode ? "Update event" : "Publish event"}
+        accessibilityState={{ disabled: formBusy, busy: submitting }}
+      >
         {submitting ? <ActivityIndicator size="small" color={colors.primaryContrast} /> : <Ionicons name="play" size={13} color={colors.primaryContrast} />}
-        <Text style={styles.publishText}>{submitting ? (isEditMode ? "Updating..." : "Publishing...") : (isEditMode ? "Update Event" : "Publish Event")}</Text>
+        <AppText style={styles.publishText}>{submitting ? (isEditMode ? "Updating..." : "Publishing...") : (isEditMode ? "Update Event" : "Publish Event")}</AppText>
       </Pressable>
 
-      <Pressable style={[styles.draftButton, formBusy && styles.buttonDisabled]} onPress={onBack} disabled={formBusy}>
-        <Text style={styles.draftText}>Save as Draft</Text>
+      <Pressable
+        style={[styles.draftButton, formBusy && styles.buttonDisabled]}
+        onPress={onBack}
+        disabled={formBusy}
+        accessibilityRole="button"
+        accessibilityLabel="Save as draft"
+        accessibilityState={{ disabled: formBusy }}
+      >
+        <AppText style={styles.draftText}>Save as Draft</AppText>
       </Pressable>
     </ScrollView>
   );
@@ -334,7 +363,7 @@ function FormCard({ title, icon, iconColor, children, styles }) {
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}> 
       <View style={styles.cardHeader}>
         <Ionicons name={icon} size={12} color={iconColor} />
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
+        <AppText style={[styles.cardTitle, { color: colors.text }]}>{title}</AppText>
       </View>
       {children}
     </View>
@@ -355,10 +384,10 @@ function Field({
   const styles = getStyles(colors);
   return (
     <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <AppText style={styles.fieldLabel}>{label}</AppText>
       <View style={[styles.inputWrap, multiline && styles.inputWrapMultiline, error && styles.inputWrapError]}>
         {!!leftIcon && <Ionicons name={leftIcon} size={15} color={colors.textSubtle} style={styles.leftIcon} />}
-        <TextInput
+        <AppTextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -373,7 +402,7 @@ function Field({
         />
         {!!rightIcon && <Ionicons name={rightIcon} size={15} color={colors.textMuted} style={styles.rightIcon} />}
       </View>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <AppText style={styles.errorText}>{error}</AppText>}
     </View>
   );
 }
@@ -384,18 +413,21 @@ function PickerField({ label, value, placeholder, error, icon, onPress, disabled
 
   return (
     <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <AppText style={styles.fieldLabel}>{label}</AppText>
       <Pressable
         style={[styles.inputWrap, error && styles.inputWrapError, disabled && styles.inputWrapDisabled]}
         onPress={onPress}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={value ? `${label}, ${value}` : label}
+        accessibilityState={{ disabled }}
       >
         <Ionicons name={icon} size={15} color={colors.textSubtle} style={styles.leftIcon} />
-        <Text style={[styles.input, styles.inputWithLeftIcon, !value && styles.inputPlaceholder]}>
+        <AppText style={[styles.input, styles.inputWithLeftIcon, !value && styles.inputPlaceholder]}>
           {value || placeholder}
-        </Text>
+        </AppText>
       </Pressable>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <AppText style={styles.errorText}>{error}</AppText>}
     </View>
   );
 }
@@ -416,16 +448,19 @@ function CategorySelectField({
 
   return (
     <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <AppText style={styles.fieldLabel}>{label}</AppText>
       <Pressable
         style={[styles.inputWrap, error && styles.inputWrapError, disabled && styles.inputWrapDisabled]}
         onPress={onToggle}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={value ? `${label}, ${value}` : label}
+        accessibilityState={{ expanded: isOpen, disabled }}
       >
         <Ionicons name="grid" size={15} color={colors.textSubtle} style={styles.leftIcon} />
-        <Text style={[styles.input, styles.inputWithLeftIcon, styles.inputWithRightIcon, !value && styles.inputPlaceholder]}>
+        <AppText style={[styles.input, styles.inputWithLeftIcon, styles.inputWithRightIcon, !value && styles.inputPlaceholder]}>
           {value || placeholder}
-        </Text>
+        </AppText>
         <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={15} color={colors.textMuted} style={styles.rightIcon} />
       </Pressable>
 
@@ -438,8 +473,11 @@ function CategorySelectField({
                 key={option}
                 style={[styles.categoryItem, active && styles.categoryItemActive]}
                 onPress={() => onSelect(option)}
+                accessibilityRole="button"
+                accessibilityLabel={option}
+                accessibilityState={{ selected: active }}
               >
-                <Text style={[styles.categoryItemText, active && styles.categoryItemTextActive]}>{option}</Text>
+                <AppText style={[styles.categoryItemText, active && styles.categoryItemTextActive]}>{option}</AppText>
                 {active && <Ionicons name="checkmark" size={14} color={colors.primary} />}
               </Pressable>
             );
@@ -447,7 +485,7 @@ function CategorySelectField({
         </View>
       )}
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <AppText style={styles.errorText}>{error}</AppText>}
     </View>
   );
 }
