@@ -1,108 +1,58 @@
-import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, View } from "react-native";
 import { AppText } from "./AppText";
+import { FadeInImage } from "./FadeInImage";
 import { useAppTheme } from "../theme/theme";
+import { formatEventDate, parseEventDate } from "../utils/eventTime";
 import { ms, scale } from "../utils/responsive";
 
-// Canonical event card (Home feed + lists). Modern Minimal: hairline border,
-// no shadow, category pill over the image, compact icon meta rows. The whole
-// card is the tap target (the old redundant "View Details" button is gone).
-export default function EventCard({
-  id,
-  title,
-  image,
-  date,
-  time,
-  venue,
-  category,
-  description,
-  onPress,
-}) {
-  const { colors } = useAppTheme();
-  const styles = getStyles(colors);
-  const a11yLabel = [title, category, date, venue].filter(Boolean).join(", ");
-
+export default function EventCard({ id, title, image, date, time, venue, category, onPress, bookmarked = false, onToggleBookmark, featured = false }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
+  const validDate = parseEventDate(date);
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
-      onPress={() => onPress(id)}
-      accessibilityRole="button"
-      accessibilityLabel={a11yLabel}
-      accessibilityHint="Opens event details"
-    >
-      <View style={styles.imageWrap}>
-        <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
-        {!!category && (
-          <View style={styles.categoryChip}>
-            <AppText style={styles.categoryText}>{category}</AppText>
+    <View style={styles.card}>
+      <Pressable onPress={() => onPress?.(id)} style={({ pressed }) => [pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={[title, formatEventDate(date), time, venue].filter(Boolean).join(", ")} accessibilityHint="Opens event details">
+        <View style={[styles.imageWrap, featured && styles.featuredImage]}>
+          <FadeInImage source={{ uri: image }} style={StyleSheet.absoluteFillObject} />
+          <View style={styles.dateBadge}>
+            <AppText style={styles.month}>{validDate ? formatEventDate(date, { month: "short" }).toUpperCase() : "DATE"}</AppText>
+            <AppText style={styles.day}>{validDate ? validDate.getUTCDate() : "TBC"}</AppText>
           </View>
-        )}
-      </View>
-      <View style={styles.body}>
-        <AppText variant="h3" numberOfLines={2} style={{ color: colors.text }}>
-          {title}
-        </AppText>
-        {!!description && (
-          <AppText variant="caption" numberOfLines={2} style={{ color: colors.textSubtle }}>
-            {description}
-          </AppText>
-        )}
-        <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={14} color={colors.textSubtle} />
-          <AppText style={styles.meta} numberOfLines={1}>
-            {[date, time].filter(Boolean).join("  •  ")}
-          </AppText>
+          {featured && <View style={styles.featuredBadge}><Ionicons name="sparkles" size={13} color="#fff" /><AppText style={styles.featuredText}>In the spotlight</AppText></View>}
         </View>
-        {!!venue && (
-          <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={14} color={colors.textSubtle} />
-            <AppText style={styles.meta} numberOfLines={1}>
-              {venue}
-            </AppText>
-          </View>
-        )}
-      </View>
-    </Pressable>
+        <View style={styles.body}>
+          {!!category && <AppText style={styles.category}>{category}</AppText>}
+          <AppText style={[styles.title, featured && styles.featuredTitle]} numberOfLines={2}>{title}</AppText>
+          <View style={styles.metaRow}><Ionicons name="time-outline" size={17} color={colors.textMuted} /><AppText style={styles.meta}>{[formatEventDate(date, { weekday: "short", month: "short", day: "numeric" }), time || "Time to be confirmed"].filter(Boolean).join(" · ")}</AppText></View>
+          <View style={styles.metaRow}><Ionicons name="location-outline" size={17} color={colors.textMuted} /><AppText style={styles.meta} numberOfLines={2}>{venue || "Venue to be confirmed"}</AppText></View>
+          {featured && <View style={styles.detailsRow}><AppText style={styles.details}>Explore this event</AppText><Ionicons name="arrow-forward" size={18} color={colors.accent} /></View>}
+        </View>
+      </Pressable>
+      {onToggleBookmark && <Pressable onPress={() => onToggleBookmark(id)} style={({ pressed }) => [styles.bookmark, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`${bookmarked ? "Unsave" : "Save"} ${title}`} accessibilityState={{ selected: bookmarked }}>
+        <Ionicons name={bookmarked ? "bookmark" : "bookmark-outline"} size={21} color={bookmarked ? "#0b7a24" : "#253c30"} />
+      </Pressable>}
+    </View>
   );
 }
 
-const getStyles = (colors) =>
-  StyleSheet.create({
-    card: {
-      borderRadius: scale(16),
-      backgroundColor: colors.surface,
-      overflow: "hidden",
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: scale(14),
-    },
-    imageWrap: {
-      width: "100%",
-      height: scale(150),
-      backgroundColor: colors.surfaceAlt,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    image: { width: "100%", height: "100%" },
-    categoryChip: {
-      position: "absolute",
-      top: scale(10),
-      left: scale(10),
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      paddingHorizontal: scale(10),
-      paddingVertical: scale(4),
-      borderRadius: 999,
-    },
-    categoryText: {
-      fontSize: ms(11),
-      fontWeight: "600",
-      color: colors.textMuted,
-      textTransform: "uppercase",
-      letterSpacing: 0.4,
-    },
-    body: { padding: scale(14), gap: scale(6) },
-    metaRow: { flexDirection: "row", alignItems: "center", gap: scale(6) },
-    meta: { flex: 1, fontSize: ms(13), color: colors.textMuted },
-  });
+const getStyles = (colors, isDark) => StyleSheet.create({
+  card: { backgroundColor: isDark ? colors.surface : "#fff", borderRadius: 22, borderWidth: 1, borderColor: isDark ? colors.borderSoft : "#e2e8e0", overflow: "hidden", marginBottom: 16 },
+  pressed: { opacity: 0.82 },
+  imageWrap: { height: scale(155), backgroundColor: colors.surfaceAlt },
+  featuredImage: { height: scale(190) },
+  dateBadge: { position: "absolute", top: 14, left: 14, minWidth: 58, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 14, backgroundColor: "#fff", alignItems: "center" },
+  month: { color: "#0b7a24", fontSize: ms(11), fontWeight: "700", letterSpacing: 1 },
+  day: { color: "#203729", fontSize: ms(24), fontWeight: "700" },
+  bookmark: { position: "absolute", top: 14, right: 14, width: 48, height: 48, borderRadius: 24, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  featuredBadge: { position: "absolute", bottom: 14, left: 14, backgroundColor: "#174b33", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 6 },
+  featuredText: { color: "#fff", fontSize: ms(12), fontWeight: "600" },
+  body: { padding: 18, gap: 9 },
+  category: { color: colors.accent, fontSize: ms(12), fontWeight: "600" },
+  title: { fontSize: ms(20), lineHeight: ms(27), fontWeight: "600", color: colors.text },
+  featuredTitle: { fontSize: ms(23), lineHeight: ms(29) },
+  metaRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  meta: { flex: 1, color: colors.textMuted, fontSize: ms(13), lineHeight: ms(20) },
+  detailsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderColor: colors.borderSoft, paddingTop: 13, marginTop: 4 },
+  details: { color: colors.accent, fontSize: ms(14), fontWeight: "600" },
+});

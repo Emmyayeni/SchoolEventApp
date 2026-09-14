@@ -17,7 +17,10 @@ try {
     Notifications = require("expo-notifications");
   }
 } catch (e) {
-  console.log("[Notifications] expo-notifications module unavailable:", e?.message || e);
+  console.log(
+    "[Notifications] expo-notifications module unavailable:",
+    e?.message || e,
+  );
 }
 
 // Configure foreground notification behavior
@@ -35,7 +38,9 @@ try {
     });
   }
 } catch (_e) {
-  console.log("[Notifications] Push notifications disabled in this environment.");
+  console.log(
+    "[Notifications] Push notifications disabled in this environment.",
+  );
 }
 
 /**
@@ -67,7 +72,10 @@ async function configureAndroidChannels() {
       showBadge: true,
     });
   } catch (err) {
-    console.warn("[Notifications] Failed to setup Android channels:", err?.message || err);
+    console.warn(
+      "[Notifications] Failed to setup Android channels:",
+      err?.message || err,
+    );
   }
 }
 
@@ -98,7 +106,10 @@ export async function getNotificationPermissionsAsync() {
     const permissions = await Notifications.getPermissionsAsync();
     return permissions;
   } catch (e) {
-    console.warn("[Notifications] Error checking permissions:", e?.message || e);
+    console.warn(
+      "[Notifications] Error checking permissions:",
+      e?.message || e,
+    );
     return { granted: false, status: "error" };
   }
 }
@@ -114,7 +125,10 @@ export async function requestNotificationPermissionsAsync() {
     const permissions = await Notifications.requestPermissionsAsync();
     return permissions;
   } catch (e) {
-    console.warn("[Notifications] Error requesting permissions:", e?.message || e);
+    console.warn(
+      "[Notifications] Error requesting permissions:",
+      e?.message || e,
+    );
     return { granted: false, status: "error" };
   }
 }
@@ -125,12 +139,13 @@ export async function requestNotificationPermissionsAsync() {
  */
 export async function registerForPushNotificationsAsync(userId) {
   if (Platform.OS === "web") {
-    console.log("[Notifications] Push notifications not supported on web without VAPID config.");
+    console.log(
+      "[Notifications] Push notifications not supported on web without VAPID config.",
+    );
     return null;
   }
 
   if (isExpoGo || !Notifications) {
-    console.log("[Notifications] Push notifications are not supported in Expo Go. Use a development build.");
     return null;
   }
 
@@ -139,7 +154,8 @@ export async function registerForPushNotificationsAsync(userId) {
   let token = null;
 
   if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     if (existingStatus !== "granted") {
@@ -148,14 +164,18 @@ export async function registerForPushNotificationsAsync(userId) {
     }
 
     if (finalStatus !== "granted") {
-      console.log("[Notifications] Permission not granted for push notifications.");
+      console.log(
+        "[Notifications] Permission not granted for push notifications.",
+      );
       return null;
     }
 
     try {
       const projectId = getEasProjectId();
       if (!projectId) {
-        console.warn("[Notifications] EAS Project ID not found in app config; token request may fail.");
+        console.warn(
+          "[Notifications] EAS Project ID not found in app config; token request may fail.",
+        );
       }
 
       const params = projectId ? { projectId } : {};
@@ -163,11 +183,16 @@ export async function registerForPushNotificationsAsync(userId) {
       token = pushTokenData?.data ?? null;
       console.log("[Notifications] Expo Push Token obtained:", token);
     } catch (e) {
-      console.error("[Notifications] Error getting push token:", e?.message || e);
+      console.error(
+        "[Notifications] Error getting push token:",
+        e?.message || e,
+      );
       return null;
     }
   } else {
-    console.log("[Notifications] Push notifications require a physical device.");
+    console.log(
+      "[Notifications] Push notifications require a physical device.",
+    );
     return null;
   }
 
@@ -183,12 +208,20 @@ export async function registerForPushNotificationsAsync(userId) {
         .eq("id", userId);
 
       if (error) {
-        console.error("[Notifications] Error saving push token to profile:", error.message);
+        console.error(
+          "[Notifications] Error saving push token to profile:",
+          error.message,
+        );
       } else {
-        console.log("[Notifications] Push token successfully synchronized with Supabase profile.");
+        console.log(
+          "[Notifications] Push token successfully synchronized with Supabase profile.",
+        );
       }
     } catch (e) {
-      console.error("[Notifications] Exception saving push token to Supabase:", e?.message || e);
+      console.error(
+        "[Notifications] Exception saving push token to Supabase:",
+        e?.message || e,
+      );
     }
   }
 
@@ -216,7 +249,8 @@ export async function scheduleEventReminderAsync({
   if (!Notifications) return null;
 
   try {
-    const trigger = triggerDate instanceof Date ? triggerDate : new Date(triggerDate);
+    const trigger =
+      triggerDate instanceof Date ? triggerDate : new Date(triggerDate);
     if (isNaN(trigger.getTime()) || trigger.getTime() <= Date.now()) {
       console.warn("[Notifications] Trigger date must be in the future.");
       return null;
@@ -240,7 +274,10 @@ export async function scheduleEventReminderAsync({
 
     return notificationId;
   } catch (err) {
-    console.error("[Notifications] Error scheduling reminder:", err?.message || err);
+    console.error(
+      "[Notifications] Error scheduling reminder:",
+      err?.message || err,
+    );
     return null;
   }
 }
@@ -254,7 +291,10 @@ export async function cancelScheduledNotificationAsync(notificationId) {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
     return true;
   } catch (err) {
-    console.error("[Notifications] Error canceling notification:", err?.message || err);
+    console.error(
+      "[Notifications] Error canceling notification:",
+      err?.message || err,
+    );
     return false;
   }
 }
@@ -268,7 +308,10 @@ export async function cancelAllScheduledNotificationsAsync() {
     await Notifications.cancelAllScheduledNotificationsAsync();
     return true;
   } catch (err) {
-    console.error("[Notifications] Error canceling all notifications:", err?.message || err);
+    console.error(
+      "[Notifications] Error canceling all notifications:",
+      err?.message || err,
+    );
     return false;
   }
 }
@@ -281,46 +324,78 @@ export async function getAllScheduledNotificationsAsync() {
   try {
     return await Notifications.getAllScheduledNotificationsAsync();
   } catch (err) {
-    console.error("[Notifications] Error getting scheduled notifications:", err?.message || err);
+    console.error(
+      "[Notifications] Error getting scheduled notifications:",
+      err?.message || err,
+    );
     return [];
   }
 }
 
 let reminderSync = Promise.resolve();
 
-export function syncEventReminders({ userId, events = [], registeredEventIds = [] }) {
+export function syncEventReminders({
+  userId,
+  events = [],
+  registeredEventIds = [],
+}) {
   // Serialize updates so a stale refresh cannot recreate reminders after logout.
-  reminderSync = reminderSync.catch(() => {}).then(async () => {
-    if (!Notifications) return;
-    const desired = new Map();
-    if (userId) for (const event of events) {
-      if (!registeredEventIds.includes(event.id) || event.status !== "published") continue;
-      const start = eventStartTime(event);
-      const reminderAt = start ? start.getTime() - 15 * 60000 : 0;
-      if (reminderAt <= Date.now()) continue;
-      desired.set(`nsuk-reminder:${userId}:${event.id}`, { event, reminderAt });
-    }
-    const existing = await getAllScheduledNotificationsAsync();
-    for (const notification of existing) {
-      if (notification.content?.data?.type !== "event-reminder") continue;
-      const next = desired.get(notification.identifier);
-      if (next && notification.content.data.reminderAt === next.reminderAt && notification.content.body === `${next.event.title} · ${next.event.venue}`) {
-        desired.delete(notification.identifier);
-      } else {
-        await cancelScheduledNotificationAsync(notification.identifier);
+  reminderSync = reminderSync
+    .catch(() => {})
+    .then(async () => {
+      if (!Notifications) return;
+      const desired = new Map();
+      if (userId)
+        for (const event of events) {
+          if (
+            !registeredEventIds.includes(event.id) ||
+            event.status !== "published"
+          )
+            continue;
+          const start = eventStartTime(event);
+          const reminderAt = start ? start.getTime() - 15 * 60000 : 0;
+          if (reminderAt <= Date.now()) continue;
+          desired.set(`nsuk-reminder:${userId}:${event.id}`, {
+            event,
+            reminderAt,
+          });
+        }
+      const existing = await getAllScheduledNotificationsAsync();
+      for (const notification of existing) {
+        if (notification.content?.data?.type !== "event-reminder") continue;
+        const next = desired.get(notification.identifier);
+        if (
+          next &&
+          notification.content.data.reminderAt === next.reminderAt &&
+          notification.content.body ===
+            `${next.event.title} · ${next.event.venue}`
+        ) {
+          desired.delete(notification.identifier);
+        } else {
+          await cancelScheduledNotificationAsync(notification.identifier);
+        }
       }
-    }
-    for (const [identifier, { event, reminderAt }] of desired) {
-      await scheduleEventReminderAsync({ identifier, title: "Your event starts in 15 minutes", body: `${event.title} · ${event.venue}`, triggerDate: new Date(reminderAt), data: { eventId: event.id, type: "event-reminder", reminderAt } });
-    }
-  });
+      for (const [identifier, { event, reminderAt }] of desired) {
+        await scheduleEventReminderAsync({
+          identifier,
+          title: "Your event starts in 15 minutes",
+          body: `${event.title} · ${event.venue}`,
+          triggerDate: new Date(reminderAt),
+          data: { eventId: event.id, type: "event-reminder", reminderAt },
+        });
+      }
+    });
   return reminderSync;
 }
 
 /**
  * Triggers an immediate local notification (useful for in-app alert or testing)
  */
-export async function presentLocalNotificationAsync({ title, body, data = {} }) {
+export async function presentLocalNotificationAsync({
+  title,
+  body,
+  data = {},
+}) {
   if (!Notifications) return null;
   try {
     return await Notifications.scheduleNotificationAsync({
@@ -334,7 +409,10 @@ export async function presentLocalNotificationAsync({ title, body, data = {} }) 
       trigger: null, // triggers immediately
     });
   } catch (err) {
-    console.error("[Notifications] Error presenting local notification:", err?.message || err);
+    console.error(
+      "[Notifications] Error presenting local notification:",
+      err?.message || err,
+    );
     return null;
   }
 }
@@ -348,7 +426,10 @@ export async function setBadgeCountAsync(count) {
     await Notifications.setBadgeCountAsync(Math.max(0, count));
     return true;
   } catch (err) {
-    console.warn("[Notifications] Error setting badge count:", err?.message || err);
+    console.warn(
+      "[Notifications] Error setting badge count:",
+      err?.message || err,
+    );
     return false;
   }
 }
@@ -368,7 +449,10 @@ export async function getBadgeCountAsync() {
   try {
     return await Notifications.getBadgeCountAsync();
   } catch (err) {
-    console.warn("[Notifications] Error getting badge count:", err?.message || err);
+    console.warn(
+      "[Notifications] Error getting badge count:",
+      err?.message || err,
+    );
     return 0;
   }
 }
@@ -413,7 +497,10 @@ export async function getInitialNotificationData() {
     const response = await Notifications.getLastNotificationResponseAsync();
     return response?.notification?.request?.content?.data ?? null;
   } catch (e) {
-    console.log("[Notifications] Could not read initial notification response:", e?.message || e);
+    console.log(
+      "[Notifications] Could not read initial notification response:",
+      e?.message || e,
+    );
     return null;
   }
 }

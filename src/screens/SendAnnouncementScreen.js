@@ -2,10 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+    Alert,
+    Image,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
@@ -16,7 +24,10 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark);
 
-  const [selectedAudience, setSelectedAudience] = useState(["All Students", "Staff Only"]);
+  const [selectedAudience, setSelectedAudience] = useState([
+    "All Students",
+    "Staff Only",
+  ]);
   const [sending, setSending] = useState(false);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -29,9 +40,13 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
 
   const pickImage = async ({ onSelect }) => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permission required", "Please allow photo access to add an image.");
+        Alert.alert(
+          "Permission required",
+          "Please allow photo access to add an image.",
+        );
         return;
       }
 
@@ -51,10 +66,13 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
     }
   };
 
-  const scheduledLabel = `${scheduledAt.toLocaleDateString()} ${scheduledAt.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  const scheduledLabel = `${scheduledAt.toLocaleDateString()} ${scheduledAt.toLocaleTimeString(
+    [],
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
 
   const handleScheduledDateChange = (_event, date) => {
     if (Platform.OS === "android") {
@@ -107,29 +125,33 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
 
     setSending(true);
     try {
-    if (onSendAnnouncement) {
-      const result = await onSendAnnouncement({
-        subject,
-        message,
-        targetAudience: selectedAudience,
-        scheduledAt: scheduleMode === "later" ? scheduledAt.toISOString() : null,
-        mainImageUri,
-        attachmentUris,
-      });
+      if (onSendAnnouncement) {
+        const result = await onSendAnnouncement({
+          subject,
+          message,
+          targetAudience: selectedAudience,
+          scheduledAt:
+            scheduleMode === "later" ? scheduledAt.toISOString() : null,
+          mainImageUri,
+          attachmentUris,
+        });
 
-      if (!result?.ok) {
-        return;
+        if (!result?.ok) {
+          return;
+        }
+      } else {
+        throw new Error("Announcement service is unavailable.");
       }
-    } else {
-      throw new Error("Announcement service is unavailable.");
-    }
 
-    setSubject("");
-    setMessage("");
-    setMainImageUri("");
-    setAttachmentUris([]);
+      setSubject("");
+      setMessage("");
+      setMainImageUri("");
+      setAttachmentUris([]);
     } catch (error) {
-      Alert.alert("Send failed", error?.message || "Could not send this announcement.");
+      Alert.alert(
+        "Send failed",
+        error?.message || "Could not send this announcement.",
+      );
     } finally {
       setSending(false);
     }
@@ -138,7 +160,10 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: (insets?.top ?? 0) + scale(8) },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headerRow}>
@@ -168,7 +193,14 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
               accessibilityLabel={item}
               accessibilityState={{ selected: active }}
             >
-              <AppText style={[styles.audienceText, active && styles.audienceTextActive]}>{item}</AppText>
+              <AppText
+                style={[
+                  styles.audienceText,
+                  active && styles.audienceTextActive,
+                ]}
+              >
+                {item}
+              </AppText>
               <Ionicons
                 name={active ? "close-circle" : "chevron-down"}
                 size={13}
@@ -208,7 +240,11 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
       >
         {mainImageUri ? (
           <View style={styles.previewWrap}>
-            <Image source={{ uri: mainImageUri }} style={styles.previewImage} resizeMode="cover" />
+            <Image
+              source={{ uri: mainImageUri }}
+              style={styles.previewImage}
+              resizeMode="cover"
+            />
             <Pressable
               style={styles.removeBadge}
               onPress={() => setMainImageUri("")}
@@ -224,7 +260,9 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
             <View style={styles.attachIconWrap}>
               <Ionicons name="image-outline" size={18} color={colors.accent} />
             </View>
-            <AppText style={styles.attachText}>Tap to choose announcement cover image</AppText>
+            <AppText style={styles.attachText}>
+              Tap to choose announcement cover image
+            </AppText>
             <AppText style={styles.attachHint}>JPG, PNG, WEBP</AppText>
           </>
         )}
@@ -233,13 +271,23 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
       <AppText style={styles.sectionTitle}>DELIVERY</AppText>
       <View style={styles.scheduleRow}>
         <Pressable
-          style={[styles.scheduleChip, scheduleMode === "now" && styles.scheduleChipActive]}
+          style={[
+            styles.scheduleChip,
+            scheduleMode === "now" && styles.scheduleChipActive,
+          ]}
           onPress={() => setScheduleMode("now")}
           accessibilityRole="button"
           accessibilityLabel="Send now"
           accessibilityState={{ selected: scheduleMode === "now" }}
         >
-          <AppText style={[styles.scheduleChipText, scheduleMode === "now" && styles.scheduleChipTextActive]}>Send Now</AppText>
+          <AppText
+            style={[
+              styles.scheduleChipText,
+              scheduleMode === "now" && styles.scheduleChipTextActive,
+            ]}
+          >
+            Send Now
+          </AppText>
         </Pressable>
       </View>
 
@@ -255,7 +303,11 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
               accessibilityRole="button"
               accessibilityLabel="Pick date"
             >
-              <Ionicons name="calendar-outline" size={14} color={colors.accent} />
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color={colors.accent}
+              />
               <AppText style={styles.scheduleBtnText}>Pick Date</AppText>
             </Pressable>
 
@@ -276,7 +328,7 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
                 value={scheduledAt}
                 mode="date"
                 display={Platform.OS === "ios" ? "inline" : "default"}
-                onChange={handleScheduledDateChange}
+                onValueChange={handleScheduledDateChange}
               />
             </View>
           )}
@@ -287,7 +339,7 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
                 value={scheduledAt}
                 mode="time"
                 display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={handleScheduledTimeChange}
+                onValueChange={handleScheduledTimeChange}
               />
             </View>
           )}
@@ -315,7 +367,9 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         <View style={styles.attachIconWrap}>
           <Ionicons name="document-attach" size={18} color={colors.accent} />
         </View>
-        <AppText style={styles.attachText}>Tap to add attachment images ({attachmentUris.length}/5)</AppText>
+        <AppText style={styles.attachText}>
+          Tap to add attachment images ({attachmentUris.length}/5)
+        </AppText>
         <AppText style={styles.attachHint}>JPG, PNG, WEBP</AppText>
       </Pressable>
 
@@ -323,15 +377,27 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         <View style={styles.attachmentPreviewRow}>
           {attachmentUris.map((uri, index) => (
             <View key={`${uri}-${index}`} style={styles.attachmentThumbWrap}>
-              <Image source={{ uri }} style={styles.attachmentThumb} resizeMode="cover" />
+              <Image
+                source={{ uri }}
+                style={styles.attachmentThumb}
+                resizeMode="cover"
+              />
               <Pressable
                 style={styles.removeAttachmentBtn}
-                onPress={() => setAttachmentUris((prev) => prev.filter((item) => item !== uri))}
+                onPress={() =>
+                  setAttachmentUris((prev) =>
+                    prev.filter((item) => item !== uri),
+                  )
+                }
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Remove attachment"
               >
-                <Ionicons name="close" size={10} color={colors.primaryContrast} />
+                <Ionicons
+                  name="close"
+                  size={10}
+                  color={colors.primaryContrast}
+                />
               </Pressable>
             </View>
           ))}
@@ -346,11 +412,14 @@ export default function SendAnnouncementScreen({ onBack, onSendAnnouncement }) {
         accessibilityLabel="Send notification"
       >
         <Ionicons name="paper-plane" size={14} color={colors.primaryContrast} />
-        <AppText style={styles.sendText}>{sending ? "Sending…" : "Send Announcement"}</AppText>
+        <AppText style={styles.sendText}>
+          {sending ? "Sending…" : "Send Announcement"}
+        </AppText>
       </Pressable>
 
       <AppText style={styles.footerHint}>
-        Publish this announcement for the selected audience. Device alerts require notification permission.
+        Publish this announcement for the selected audience. Device alerts
+        require notification permission.
       </AppText>
     </ScrollView>
   );

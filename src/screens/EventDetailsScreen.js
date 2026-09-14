@@ -1,15 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useMemo, useState } from "react";
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, View, Share } from "react-native";
 import { Image } from "expo-image";
-import { FadeInImage } from "../components/FadeInImage";
-import { AppText } from "../components/AppText";
+import { useMemo, useState } from "react";
+import {
+    Alert,
+    Linking,
+    Modal,
+    Pressable,
+    ScrollView,
+    Share,
+    StyleSheet,
+    View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppText } from "../components/AppText";
+import { FadeInImage } from "../components/FadeInImage";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../theme/theme";
+import {
+    eventCalendarUrl,
+    eventTimeStatus,
+    formatEventDate,
+} from "../utils/eventTime";
 import { ms, scale } from "../utils/responsive";
-import { eventCalendarUrl, eventTimeStatus, formatEventDate } from "../utils/eventTime";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
 export default function EventDetailsScreen({
@@ -33,11 +46,16 @@ export default function EventDetailsScreen({
   const insets = useSafeAreaInsets();
   const nowTs = useCurrentTime();
   const [showTicketModal, setShowTicketModal] = useState(false);
-  
-  const eventStatus = useMemo(() => ["cancelled", "draft"].includes(event.status)
-    ? event.status.toUpperCase() : eventTimeStatus(event, nowTs).toUpperCase(), [event, nowTs]);
+
+  const eventStatus = useMemo(
+    () =>
+      ["cancelled", "draft"].includes(event.status)
+        ? event.status.toUpperCase()
+        : eventTimeStatus(event, nowTs).toUpperCase(),
+    [event, nowTs],
+  );
   const isPast = eventStatus === "PAST";
-  
+
   const capacity = Number(event?.capacity);
   const count = Number(event?.registeredCount);
   const isFull = Number.isFinite(capacity) && capacity > 0 && count >= capacity;
@@ -57,7 +75,12 @@ export default function EventDetailsScreen({
   if (eventStatus === "DRAFT") registerLabel = "Not Published";
   if (eventStatus === "UNKNOWN") registerLabel = "Time to Be Confirmed";
 
-  const isRegistrationDisabled = isPast || isRegistered || isWaitlisted || registering || ["CANCELLED", "DRAFT", "UNKNOWN"].includes(eventStatus);
+  const isRegistrationDisabled =
+    isPast ||
+    isRegistered ||
+    isWaitlisted ||
+    registering ||
+    ["CANCELLED", "DRAFT", "UNKNOWN"].includes(eventStatus);
 
   const handleShare = async () => {
     try {
@@ -77,15 +100,19 @@ export default function EventDetailsScreen({
     }
   };
 
-  const audienceLabels = useMemo(() => getAudienceLabels(event?.targetAudience), [event?.targetAudience]);
+  const audienceLabels = useMemo(
+    () => getAudienceLabels(event?.targetAudience),
+    [event?.targetAudience],
+  );
   const registeredUsers = useMemo(() => {
     if (!Array.isArray(event?.registeredUsers)) return [];
     return event.registeredUsers.slice(0, 3);
   }, [event?.registeredUsers]);
-  
+
   const registrationSummary = useMemo(() => {
     const count = Number(event?.registeredCount);
-    if (event?.registeredCount == null || !Number.isFinite(count) || count < 0) return "RSVP to join this event";
+    if (event?.registeredCount == null || !Number.isFinite(count) || count < 0)
+      return "RSVP to join this event";
     const capacity = Number(event?.capacity);
     if (Number.isFinite(capacity) && capacity > 0) {
       return `${count} registered • ${Math.max(capacity - count, 0)} spots left`;
@@ -100,14 +127,25 @@ export default function EventDetailsScreen({
         <FadeInImage
           source={{ uri: event.image }}
           style={styles.absoluteImage}
-          resizeMode="cover"
+          contentFit="cover"
         />
         <View style={styles.absoluteOverlay} />
       </View>
 
       {/* Floating Top Actions */}
-      <View style={[styles.topBarAbsolute, { top: Math.max(insets.top, scale(12)) }]}>
-        <Pressable onPress={onBack} style={styles.glassBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back">
+      <View
+        style={[
+          styles.topBarAbsolute,
+          { top: Math.max(insets.top, scale(12)) },
+        ]}
+      >
+        <Pressable
+          onPress={onBack}
+          style={styles.glassBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </Pressable>
         <View style={styles.topActionsRight}>
@@ -128,12 +166,24 @@ export default function EventDetailsScreen({
             }}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={isBookmarked ? "Remove bookmark" : "Bookmark event"}
+            accessibilityLabel={
+              isBookmarked ? "Remove bookmark" : "Bookmark event"
+            }
           >
-            <Ionicons name={isBookmarked ? "bookmark" : "bookmark-outline"} size={18} color="#fff" />
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={18}
+              color="#fff"
+            />
           </Pressable>
           {canManageEvent && (
-            <Pressable style={styles.glassBtn} onPress={onEditEvent} hitSlop={8} accessibilityRole="button" accessibilityLabel="Edit event">
+            <Pressable
+              style={styles.glassBtn}
+              onPress={onEditEvent}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Edit event"
+            >
               <Ionicons name="create-outline" size={18} color="#fff" />
             </Pressable>
           )}
@@ -150,7 +200,13 @@ export default function EventDetailsScreen({
               <Ionicons name="trash-outline" size={18} color={colors.error} />
             </Pressable>
           )}
-          <Pressable style={styles.glassBtn} onPress={handleShare} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share event">
+          <Pressable
+            style={styles.glassBtn}
+            onPress={handleShare}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Share event"
+          >
             <Ionicons name="share-social" size={18} color="#fff" />
           </Pressable>
         </View>
@@ -159,13 +215,20 @@ export default function EventDetailsScreen({
       {/* Scrollable Content overlapping the image */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: scale(220), paddingBottom: scale(140) }}
+        contentContainerStyle={{
+          paddingTop: scale(220),
+          paddingBottom: scale(140),
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mainContentSheet}>
           <View style={styles.badgeRow}>
-            <AppText style={[styles.badge, styles.badgeGreen]}>{event.category || "CAMPUS EVENT"}</AppText>
-            {eventStatus === "ONGOING" && <AppText style={[styles.badge, styles.badgeLive]}>LIVE</AppText>}
+            <AppText style={[styles.badge, styles.badgeGreen]}>
+              {event.category || "CAMPUS EVENT"}
+            </AppText>
+            {eventStatus === "ONGOING" && (
+              <AppText style={[styles.badge, styles.badgeLive]}>LIVE</AppText>
+            )}
           </View>
 
           <AppText style={styles.eventTitle}>{event.title}</AppText>
@@ -180,17 +243,19 @@ export default function EventDetailsScreen({
             </View>
           </View>
 
-          <View style={styles.infoCard}> 
+          <View style={styles.infoCard}>
             <View style={styles.infoIconWrap}>
               <Ionicons name="calendar" size={16} color={colors.accent} />
             </View>
             <View>
               <AppText style={styles.infoLabel}>Date & Time</AppText>
-              <AppText style={styles.infoValue}>{formatEventDate(event.date)} • {event.time}</AppText>
+              <AppText style={styles.infoValue}>
+                {formatEventDate(event.date)} • {event.time}
+              </AppText>
             </View>
           </View>
 
-          <View style={styles.infoCard}> 
+          <View style={styles.infoCard}>
             <View style={styles.infoIconWrap}>
               <Ionicons name="location" size={16} color={colors.accent} />
             </View>
@@ -200,51 +265,88 @@ export default function EventDetailsScreen({
             </View>
           </View>
 
-          <View style={styles.registeredBar}> 
+          <View style={styles.registeredBar}>
             <View style={styles.avatarsWrap}>
               {registeredUsers.map((person, index) => (
                 <View key={`${person.id}-${index}`} style={styles.avatarDot}>
                   {person.avatar ? (
-                    <Image source={{ uri: person.avatar }} style={styles.avatarImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: person.avatar }}
+                      style={styles.avatarImage}
+                      contentFit="cover"
+                    />
                   ) : (
-                    <View style={styles.avatarFallback}> 
-                      <Ionicons name="person" size={10} color={colors.textMuted} />
+                    <View style={styles.avatarFallback}>
+                      <Ionicons
+                        name="person"
+                        size={10}
+                        color={colors.textMuted}
+                      />
                     </View>
                   )}
                 </View>
               ))}
             </View>
-            <AppText style={styles.registeredText}>{registrationSummary}</AppText>
+            <AppText style={styles.registeredText}>
+              {registrationSummary}
+            </AppText>
             <AppText style={styles.statusText}>{eventStatus}</AppText>
           </View>
 
           <AppText style={styles.sectionTitle}>About this event</AppText>
           <AppText style={styles.aboutText}>{event.description}</AppText>
-          {canManageEvent && <Pressable onPress={onViewParticipants} accessibilityRole="button" accessibilityLabel="View participants" style={{ paddingVertical: 16 }}>
-            <AppText style={{ color: colors.primary, fontWeight: "700" }}>View participants →</AppText>
-          </Pressable>}
+          {canManageEvent && (
+            <Pressable
+              onPress={onViewParticipants}
+              accessibilityRole="button"
+              accessibilityLabel="View participants"
+              style={{ paddingVertical: 16 }}
+            >
+              <AppText style={{ color: colors.primary, fontWeight: "700" }}>
+                View participants →
+              </AppText>
+            </Pressable>
+          )}
 
           <AppText style={styles.sectionTitle}>Who can attend</AppText>
           <View style={styles.chipRow}>
             {audienceLabels.map((label) => (
-              <AppText key={label} style={styles.chip}>{label}</AppText>
+              <AppText key={label} style={styles.chip}>
+                {label}
+              </AppText>
             ))}
           </View>
-
         </View>
       </ScrollView>
 
       {/* Floating Bottom Action Bar */}
-      <View style={[styles.floatingFooter, { paddingBottom: Math.max(insets.bottom, scale(12)) }]}>
+      <View
+        style={[
+          styles.floatingFooter,
+          { paddingBottom: Math.max(insets.bottom, scale(12)) },
+        ]}
+      >
         <View style={styles.footerInner}>
           <View>
             <AppText style={styles.priceLabel}>Price</AppText>
             <AppText style={styles.priceValue}>FREE</AppText>
           </View>
           {isRegistered ? (
-            <View style={{ flexDirection: "row", gap: scale(8), alignItems: "center" }}>
+            <View
+              style={{
+                flexDirection: "row",
+                gap: scale(8),
+                alignItems: "center",
+              }}
+            >
               <Pressable
-                style={[styles.ticketButton, { backgroundColor: colors.accentTint, borderColor: colors.primary }]}
+                style={[
+                  styles.ticketButton,
+                  {
+                    backgroundColor: colors.accentTint,
+                    borderColor: colors.primary,
+                  },
+                ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   setShowTicketModal(true);
@@ -252,28 +354,53 @@ export default function EventDetailsScreen({
                 accessibilityRole="button"
                 accessibilityLabel="View admission ticket"
               >
-                <Ionicons name="qr-code-outline" size={16} color={colors.primary} />
-                <AppText style={[styles.ticketButtonText, { color: colors.primary }]}>View Ticket</AppText>
+                <Ionicons
+                  name="qr-code-outline"
+                  size={16}
+                  color={colors.primary}
+                />
+                <AppText
+                  style={[styles.ticketButtonText, { color: colors.primary }]}
+                >
+                  View Ticket
+                </AppText>
               </Pressable>
               <View style={[styles.registerButton, styles.registeredBadge]}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.primaryContrast} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={colors.primaryContrast}
+                />
                 <AppText style={styles.registerText}>Registered</AppText>
               </View>
             </View>
           ) : (
             <Pressable
-              style={[styles.registerButton, isRegistrationDisabled && styles.registerButtonDisabled]}
+              style={[
+                styles.registerButton,
+                isRegistrationDisabled && styles.registerButtonDisabled,
+              ]}
               onPress={async () => {
                 const result = await onRegister();
-                if (result?.ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                if (result?.ok)
+                  Haptics.notificationAsync(
+                    Haptics.NotificationFeedbackType.Success,
+                  );
               }}
               disabled={isRegistrationDisabled}
               accessibilityRole="button"
               accessibilityLabel={registerLabel}
-              accessibilityState={{ disabled: isRegistrationDisabled, busy: registering }}
+              accessibilityState={{
+                disabled: isRegistrationDisabled,
+                busy: registering,
+              }}
             >
               <AppText style={styles.registerText}>{registerLabel}</AppText>
-              <Ionicons name="arrow-forward" size={14} color={colors.primaryContrast} />
+              <Ionicons
+                name="arrow-forward"
+                size={14}
+                color={colors.primaryContrast}
+              />
             </Pressable>
           )}
         </View>
@@ -287,12 +414,19 @@ export default function EventDetailsScreen({
         onRequestClose={() => setShowTicketModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalDismiss} onPress={() => setShowTicketModal(false)} />
-          <View style={[styles.ticketCard, { backgroundColor: colors.surface }]}>
+          <Pressable
+            style={styles.modalDismiss}
+            onPress={() => setShowTicketModal(false)}
+          />
+          <View
+            style={[styles.ticketCard, { backgroundColor: colors.surface }]}
+          >
             <View style={styles.ticketTopBanner}>
               <View style={styles.ticketBrandRow}>
                 <Ionicons name="school" size={20} color="#fff" />
-                <AppText style={styles.ticketBrandText}>NSUK EVENT PASS</AppText>
+                <AppText style={styles.ticketBrandText}>
+                  NSUK EVENT PASS
+                </AppText>
               </View>
               <AppText style={styles.ticketEventTitle} numberOfLines={2}>
                 {event.title}
@@ -300,16 +434,30 @@ export default function EventDetailsScreen({
               <View style={styles.ticketBadgeRow}>
                 <View style={styles.confirmedBadge}>
                   <Ionicons name="checkmark-circle" size={12} color="#059669" />
-                  <AppText style={styles.confirmedText}>REGISTRATION CONFIRMED</AppText>
+                  <AppText style={styles.confirmedText}>
+                    REGISTRATION CONFIRMED
+                  </AppText>
                 </View>
               </View>
             </View>
 
             {/* Perforated Divider */}
             <View style={styles.perforatedRow}>
-              <View style={[styles.cutoutCircle, styles.cutoutLeft, { backgroundColor: "rgba(0,0,0,0.6)" }]} />
+              <View
+                style={[
+                  styles.cutoutCircle,
+                  styles.cutoutLeft,
+                  { backgroundColor: "rgba(0,0,0,0.6)" },
+                ]}
+              />
               <View style={styles.dashedLine} />
-              <View style={[styles.cutoutCircle, styles.cutoutRight, { backgroundColor: "rgba(0,0,0,0.6)" }]} />
+              <View
+                style={[
+                  styles.cutoutCircle,
+                  styles.cutoutRight,
+                  { backgroundColor: "rgba(0,0,0,0.6)" },
+                ]}
+              />
             </View>
 
             {/* Ticket Details */}
@@ -349,17 +497,28 @@ export default function EventDetailsScreen({
 
               {/* QR Code Pass */}
               <View style={styles.qrContainer}>
-                <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={64}
+                  color={colors.primary}
+                />
                 <AppText style={styles.qrCodeText}>
-                  PASS: {`NSUK-${String(event.id || "").slice(0, 8).toUpperCase()}`}
+                  PASS:{" "}
+                  {`NSUK-${String(event.id || "")
+                    .slice(0, 8)
+                    .toUpperCase()}`}
                 </AppText>
                 <AppText style={styles.qrInstruction}>
-                  Your RSVP is recorded. Follow the organizer&apos;s instructions for entry.
+                  Your RSVP is recorded. Follow the organizer&apos;s
+                  instructions for entry.
                 </AppText>
               </View>
 
               <Pressable
-                style={[styles.closeTicketBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.closeTicketBtn,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={() => setShowTicketModal(false)}
                 accessibilityRole="button"
                 accessibilityLabel="Close ticket"
