@@ -16,6 +16,88 @@ function loadModule(file, globals = {}) {
 
 const validation = loadModule('src/utils/validation.js');
 const eventTime = loadModule('src/utils/eventTime.js');
+
+function dataFixture({ tables = {}, rpc = async () => ({ data: [] }), queryError = null } = {}) {
+  const calls = [];
+  const supabase = { rpc, from(table) {
+    const filters = [];
+    let payload;
+    const result = () => ({ data: payload ? { id: 'created', ...payload } : (tables[table] || []).filter(row => filters.every(([key, value]) => row[key] === value)), error: queryError });
+    const query = {
+      select() { return query; }, order() { return query; },
+      eq(key, value) { filters.push([key, value]); return query; },
+      insert(value) { payload = value; calls.push({ table, value }); return query; },
+      update(value) { payload = value; calls.push({ table, value }); return query; },
+      async single() { return result(); },
+      then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
+    };
+    return query;
+  } };
+  const globals = { supabase, STORAGE_BUCKETS: {}, resolveStoragePublicUrl: value => value || '' };
+  return { calls, data: loadModule('src/services/supabaseData.js', globals), catalogs: loadModule('src/services/academicData.js', globals) };
+}
+
+test('events use database registration totals and do not invent images or publication dates', async () => {
+  const { data } = dataFixture({ tables: { events: [{ id: 'event-1', title: 'Database event', created_at: '2026-09-14T00:00:00Z' }] },
+    rpc: async () => ({ data: [{ event_id: 'event-1', registered_count: '42' }] }) });
+  const events = await data.fetchEvents();
+  assert.equal(events[0].registeredCount, 42);
+  assert.equal(events[0].image, '');
+  assert.equal(events[0].createdAt, '2026-09-14T00:00:00Z');
+});
+
+test('registration totals are batched and missing totals are not reported as zero', async () => {
+  const batches = [];
+  const { data } = dataFixture({ rpc: async (_, input) => {
+    batches.push(input.p_event_ids);
+    return { data: input.p_event_ids.map(id => ({ event_id: id, registered_count: id === 'event-0' ? null : '0' })) };
+  } });
+  const ids = Array.from({ length: 401 }, (_, i) => `event-${i}`);
+  const counts = await data.fetchEventRegistrationCounts([...ids, ids[0]]);
+  assert.deepEqual(batches.map(batch => batch.length), [200, 200, 1]);
+  assert.equal(counts.has('event-0'), false);
+  assert.equal(counts.get('event-1'), 0);
+  assert.equal(counts.size, 400);
+});
+
+test('database errors are surfaced instead of presenting invented catalog choices', async () => {
+  const { catalogs, data } = dataFixture({ queryError: new Error('offline'), rpc: async () => ({ error: new Error('missing migration') }) });
+  await assert.rejects(catalogs.fetchAcademicFaculties(), /offline/);
+  await assert.rejects(catalogs.fetchEventCategories(), /offline/);
+  await assert.rejects(data.fetchEventRegistrationCounts(['event-1']), /missing migration/);
+});
+
+test('academic selectors load actual rows and restrict departments to the chosen faculty', async () => {
+  const { catalogs } = dataFixture({ tables: {
+    academic_faculties: [{ name: 'Faculty A' }],
+    academic_departments: [{ name: 'Department A', faculty_name: 'Faculty A' }, { name: 'Department B', faculty_name: 'Faculty B' }],
+    academic_levels: [{ name: 'Configured level' }],
+  } });
+  assert.equal((await catalogs.fetchAcademicFaculties()).join(), 'Faculty A');
+  assert.equal((await catalogs.fetchAcademicDepartments('Faculty A')).join(), 'Department A');
+  assert.equal((await catalogs.fetchAcademicDepartments('Missing')).length, 0);
+  assert.equal((await catalogs.fetchAcademicDepartments()).length, 0);
+  assert.equal((await catalogs.fetchAcademicLevels()).join(), 'Configured level');
+});
+
+test('draft and cancellation selections persist in the event database payload', async () => {
+  const { data, calls } = dataFixture();
+  const form = { title: 'Test', date: '2026-12-01', time: '12:00 PM', status: 'draft', targetAudience: 'students', capacity: '10' };
+  await data.createEventFromForm({ form, userId: 'organizer' });
+  assert.equal(calls[0].value.status, 'draft');
+  assert.equal(calls[0].value.target_audience, 'students');
+  assert.equal(calls[0].value.capacity, 10);
+  assert.equal(calls[0].value.image_url, '');
+  await data.updateEventFromForm({ eventId: 'event-1', userId: 'organizer', form: { ...form, status: 'cancelled' } });
+  assert.equal(calls[1].value.status, 'cancelled');
+});
+
+test('legacy template photos are ignored while real uploaded photos remain available', () => {
+  const storage = loadModule('src/services/storage.js', { supabase: {} });
+  const template = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80';
+  assert.equal(storage.resolveStoragePublicUrl(template, 'avatars'), '');
+  assert.equal(storage.resolveStoragePublicUrl('https://example.test/uploaded-photo.jpg', 'avatars'), 'https://example.test/uploaded-photo.jpg');
+});
 test('campus time is converted to UTC without using the device timezone', () => {
   assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '2:30 PM' }).toISOString(), '2026-10-12T13:30:00.000Z');
   assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '12:00 AM' }).toISOString(), '2026-10-11T23:00:00.000Z');

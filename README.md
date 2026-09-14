@@ -22,11 +22,14 @@ Environment files are ignored by Git. Keep your local values on your device.
 npm test
 npm run lint
 npm run check:backend
-npm run build:web
-npm run preview
+npm run check:mobile
 ```
 
-`preview` serves the exported `dist` folder at http://127.0.0.1:4173. `check:backend` makes read-only, zero-row schema requests; it does not retrieve user records or prove that authentication and row-level security work.
+`check:mobile` exports the Android and iOS JavaScript/Hermes bundles. Test the app using `npm start` on a phone or a development build. These exports are not installable APK/IPA files.
+
+`check:backend` checks columns and the registration-count function without retrieving user records; it does not prove authentication or live row-level security. Database regression tests use an isolated PostgreSQL instance with local fixture accounts.
+
+For the existing database, see [mobile database setup](docs/MOBILE_DATABASE_SETUP.md). The optional web preview is only a development aid; Android and iOS are the app targets.
 
 Native notifications and custom password-reset links require an installed development build. A JavaScript export is not an APK/IPA or proof that native device features work.
 

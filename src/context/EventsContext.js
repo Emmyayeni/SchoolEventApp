@@ -240,14 +240,17 @@ export function EventsProvider({ children }) {
 
     try {
       const result = await registerForEvent({ eventId, userId: user.id });
-      const latestRegistrations = await fetchEventRegistrations(user.id);
-      const latestEvents = await fetchEvents();
       if (activeUserId.current !== user.id) return { ok: false };
-      setEvents(latestEvents);
-      setRegisteredEventIds(
-        latestRegistrations.filter((item) => item.status === "registered").map((item) => item.event_id)
-      );
-      setWaitlistedEventIds(latestRegistrations.filter((item) => item.status === "waitlisted").map((item) => item.event_id));
+      if (result.status === "registered") {
+        setRegisteredEventIds(ids => ids.includes(eventId) ? ids : [...ids, eventId]);
+        setWaitlistedEventIds(ids => ids.filter(id => id !== eventId));
+      } else if (result.status === "waitlisted") {
+        setWaitlistedEventIds(ids => ids.includes(eventId) ? ids : [...ids, eventId]);
+        setRegisteredEventIds(ids => ids.filter(id => id !== eventId));
+      }
+      // A failed refresh must not misreport a successful database registration.
+      await loadAppData(user.id, user.accountType, user.role);
+      if (activeUserId.current !== user.id) return { ok: false };
 
       if (result?.status === "waitlisted") {
         Alert.alert("Waitlisted", "This event is full. You have been added to the waitlist.");
@@ -338,7 +341,7 @@ export function EventsProvider({ children }) {
           form: formData,
           userId: user.id,
         });
-        setEvents((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        setEvents((prev) => prev.map((item) => (item.id === updated.id ? { ...updated, registeredCount: item.registeredCount } : item)));
         return { ok: true, event: updated };
       } else {
         const created = await createEventFromForm({ form: formData, userId: user.id });

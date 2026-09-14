@@ -196,7 +196,7 @@ function EventManageCard({ event, colors, styles, onEdit, onDelete, onView }) {
           <View style={styles.infoItem}>
             <Ionicons name="people" size={14} color={colors.textMuted} />
             <AppText style={[styles.infoText, { color: colors.textMuted }]}>
-              {event.registeredCount || 0} registered
+              {Number.isFinite(event.registeredCount) ? `${event.registeredCount} registered` : "RSVP count unavailable"}
             </AppText>
           </View>
         </View>

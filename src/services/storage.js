@@ -30,7 +30,11 @@ function sanitizePath(path, bucket) {
 
 export function resolveStoragePublicUrl(pathOrUrl, bucket, fallback = "") {
   const raw = String(pathOrUrl || "").trim();
-  if (!raw) {
+  const legacyPlaceholder = [
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
+    "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
+  ].includes(raw);
+  if (!raw || legacyPlaceholder) {
     return fallback;
   }
 

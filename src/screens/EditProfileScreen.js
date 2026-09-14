@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Avatar } from "../components/Avatar";
 import { AppText } from "../components/AppText";
+import { SelectField } from "../components/Field";
 import { AppTextInput } from "../components/AppTextInput";
 import SelectPickerModal from "../components/SelectPickerModal";
 import { useDatabaseOptions } from "../utils/useDatabaseOptions";
@@ -190,76 +191,18 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           editable={!formBusy}
         />
 
-        <AppText style={styles.label}>Faculty</AppText>
-        <Pressable
-          style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
-          onPress={() => setShowFacultyPicker(true)}
-          disabled={formBusy}
-          accessibilityRole="button"
-          accessibilityLabel="Select Faculty"
-        >
-          <AppText
-            style={{
-              fontSize: ms(15),
-              color: values.faculty ? colors.text : colors.textSubtle,
-              fontFamily: "Outfit_400Regular",
-              flex: 1,
-            }}
-            numberOfLines={1}
-          >
-            {values.faculty || "Select Faculty"}
-          </AppText>
-          <Ionicons name="chevron-down" size={16} color={colors.textSubtle} />
-        </Pressable>
-
-        <View style={styles.rowLabels}>
-          <AppText style={[styles.label, styles.halfLabel]}>Department</AppText>
-          <AppText style={[styles.label, styles.halfLabel]}>Level</AppText>
-        </View>
-
-        <View style={styles.doubleRow}>
-          <Pressable
-            style={[styles.input, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
-            onPress={() => setShowDepartmentPicker(true)}
-            disabled={formBusy}
-            accessibilityRole="button"
-            accessibilityLabel="Select Department"
-          >
-            <AppText
-              style={{
-                fontSize: ms(14),
-                color: values.department ? colors.text : colors.textSubtle,
-                fontFamily: "Outfit_400Regular",
-                flex: 1,
-              }}
-              numberOfLines={1}
-            >
-              {values.department || "Select Dept"}
-            </AppText>
-            <Ionicons name="chevron-down" size={14} color={colors.textSubtle} />
-          </Pressable>
-
-          <Pressable
-            style={[styles.input, { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
-            onPress={() => setShowLevelPicker(true)}
-            disabled={formBusy}
-            accessibilityRole="button"
-            accessibilityLabel="Select Level"
-          >
-            <AppText
-              style={{
-                fontSize: ms(14),
-                color: values.level ? colors.text : colors.textSubtle,
-                fontFamily: "Outfit_400Regular",
-                flex: 1,
-              }}
-              numberOfLines={1}
-            >
-              {values.level || "Select Level"}
-            </AppText>
-            <Ionicons name="chevron-down" size={14} color={colors.textSubtle} />
-          </Pressable>
-        </View>
+        {values.accountType === "organizer" ? <>
+          <AppText style={styles.label}>Organization / Group</AppText>
+          <AppTextInput value={values.department || ""} onChangeText={value => onChange("department", value)} placeholder="Organization name" style={styles.input} editable={!formBusy} />
+        </> : <>
+          <SelectField label="Faculty" value={values.faculty} onPress={() => setShowFacultyPicker(true)} disabled={formBusy} />
+          <SelectField label="Department" value={values.department} placeholder={values.faculty ? "Select department" : "Select a faculty first"} onPress={() => setShowDepartmentPicker(true)} disabled={formBusy || !values.faculty} />
+          {values.accountType === "student" && <SelectField label="Level" value={values.level} onPress={() => setShowLevelPicker(true)} disabled={formBusy} />}
+        </>}
+        {["staff", "organizer"].includes(values.accountType) && <>
+          <AppText style={styles.label}>Role / Designation</AppText>
+          <AppTextInput value={values.roleDesignation || ""} onChangeText={value => onChange("roleDesignation", value)} placeholder="Your role" style={styles.input} editable={!formBusy} />
+        </>}
 
         <Pressable
           style={[styles.saveBtn, formBusy && styles.saveBtnDisabled]}

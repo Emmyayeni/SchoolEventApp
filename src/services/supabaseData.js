@@ -246,6 +246,7 @@ export async function fetchEventRegistrationCounts(eventIds) {
     const { data, error } = await supabase.rpc("get_event_registration_counts", { p_event_ids: ids.slice(offset, offset + 200) });
     if (error) throw error;
     for (const row of data || []) {
+      if (row.registered_count == null || row.registered_count === '') continue;
       const count = Number(row.registered_count);
       if (Number.isSafeInteger(count) && count >= 0) counts.set(row.event_id, count);
     }

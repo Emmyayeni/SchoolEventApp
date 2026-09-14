@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { useMemo, useState } from "react";
 import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, View, Share } from "react-native";
 import { Image } from "expo-image";
+import { FadeInImage } from "../components/FadeInImage";
 import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
@@ -96,12 +97,10 @@ export default function EventDetailsScreen({
     <View style={styles.page}>
       {/* Absolute Edge-to-Edge Header */}
       <View style={styles.absoluteHeader}>
-        <Image
+        <FadeInImage
           source={{ uri: event.image }}
           style={styles.absoluteImage}
-          contentFit="cover"
-          transition={300}
-          cachePolicy="memory-disk"
+          resizeMode="cover"
         />
         <View style={styles.absoluteOverlay} />
       </View>

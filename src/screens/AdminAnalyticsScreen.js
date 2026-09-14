@@ -149,7 +149,7 @@ export default function AdminAnalyticsScreen({
                     {event.title}
                   </AppText>
                   <AppText style={[styles.eventStats, { color: colors.textMuted }]}>
-                    {event.registeredCount || 0} registered
+                    {Number.isFinite(event.registeredCount) ? `${event.registeredCount} registered` : "RSVP count unavailable"}
                   </AppText>
                 </View>
 

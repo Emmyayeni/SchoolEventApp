@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { Avatar } from "../components/Avatar";
+import { FadeInImage } from "../components/FadeInImage";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -283,7 +284,7 @@ export default function HomeScreen({
           >
             {featuredList.map((featured) => (
               <ScalePressable key={featured.id} style={[styles.featuredHero, { width: CARD_WIDTH, marginHorizontal: 0, marginBottom: 0 }]} onPress={() => onOpenEvent?.(featured.id)}>
-                <Image source={{ uri: featured.image }} style={styles.featuredHeroBg} />
+                <FadeInImage source={{ uri: featured.image }} style={styles.featuredHeroBg} />
                 <LinearGradient colors={["transparent", "rgba(0, 42, 20, 0.96)"]} style={styles.featuredGradient} />
                 <View style={styles.featuredHeroContent}>
                   <View style={styles.featuredBadge}>
@@ -395,7 +396,7 @@ export default function HomeScreen({
               {upcoming.slice(0, 5).map((item) => (
                 <ScalePressable key={item.id} style={styles.topEventCard} onPress={() => onOpenEvent?.(item.id)}>
                   <View style={styles.topEventImageWrap}>
-                    <Image source={{ uri: item.image }} style={styles.topEventImage} />
+                    <FadeInImage source={{ uri: item.image }} style={styles.topEventImage} />
                     <Pressable
                       style={styles.topEventBookmark}
                       onPress={() => onToggleBookmark?.(item.id)}
@@ -496,7 +497,7 @@ function SocialEventPost({ item, colors, styles, onPress, bookmarked, onToggleBo
         </AppText>
         
         <View style={styles.postImageWrapperSocial}>
-          <Image source={{ uri: item.image }} style={styles.postImageSocial} />
+          <FadeInImage source={{ uri: item.image }} style={styles.postImageSocial} />
           <LinearGradient colors={["transparent", "rgba(0,0,0,0.8)"]} style={styles.postImageGradientSocial} />
           <View style={styles.postImageOverlaySocial}>
             <AppText style={styles.postImageTitleSocial} numberOfLines={1}>{item.title}</AppText>
