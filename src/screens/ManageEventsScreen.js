@@ -6,6 +6,8 @@ import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import { eventTimeStatus } from "../utils/eventTime";
+import { useCurrentTime } from "../utils/useCurrentTime";
 
 export default function ManageEventsScreen({
   events = [],
@@ -21,6 +23,7 @@ export default function ManageEventsScreen({
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [filterStatus, setFilterStatus] = useState("all"); // all, upcoming, past
+  const nowTs = useCurrentTime();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const filteredEvents = useMemo(() => {
@@ -33,15 +36,14 @@ export default function ManageEventsScreen({
     }
 
     // Filter by status
-    const now = new Date();
     if (filterStatus === "upcoming") {
-      result = result.filter((e) => new Date(e.date) >= now);
+      result = result.filter((e) => e.status === "published" && ["upcoming", "ongoing"].includes(eventTimeStatus(e, nowTs)));
     } else if (filterStatus === "past") {
-      result = result.filter((e) => new Date(e.date) < now);
+      result = result.filter((e) => eventTimeStatus(e, nowTs) === "past");
     }
 
     return result;
-  }, [events, searchText, filterStatus]);
+  }, [events, searchText, filterStatus, nowTs]);
 
   const handleDeleteEvent = (event) => {
     Alert.alert("Delete Event", `Are you sure you want to delete "${event.title}"?`, [
@@ -156,8 +158,7 @@ export default function ManageEventsScreen({
 }
 
 function EventManageCard({ event, colors, styles, onEdit, onDelete, onView }) {
-  const eventDate = new Date(event.date);
-  const isPast = eventDate < new Date();
+  const isPast = eventTimeStatus(event) === "past";
 
   return (
     <Pressable

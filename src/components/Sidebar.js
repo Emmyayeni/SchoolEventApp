@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef } from "react";
-import { Animated, Dimensions, Image, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Dimensions, Pressable, StyleSheet, View } from "react-native";
+import { Avatar } from "./Avatar";
 import { AppText } from "./AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
@@ -86,10 +87,7 @@ export default function Sidebar({
         ]}
       >
         <View style={styles.header}>
-          <Image
-            source={{ uri: user?.avatar || "https://randomuser.me/api/portraits/lego/1.jpg" }}
-            style={styles.avatar}
-          />
+          <Avatar uri={user?.avatar} name={user?.fullName} size={56} style={styles.avatar} />
           <View style={styles.userInfo}>
             <AppText style={[styles.userName, { color: colors.text }]}>{user?.fullName || "User"}</AppText>
             <AppText style={[styles.userEmail, { color: colors.textSubtle }]}>{user?.email}</AppText>

@@ -27,6 +27,57 @@ test('calendar uses the real start time and escapes event details', () => {
   assert.equal(url.searchParams.get('text'), 'Science & Arts');
   assert.equal(url.searchParams.get('ctz'), 'Africa/Lagos');
 });
+
+test('campus date filters roll over at Nigeria midnight, including year boundaries', () => {
+  assert.equal(eventTime.campusDateKey(Date.parse('2026-12-31T22:59:59Z')), '2026-12-31');
+  assert.equal(eventTime.campusDateKey(Date.parse('2026-12-31T23:00:00Z')), '2027-01-01');
+  assert.equal(eventTime.campusDateKey(Date.parse('2026-12-31T22:59:59Z'), 1), '2027-01-01');
+});
+
+test('invalid event dates and seconds cannot silently become valid calendar dates', () => {
+  for (const date of ['2026-02-30', '2026-13-01', 'bad', '2026-1-01']) {
+    assert.equal(eventTime.eventStartTime({ date, time: '12:00 PM' }), null);
+    assert.equal(eventTime.eventDateForPicker(date), null);
+  }
+  assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '12:00:99' }), null);
+  assert.equal(eventTime.eventStartTime({ date: '2028-02-29', time: '12:00:30' }).toISOString(), '2028-02-29T11:00:30.000Z');
+});
+
+test('event statuses use the start time and two-hour duration rather than date midnight', () => {
+  const event = { date: '2026-10-12', time: '2:30 PM' };
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T13:29:59Z')), 'upcoming');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T13:30:00Z')), 'ongoing');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T15:29:59Z')), 'ongoing');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T15:30:00Z')), 'past');
+  assert.equal(eventTime.eventTimeStatus({ date: 'bad' }), 'unknown');
+  assert.equal(eventTime.eventTimeStatus({ date: '2026-10-12', time: 'bad' }), 'unknown');
+});
+
+test('date-only events last for the campus day', () => {
+  const event = { date: '2026-10-12' };
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-11T22:59:59Z')), 'upcoming');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-11T23:00:00Z')), 'ongoing');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T23:00:00Z')), 'past');
+});
+
+test('date labels and picker values preserve the selected day across device timezones', () => {
+  const originalTimezone = process.env.TZ;
+  try {
+    for (const zone of ['America/Los_Angeles', 'Africa/Lagos', 'Pacific/Auckland']) {
+      process.env.TZ = zone;
+      assert.equal(eventTime.formatEventDate('2026-10-12'), 'Oct 12, 2026', zone);
+      const pickerDate = eventTime.eventDateForPicker('2026-10-12');
+      assert.equal(pickerDate.getFullYear(), 2026, zone);
+      assert.equal(pickerDate.getMonth(), 9, zone);
+      assert.equal(pickerDate.getDate(), 12, zone);
+      const event = { date: '2026-11-01', time: '9:30 AM' };
+      assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-11-01T10:30:00Z')), 'past', zone);
+    }
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
 test('login rejects malformed addresses and empty passwords', () => {
   assert.ok(validation.validateLogin({ email: 'bad', password: '' }).email);
   assert.ok(validation.validateLogin({ email: 'a@b.co', password: '' }).password);

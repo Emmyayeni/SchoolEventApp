@@ -69,6 +69,7 @@ export function SelectField({
   error,
   onPress,
   containerStyle,
+  disabled = false,
 }) {
   const { colors } = useAppTheme();
   const borderColor = error ? colors.error : colors.border;
@@ -82,8 +83,10 @@ export function SelectField({
       ) : null}
       <Pressable
         onPress={onPress}
+        disabled={disabled}
         style={[styles.inputRow, { backgroundColor: colors.surface, borderColor }]}
         accessibilityRole="button"
+        accessibilityState={{ disabled }}
         accessibilityLabel={label || placeholder}
       >
         {leftIcon ? (

@@ -6,8 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
 
-const ANNOUNCEMENT_FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1200&q=80";
 
 function formatAudienceLabel(audience = []) {
   if (!Array.isArray(audience) || audience.length === 0 || audience.includes("all")) {
@@ -34,7 +32,7 @@ export default function AnnouncementDetailsScreen({ onBack, announcement }) {
   const attachmentCount = announcement?.attachments?.length || 0;
   const hasAnnouncement = !!announcement;
 
-  const mainImage = announcement?.mainImage || ANNOUNCEMENT_FALLBACK_IMAGE;
+  const mainImage = announcement?.mainImage;
 
   const handleShare = async () => {
     try {
@@ -87,7 +85,7 @@ export default function AnnouncementDetailsScreen({ onBack, announcement }) {
         <AppText style={styles.officeText}>{announcement?.senderName || "Campus Office"}</AppText>
       </View>
 
-      <Image source={{ uri: mainImage }} style={styles.heroImage} resizeMode="cover" />
+      {!!mainImage && <Image source={{ uri: mainImage }} style={styles.heroImage} resizeMode="cover" />}
 
       <AppText style={styles.bodyText}>{announcement?.message || "No details found for this announcement."}</AppText>
 

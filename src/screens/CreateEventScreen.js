@@ -7,7 +7,10 @@ import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
-import { EVENT_CATEGORY_OPTIONS } from "../utils/constants";
+import SelectPickerModal from "../components/SelectPickerModal";
+import { fetchEventCategories, fetchEventVenues } from "../services/academicData";
+import { useDatabaseOptions } from "../utils/useDatabaseOptions";
+import { eventDateForPicker } from "../utils/eventTime";
 import { ms, scale } from "../utils/responsive";
 
 export default function CreateEventScreen({ values, errors, onChange, onSubmit, onUploadEventImage, onBack, mode = "create" }) {
@@ -19,11 +22,17 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showCategoryList, setShowCategoryList] = useState(false);
+  const [showAudiencePicker, setShowAudiencePicker] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showVenuePicker, setShowVenuePicker] = useState(false);
+  const [customVenue, setCustomVenue] = useState(false);
+  const categoryOptions = useDatabaseOptions(fetchEventCategories);
+  const venueOptions = useDatabaseOptions(fetchEventVenues);
   const formBusy = submitting || uploadingBanner;
   const isEditMode = mode === "edit";
 
   const parseDateValue = () => {
-    const parsed = values.date ? new Date(values.date) : null;
+    const parsed = eventDateForPicker(values.date);
     if (parsed && !Number.isNaN(parsed.getTime())) {
       return parsed;
     }
@@ -145,16 +154,16 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (status = values.status || "published") => {
     if (formBusy) {
       return;
     }
 
     setSubmitting(true);
     try {
-      const success = await onSubmit();
+      const success = await onSubmit(status);
       if (success) {
-        Alert.alert("Success", isEditMode ? "Event updated successfully" : "Event created successfully");
+        Alert.alert("Success", status === "draft" ? "Draft saved" : isEditMode ? "Event updated successfully" : "Event created successfully");
       }
     } catch (error) {
       Alert.alert("Save failed", error?.message || "Could not save this event.");
@@ -212,20 +221,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
           error={errors.title}
         />
 
-        <CategorySelectField
-          label="Category"
-          value={values.category}
-          placeholder="Select category"
-          error={errors.category}
-          options={EVENT_CATEGORY_OPTIONS}
-          isOpen={showCategoryList}
-          disabled={formBusy}
-          onToggle={() => setShowCategoryList((prev) => !prev)}
-          onSelect={(category) => {
-            onChange("category", category);
-            setShowCategoryList(false);
-          }}
-        />
+        <PickerField label="Category" value={values.category} placeholder="Select category" error={errors.category} icon="grid" onPress={() => setShowCategoryList(true)} disabled={formBusy} />
 
         <Field
           label="Description"
@@ -238,13 +234,8 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       </FormCard>
 
       <FormCard title="LOGISTICS" icon="location" iconColor={colors.primary} styles={styles}>
-        <Field
-          label="Venue"
-          value={values.venue}
-          onChangeText={(value) => onChange("venue", value)}
-          placeholder="e.g. Faculty of Science Auditorium"
-          error={errors.venue}
-        />
+        <PickerField label="Venue" value={values.venue} placeholder="Select venue or add a new one" error={errors.venue} icon="location" onPress={() => setShowVenuePicker(true)} disabled={formBusy} />
+        {customVenue && <Field label="New venue" value={values.venue} onChangeText={value => onChange("venue", value)} placeholder="Enter the venue name" error={errors.venue} />}
 
         <View style={styles.doubleRow}>
           <View style={styles.halfField}>
@@ -313,16 +304,13 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
 
         <View style={styles.doubleRow}>
           <View style={styles.halfField}>
-            <Field
-              label="Target Audience"
-              value={values.targetAudience}
-              onChangeText={(value) => onChange("targetAudience", value)}
-              placeholder="All"
-            />
+            <PickerField label="Target Audience" value={{ all: "Everyone", students: "Students", staff: "Staff and organizers" }[values.targetAudience]} onPress={() => setShowAudiencePicker(true)} placeholder="Select audience" icon="people" error={errors.targetAudience} disabled={formBusy} />
           </View>
           <View style={styles.halfField}>
             <Field
               label="Capacity"
+              keyboardType="number-pad"
+              error={errors.capacity}
               value={values.capacity}
               onChangeText={(value) => onChange("capacity", value)}
               placeholder="e.g. 500"
@@ -331,9 +319,11 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
         </View>
       </FormCard>
 
+      {isEditMode && <PickerField label="Status" value={values.status || "published"} placeholder="Select status" icon="flag" error={errors.status} onPress={() => setShowStatusPicker(true)} disabled={formBusy} />}
+
       <Pressable
         style={[styles.publishButton, formBusy && styles.buttonDisabled]}
-        onPress={handleSubmit}
+        onPress={() => handleSubmit()}
         disabled={formBusy}
         accessibilityRole="button"
         accessibilityLabel={isEditMode ? "Update event" : "Publish event"}
@@ -345,7 +335,7 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
 
       <Pressable
         style={[styles.draftButton, formBusy && styles.buttonDisabled]}
-        onPress={onBack}
+        onPress={() => handleSubmit("draft")}
         disabled={formBusy}
         accessibilityRole="button"
         accessibilityLabel="Save as draft"
@@ -353,6 +343,10 @@ export default function CreateEventScreen({ values, errors, onChange, onSubmit, 
       >
         <AppText style={styles.draftText}>Save as Draft</AppText>
       </Pressable>
+      <SelectPickerModal visible={showCategoryList} title="Select category" {...categoryOptions} selectedValue={values.category} onSelect={value => onChange("category", value)} onClose={() => setShowCategoryList(false)} />
+      <SelectPickerModal visible={showAudiencePicker} title="Select audience" options={[{label: "Everyone", value: "all"}, {label: "Students", value: "students"}, {label: "Staff and organizers", value: "staff"}]} selectedValue={values.targetAudience} onSelect={value => onChange("targetAudience", value)} onClose={() => setShowAudiencePicker(false)} />
+      <SelectPickerModal visible={showStatusPicker} title="Event status" options={[{label: "Draft", value: "draft"}, {label: "Published", value: "published"}, {label: "Cancelled", value: "cancelled"}, {label: "Archived", value: "archived"}]} selectedValue={values.status || "published"} onSelect={value => onChange("status", value)} onClose={() => setShowStatusPicker(false)} />
+      <SelectPickerModal visible={showVenuePicker} title="Select venue" {...venueOptions} options={[...venueOptions.options, {label: "Enter a new venue", value: "__custom__"}]} selectedValue={values.venue} onSelect={value => { setCustomVenue(value === "__custom__"); if (value !== "__custom__") onChange("venue", value); }} onClose={() => setShowVenuePicker(false)} />
     </ScrollView>
   );
 }
@@ -377,6 +371,7 @@ function Field({
   placeholder,
   error,
   multiline = false,
+  keyboardType = "default",
   leftIcon,
   rightIcon,
 }) {
@@ -399,6 +394,7 @@ function Field({
             multiline && styles.inputMultiline,
           ]}
           multiline={multiline}
+          keyboardType={keyboardType}
         />
         {!!rightIcon && <Ionicons name={rightIcon} size={15} color={colors.textMuted} style={styles.rightIcon} />}
       </View>
@@ -427,64 +423,6 @@ function PickerField({ label, value, placeholder, error, icon, onPress, disabled
           {value || placeholder}
         </AppText>
       </Pressable>
-      {!!error && <AppText style={styles.errorText}>{error}</AppText>}
-    </View>
-  );
-}
-
-function CategorySelectField({
-  label,
-  value,
-  placeholder,
-  error,
-  options,
-  isOpen,
-  onToggle,
-  onSelect,
-  disabled,
-}) {
-  const { colors } = useAppTheme();
-  const styles = getStyles(colors);
-
-  return (
-    <View style={styles.fieldWrap}>
-      <AppText style={styles.fieldLabel}>{label}</AppText>
-      <Pressable
-        style={[styles.inputWrap, error && styles.inputWrapError, disabled && styles.inputWrapDisabled]}
-        onPress={onToggle}
-        disabled={disabled}
-        accessibilityRole="button"
-        accessibilityLabel={value ? `${label}, ${value}` : label}
-        accessibilityState={{ expanded: isOpen, disabled }}
-      >
-        <Ionicons name="grid" size={15} color={colors.textSubtle} style={styles.leftIcon} />
-        <AppText style={[styles.input, styles.inputWithLeftIcon, styles.inputWithRightIcon, !value && styles.inputPlaceholder]}>
-          {value || placeholder}
-        </AppText>
-        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={15} color={colors.textMuted} style={styles.rightIcon} />
-      </Pressable>
-
-      {isOpen && (
-        <View style={styles.categoryListWrap}>
-          {options.map((option) => {
-            const active = option === value;
-            return (
-              <Pressable
-                key={option}
-                style={[styles.categoryItem, active && styles.categoryItemActive]}
-                onPress={() => onSelect(option)}
-                accessibilityRole="button"
-                accessibilityLabel={option}
-                accessibilityState={{ selected: active }}
-              >
-                <AppText style={[styles.categoryItemText, active && styles.categoryItemTextActive]}>{option}</AppText>
-                {active && <Ionicons name="checkmark" size={14} color={colors.primary} />}
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-
       {!!error && <AppText style={styles.errorText}>{error}</AppText>}
     </View>
   );

@@ -23,7 +23,7 @@ This checklist maps the application to sections 1.3, 1.5 and 3.2.3 of *Developme
 
 ## Backend setup that remains necessary
 
-The read-only schema check on 13 September 2026 found the expected event, registration, announcement, notification and admin tables. The profile check failed because `profiles.expo_push_token` was missing. A schema check does not prove row-level security, storage policies or authentication flows are correct.
+The read-only schema check on 14 September 2026 passed for events, registrations, announcements and admin users. It found two missing columns: `profiles.expo_push_token` and `notifications.source_key`. Both are included in the migration below and are needed for push-token storage and notification deduplication. A schema check does not prove row-level security, storage policies or authentication flows are correct.
 
 1. For a **fresh database**, run `SUPABASE_FULL_SCHEMA.sql` first. Do not rerun that baseline on a configured database without reviewing its existing schema and policies.
 2. Apply `supabase/migrations/202609130001_account_approval.sql` to a test project first, then verify it before applying it to the configured project. It adds approval/push fields and notification deduplication, protects role/status updates, and provides admin event permissions. It preserves existing account statuses; if the column is absent, existing profiles default to approved for compatibility.
@@ -35,6 +35,8 @@ The read-only schema check on 13 September 2026 found the expected event, regist
 The migration and functions are prepared locally. They have not been deployed or executed against the live database by this work.
 
 ## Remaining limits before claiming completion
+
+- Event labels, date filters and picker dates use the campus calendar in Nigeria. Status displays assume a two-hour duration because the schema has no end time; calendar exports retain their one-hour default. A stored end time is needed to replace these estimates.
 
 - Authenticated end-to-end tests need a disposable student account and an approved organizer/admin account. No accounts, emails, announcements or push messages were created/sent by the automated checks.
 - Native bundles are not installable APK/IPA files. Device permission, email links, uploads and push receipt need actual phone testing.

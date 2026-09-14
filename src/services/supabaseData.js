@@ -1,8 +1,7 @@
 import { supabase } from "../../lib/superbase";
 import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "./storage";
 
-const DEFAULT_EVENT_IMAGE =
-  "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80";
+const DEFAULT_EVENT_IMAGE = "";
 
 function isLikelyImageUrl(value) {
   const raw = String(value || "").toLowerCase();
@@ -127,9 +126,10 @@ export function mapEventRowToApp(row) {
     isFeatured: !!row.is_featured,
     status: row.status,
     createdBy: row.created_by,
+    createdAt: row.created_at,
     targetAudience: row.target_audience,
     capacity: row.capacity,
-    registeredCount: row.registeredCount,
+    registeredCount: row.registeredCount ?? null,
     registeredUsers: Array.isArray(row.registeredUsers) ? row.registeredUsers : [],
   };
 }
@@ -216,7 +216,7 @@ export function mapAnnouncementRowToApp(row) {
     attachments: resolvedAttachments,
     mainImage,
     senderId: row.sender_id,
-    senderName: row?.sender_profile?.full_name || "Office of the Registrar",
+    senderName: row?.sender_profile?.full_name || "Sender unavailable",
     sentAt: row.sent_at,
     createdAt: row.created_at,
     displayDate: formatAnnouncementTimestamp(row.sent_at || row.created_at),
@@ -234,7 +234,23 @@ export async function fetchEvents() {
     throw error;
   }
 
-  return (data || []).map(mapEventRowToApp);
+  const rows = data || [];
+  const counts = await fetchEventRegistrationCounts(rows.map(row => row.id));
+  return rows.map(row => mapEventRowToApp({ ...row, registeredCount: counts.get(row.id) ?? null }));
+}
+
+export async function fetchEventRegistrationCounts(eventIds) {
+  const ids = [...new Set(eventIds.filter(Boolean))];
+  const counts = new Map();
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const { data, error } = await supabase.rpc("get_event_registration_counts", { p_event_ids: ids.slice(offset, offset + 200) });
+    if (error) throw error;
+    for (const row of data || []) {
+      const count = Number(row.registered_count);
+      if (Number.isSafeInteger(count) && count >= 0) counts.set(row.event_id, count);
+    }
+  }
+  return counts;
 }
 
 export async function fetchEventDetailsById(eventId) {
@@ -248,15 +264,7 @@ export async function fetchEventDetailsById(eventId) {
     throw error;
   }
 
-  const { count, error: registrationError } = await supabase
-    .from("event_registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId)
-    .eq("status", "registered");
-
-  if (registrationError) {
-    throw registrationError;
-  }
+  const counts = await fetchEventRegistrationCounts([eventId]);
 
   const { data: registeredUsersRows, error: registeredUsersError } = await supabase
     .from("event_registrations")
@@ -272,7 +280,7 @@ export async function fetchEventDetailsById(eventId) {
 
   return mapEventRowToApp({
     ...data,
-    registeredCount: count || 0,
+    registeredCount: counts.get(eventId) ?? null,
     registeredUsers: mapRegisteredUserRows(registeredUsersRows || []),
   });
 }
@@ -495,7 +503,7 @@ export async function createEventFromForm({ form, userId }) {
     is_featured: false,
     target_audience: normalizeAudience(form.targetAudience),
     capacity: Number.isFinite(Number(form.capacity)) && Number(form.capacity) > 0 ? Number(form.capacity) : null,
-    status: "published",
+    status: form.status || "published",
     created_by: userId,
   };
 
@@ -524,6 +532,7 @@ export async function updateEventFromForm({ eventId, form, userId }) {
     image_url: form.image?.trim() || DEFAULT_EVENT_IMAGE,
     target_audience: normalizeAudience(form.targetAudience),
     capacity: Number.isFinite(Number(form.capacity)) && Number(form.capacity) > 0 ? Number(form.capacity) : null,
+    ...(form.status ? { status: form.status } : {}),
   };
 
   const { data, error } = await supabase

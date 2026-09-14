@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "../components/AppText";
 import { Field, SelectField } from "../components/Field";
 import SelectPickerModal from "../components/SelectPickerModal";
+import { useDatabaseOptions } from "../utils/useDatabaseOptions";
 import CustomButton from "../components/CustomButton";
 import { IconButton } from "../components/Header";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,23 +31,16 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
   const accountType = values?.accountType || "student";
 
   // Dynamic academic data states
-  const [faculties, setFaculties] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [levels, setLevels] = useState([]);
+  const facultyOptions = useDatabaseOptions(fetchAcademicFaculties);
+  const departmentLoader = useCallback(() => fetchAcademicDepartments(values?.faculty || ""), [values?.faculty]);
+  const departmentOptions = useDatabaseOptions(departmentLoader);
+  const levelOptions = useDatabaseOptions(fetchAcademicLevels);
 
   // Modal visibility states
   const [showFacultyPicker, setShowFacultyPicker] = useState(false);
   const [showDepartmentPicker, setShowDepartmentPicker] = useState(false);
   const [showLevelPicker, setShowLevelPicker] = useState(false);
 
-  useEffect(() => {
-    fetchAcademicFaculties().then(setFaculties);
-    fetchAcademicLevels().then(setLevels);
-  }, []);
-
-  useEffect(() => {
-    fetchAcademicDepartments(values.faculty || "").then(setDepartments);
-  }, [values.faculty]);
 
   const switchAccountType = (type) => {
     onChange("accountType", type);
@@ -56,6 +50,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       return;
     }
     onChange("faculty", "");
+    onChange("department", "");
     onChange("level", "");
     onChange("matricNumber", "");
   };
@@ -277,7 +272,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       <SelectPickerModal
         visible={showFacultyPicker}
         title="Select Faculty"
-        options={faculties}
+        {...facultyOptions}
         selectedValue={values.faculty}
         onSelect={(val) => {
           onChange("faculty", val);
@@ -290,7 +285,8 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       <SelectPickerModal
         visible={showDepartmentPicker}
         title={values.faculty ? `${values.faculty} Departments` : "Select Department"}
-        options={departments}
+        {...departmentOptions}
+        emptyMessage={values.faculty ? "No departments configured for this faculty." : "Select a faculty first."}
         selectedValue={values.department}
         onSelect={(val) => onChange("department", val)}
         onClose={() => setShowDepartmentPicker(false)}
@@ -300,7 +296,7 @@ export default function SignupScreen({ values, errors, loading, onChange, onRegi
       <SelectPickerModal
         visible={showLevelPicker}
         title="Select Academic Level"
-        options={levels}
+        {...levelOptions}
         selectedValue={values.level}
         onSelect={(val) => onChange("level", val)}
         onClose={() => setShowLevelPicker(false)}

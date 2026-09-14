@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Image } from "expo-image";
+import { Avatar } from "../components/Avatar";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
 import SelectPickerModal from "../components/SelectPickerModal";
+import { useDatabaseOptions } from "../utils/useDatabaseOptions";
 import { useToast } from "../components/Toast";
 import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "../services/storage";
 import { useAppTheme } from "../theme/theme";
@@ -16,8 +17,7 @@ import {
   fetchAcademicLevels,
 } from "../services/academicData";
 
-const DEFAULT_EDIT_AVATAR =
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80";
+const DEFAULT_EDIT_AVATAR = "";
 
 export default function EditProfileScreen({ values, onChange, onUploadAvatar, onSave, onSaveSuccess, onBack }) {
   const { colors, isDark } = useAppTheme();
@@ -28,23 +28,16 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
   const formBusy = saving || uploadingAvatar;
 
   // Academic data states
-  const [faculties, setFaculties] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [levels, setLevels] = useState([]);
+  const facultyOptions = useDatabaseOptions(fetchAcademicFaculties);
+  const departmentLoader = useCallback(() => fetchAcademicDepartments(values?.faculty || ""), [values?.faculty]);
+  const departmentOptions = useDatabaseOptions(departmentLoader);
+  const levelOptions = useDatabaseOptions(fetchAcademicLevels);
 
   // Modal visibility
   const [showFacultyPicker, setShowFacultyPicker] = useState(false);
   const [showDepartmentPicker, setShowDepartmentPicker] = useState(false);
   const [showLevelPicker, setShowLevelPicker] = useState(false);
 
-  useEffect(() => {
-    fetchAcademicFaculties().then(setFaculties);
-    fetchAcademicLevels().then(setLevels);
-  }, []);
-
-  useEffect(() => {
-    fetchAcademicDepartments(values?.faculty || "").then(setDepartments);
-  }, [values?.faculty]);
 
   const avatarUri = resolveStoragePublicUrl(values.avatar, STORAGE_BUCKETS.avatars, DEFAULT_EDIT_AVATAR);
 
@@ -143,12 +136,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
 
       <View style={styles.photoSection}>
         <View style={styles.avatarWrap}>
-          <Image
-            source={{
-              uri: avatarUri,
-            }}
-            style={styles.avatar}
-          />
+          <Avatar uri={avatarUri} name={values.fullName} size={96} style={styles.avatar} />
           <Pressable
             style={styles.cameraBtn}
             onPress={handlePickAvatar}
@@ -303,7 +291,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
       <SelectPickerModal
         visible={showFacultyPicker}
         title="Select Faculty"
-        options={faculties}
+        {...facultyOptions}
         selectedValue={values.faculty}
         onSelect={(val) => {
           onChange("faculty", val);
@@ -316,7 +304,8 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
       <SelectPickerModal
         visible={showDepartmentPicker}
         title={values.faculty ? `${values.faculty} Departments` : "Select Department"}
-        options={departments}
+        {...departmentOptions}
+        emptyMessage={values.faculty ? "No departments configured for this faculty." : "Select a faculty first."}
         selectedValue={values.department}
         onSelect={(val) => onChange("department", val)}
         onClose={() => setShowDepartmentPicker(false)}
@@ -326,7 +315,7 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
       <SelectPickerModal
         visible={showLevelPicker}
         title="Select Academic Level"
-        options={levels}
+        {...levelOptions}
         selectedValue={values.level}
         onSelect={(val) => onChange("level", val)}
         onClose={() => setShowLevelPicker(false)}

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
@@ -10,6 +10,8 @@ import { FadeInImage } from "../components/FadeInImage";
 import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import { campusDateKey, eventTimeStatus, formatEventDate } from "../utils/eventTime";
+import { useCurrentTime } from "../utils/useCurrentTime";
 
 export default function SearchScreen({ value, results, onChange, onOpenEvent }) {
   const { colors } = useAppTheme();
@@ -18,15 +20,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   const [activeCategory, setActiveCategory] = useState("All Events");
   const [dateFilter, setDateFilter] = useState("Any Date");
   const [viewMode, setViewMode] = useState("list");
-  const [nowTs, setNowTs] = useState(Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNowTs(Date.now());
-    }, 60000);
-
-    return () => clearInterval(timer);
-  }, []);
+  const nowTs = useCurrentTime();
 
   const categories = [
     { label: "All Events", icon: "apps" },
@@ -54,15 +48,14 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
     }
 
     if (dateFilter === "Today") {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = campusDateKey(nowTs);
       list = list.filter((item) => String(item.date || "").startsWith(todayStr));
     } else if (dateFilter === "Upcoming") {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      list = list.filter((item) => String(item.date || "") >= todayStr);
+      list = list.filter((item) => item.status !== "cancelled" && item.status !== "draft" && eventTimeStatus(item, nowTs) === "upcoming");
     }
 
     return list;
-  }, [activeCategory, dateFilter, results]);
+  }, [activeCategory, dateFilter, results, nowTs]);
 
   return (
     <FlatList
@@ -73,10 +66,9 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
       showsVerticalScrollIndicator={false}
       columnWrapperStyle={viewMode === "grid" ? styles.gridRow : undefined}
       contentContainerStyle={[styles.contentContainer, { paddingTop: (insets?.top ?? 0) + scale(8), backgroundColor: colors.background }]}
-      renderItem={({ item, index }) => (
+      renderItem={({ item }) => (
         <ExploreCard
           event={item}
-          index={index}
           nowTs={nowTs}
           viewMode={viewMode}
           colors={colors}
@@ -98,7 +90,7 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
               <Ionicons name="school" size={14} color={colors.accent} />
               <AppText style={styles.brandText}>NSUK Events</AppText>
             </View>
-            <Pressable style={styles.actionBtn}>
+            <Pressable style={styles.actionBtn} onPress={cycleDateFilter} accessibilityRole="button" accessibilityLabel="Toggle date filter">
               <Ionicons name="options-outline" size={14} color={colors.accent} />
             </Pressable>
           </View>
@@ -236,22 +228,21 @@ export default function SearchScreen({ value, results, onChange, onOpenEvent }) 
   );
 }
 
-function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles }) {
+function ExploreCard({ event, nowTs, viewMode, onPress, colors, styles }) {
   const status = getStatus(event, nowTs);
-  const disabled = status.type === "past";
+  const ended = status.type === "past";
 
   return (
     <ScalePressable
       onPress={onPress}
-      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={event.title}
-      accessibilityHint={disabled ? "Event has ended" : "Opens event details"}
+      accessibilityHint="Opens event details"
       style={[
         styles.card,
         { backgroundColor: colors.surface, borderColor: colors.borderSoft },
         viewMode === "grid" && styles.cardGrid,
-        disabled && styles.cardDisabled,
+        ended && styles.cardDisabled,
       ]}
     >
       <View style={styles.imageWrap}>
@@ -262,15 +253,10 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
             {toCategoryLabel(event.category)}
           </AppText>
         </View>
-        {index === 1 && (
-          <View style={styles.bookmarkBadge}>
-            <Ionicons name="bookmark" size={12} color={colors.primaryContrast} />
-          </View>
-        )}
       </View>
 
       <View style={styles.cardBody}>
-        <AppText style={[styles.eventTitle, { color: colors.text }, disabled && styles.textMuted]} numberOfLines={2}>
+        <AppText style={[styles.eventTitle, { color: colors.text }, ended && styles.textMuted]} numberOfLines={2}>
           {event.title}
         </AppText>
 
@@ -289,10 +275,10 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
         </View>
 
         <View style={styles.bottomRow}>
-          <AppText style={styles.attendingText}>{getAttending(status.type)}</AppText>
-          <Pressable disabled={disabled} style={[styles.actionButton, disabled && styles.actionButtonDisabled]}>
-            <AppText style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>
-              {disabled ? "View Results" : status.type === "ongoing" ? "Join Now" : "Register"}
+          <AppText style={styles.attendingText}>{Number.isFinite(event.registeredCount) ? `${event.registeredCount} registered` : "View event details"}</AppText>
+          <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${event.title}`} style={[styles.actionButton, ended && styles.actionButtonDisabled]}>
+            <AppText style={[styles.actionButtonText, ended && styles.actionButtonTextDisabled]}>
+              {ended ? "View Details" : ["draft", "cancelled", "unknown"].includes(status.type) ? "View Details" : "Register"}
             </AppText>
           </Pressable>
         </View>
@@ -301,85 +287,10 @@ function ExploreCard({ event, index, nowTs, viewMode, onPress, colors, styles })
   );
 }
 
-function parseEventStartDateTime(dateText, timeText) {
-  if (!dateText) {
-    return null;
-  }
-
-  const baseDate = new Date(dateText);
-  if (Number.isNaN(baseDate.getTime())) {
-    return null;
-  }
-
-  const start = new Date(baseDate);
-  start.setHours(0, 0, 0, 0);
-
-  const rawTime = String(timeText || "").trim();
-  if (!rawTime) {
-    return start;
-  }
-
-  const twelveHour = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (twelveHour) {
-    let hour = Number(twelveHour[1]);
-    const minute = Number(twelveHour[2]);
-    const period = twelveHour[3].toUpperCase();
-
-    if (period === "PM" && hour < 12) {
-      hour += 12;
-    }
-    if (period === "AM" && hour === 12) {
-      hour = 0;
-    }
-
-    start.setHours(hour, minute, 0, 0);
-    return start;
-  }
-
-  const twentyFourHour = rawTime.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (twentyFourHour) {
-    const hour = Number(twentyFourHour[1]);
-    const minute = Number(twentyFourHour[2]);
-    start.setHours(hour, minute, 0, 0);
-    return start;
-  }
-
-  return start;
-}
-
 function getStatus(event, nowTs) {
-  const start = parseEventStartDateTime(event?.date, event?.time);
-  if (!start) {
-    return { label: "UPCOMING", type: "upcoming" };
-  }
-
-  const hasTime = !!String(event?.time || "").trim();
-  const end = new Date(start);
-  if (hasTime) {
-    // If no end time exists, assume a 2 hour event duration.
-    end.setHours(end.getHours() + 2);
-  } else {
-    end.setDate(end.getDate() + 1);
-  }
-
-  const now = new Date(nowTs);
-  if (now < start) {
-    return { label: "UPCOMING", type: "upcoming" };
-  }
-  if (now >= end) {
-    return { label: "ENDED", type: "past" };
-  }
-  return { label: "ONGOING", type: "ongoing" };
-}
-
-function getAttending(statusType) {
-  if (statusType === "ongoing") {
-    return "20k+";
-  }
-  if (statusType === "upcoming") {
-    return "250+ attending";
-  }
-  return "Registration ended";
+  const type = ["cancelled", "draft"].includes(event.status) ? event.status : eventTimeStatus(event, nowTs);
+  const labels = { upcoming: "UPCOMING", ongoing: "ONGOING", past: "ENDED", cancelled: "CANCELLED", draft: "DRAFT", unknown: "TIME TBC" };
+  return { type, label: labels[type] };
 }
 
 function toCategoryLabel(category) {
@@ -390,12 +301,7 @@ function toCategoryLabel(category) {
 }
 
 function formatDate(dateText) {
-  const parsed = new Date(dateText);
-  if (Number.isNaN(parsed.getTime())) {
-    return dateText;
-  }
-  const month = parsed.toLocaleString("en-US", { month: "short" });
-  return `${month} ${parsed.getDate()}`;
+  return formatEventDate(dateText, { month: "short", day: "numeric" });
 }
 
 const createStyles = (colors) =>

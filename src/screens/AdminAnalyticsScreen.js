@@ -152,10 +152,7 @@ export default function AdminAnalyticsScreen({
                     {event.registeredCount || 0} registered
                   </AppText>
                 </View>
-                <View style={styles.eventRating}>
-                  <Ionicons name="star" size={14} color="#fbbf24" />
-                  <AppText style={[styles.ratingText, { color: colors.text }]}>{event.rating || "N/A"}</AppText>
-                </View>
+
               </View>
             ))}
           </View>
@@ -180,7 +177,7 @@ export default function AdminAnalyticsScreen({
         <Ionicons name="document-text" size={32} color={colors.primary} />
         <AppText style={[styles.reportTitle, { color: colors.text }]}>Generate Report</AppText>
         <AppText style={[styles.reportText, { color: colors.textMuted }]}>
-          Export analytics data as PDF for stakeholder presentations
+          Share the latest event and registration totals from your account
         </AppText>
         <Pressable
           style={[styles.reportButton, { backgroundColor: colors.primary }]}

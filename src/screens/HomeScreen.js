@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { useAudioPlayer } from 'expo-audio';
-import { useMemo, useState, useRef } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View, Dimensions, Animated } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View, Dimensions } from "react-native";
 import { Image } from "expo-image";
+import { Avatar } from "../components/Avatar";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,8 @@ import { ScalePressable } from "../components/ScalePressable";
 import { EventSkeletonCard } from "../components/SkeletonLoader";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import { campusDateKey, eventTimeStatus, formatEventDate } from "../utils/eventTime";
+import { useCurrentTime } from "../utils/useCurrentTime";
 
 // Fixed ink for text/icons that always sit on a white chip/pill over the dark
 // hero imagery. Must NOT use colors.primary, which flips to near-white in dark
@@ -52,12 +54,11 @@ export default function HomeScreen({
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const nowTs = useCurrentTime();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const screenWidth = Dimensions.get("window").width;
   const CARD_WIDTH = screenWidth - scale(32);
 
-  // Single audio player for the Like sound effect to prevent memory leaks/crashes
-  const likePlayer = useAudioPlayer(require("../../assets/sounds/pop.mp3"));
 
   const isStudent = dashboardType !== "staff";
   const fallbackGreeting = isStudent ? "Student" : "Staff";
@@ -78,9 +79,7 @@ export default function HomeScreen({
   const filteredEvents = useMemo(() => {
     const byCategory = events.filter((item) => {
       if (activeCategory === "Today" || activeCategory === "Tomorrow") {
-        const day = new Date();
-        if (activeCategory === "Tomorrow") day.setDate(day.getDate() + 1);
-        const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+        const dateKey = campusDateKey(nowTs, activeCategory === "Tomorrow" ? 1 : 0);
         return item.date === dateKey;
       }
       if (activeCategory === "All") return true;
@@ -98,7 +97,7 @@ export default function HomeScreen({
       const source = `${item.title} ${item.venue} ${item.category}`.toLowerCase();
       return source.includes(needle);
     });
-  }, [activeCategory, events, searchText]);
+  }, [activeCategory, events, searchText, nowTs]);
 
   const upcoming = useMemo(() => filteredEvents, [filteredEvents]);
   const featuredList = featuredEvents.length > 0 ? featuredEvents.slice(0, 5) : events.slice(0, 5);
@@ -109,10 +108,9 @@ export default function HomeScreen({
 
   const activeEventsCount = useMemo(() => {
     return staffHostedEvents.filter(e => {
-      const start = new Date(e.date);
-      return start >= new Date();
+      return e.status === "published" && ["upcoming", "ongoing"].includes(eventTimeStatus(e, nowTs));
     }).length;
-  }, [staffHostedEvents]);
+  }, [staffHostedEvents, nowTs]);
 
   const totalRegistrations = useMemo(() => {
     return staffHostedEvents.reduce((sum, e) => {
@@ -121,30 +119,6 @@ export default function HomeScreen({
     }, 0);
   }, [staffHostedEvents]);
 
-  const renderFaces = (count = 3, size = 18) => {
-    return (
-      <View style={{ flexDirection: "row", marginRight: scale(6) }}>
-        {[1, 2, 3].slice(0, count).map((_, i) => (
-          <View
-            key={i}
-            style={{
-              width: scale(size),
-              height: scale(size),
-              borderRadius: scale(size / 2),
-              borderWidth: 1,
-              borderColor: colors.surface,
-              backgroundColor: i === 0 ? colors.primary : i === 1 ? colors.accent : "#3b82f6",
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: i > 0 ? -scale(8) : 0,
-            }}
-          >
-            <Ionicons name="person" size={scale(size * 0.55)} color="#fff" />
-          </View>
-        ))}
-      </View>
-    );
-  };
 
   return (
     <View style={[styles.page, { paddingTop: insets.top }]}>
@@ -318,7 +292,7 @@ export default function HomeScreen({
                   </View>
                   <AppText style={styles.featuredHeroTitle}>{featured.title}</AppText>
                   <AppText style={styles.featuredHeroDesc} numberOfLines={1}>
-                    {featured.description || "Small daily habits matter"}
+                    {featured.description || ""}
                   </AppText>
                   
                   <View style={styles.featuredHeroMetaBlock}>
@@ -328,7 +302,7 @@ export default function HomeScreen({
                     </View>
                     <View style={styles.metaLine}>
                       <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
-                      <AppText style={styles.featuredHeroMetaText}>{featured.time || "9:00 AM"}</AppText>
+                      <AppText style={styles.featuredHeroMetaText}>{featured.time || "Time to be confirmed"}</AppText>
                     </View>
                     <View style={styles.metaLine}>
                       <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.8)" />
@@ -338,9 +312,9 @@ export default function HomeScreen({
 
                   <View style={styles.featuredHeroBottom}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      {renderFaces(2, 20)}
+                      <Ionicons name="people-outline" size={20} color="#fff" />
                       <AppText style={styles.facePileText}>
-                        {featured.registeredCount ? `${featured.registeredCount} Registered` : "Registration Open"}
+                        {Number.isFinite(featured.registeredCount) ? `${featured.registeredCount} registered` : "View event details"}
                       </AppText>
                     </View>
                     <Pressable
@@ -362,7 +336,6 @@ export default function HomeScreen({
         {/* ORGANIZER METRICS HERO CARD */}
         {!isStudent && (
           <View style={styles.organizerHero}>
-            <Image source={{ uri: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=80" }} style={styles.featuredHeroBg} />
             <LinearGradient colors={["transparent", "rgba(0, 42, 20, 0.96)"]} style={styles.featuredGradient} />
             <View style={styles.featuredHeroContent}>
               <View style={[styles.featuredBadge, { backgroundColor: "#fff" }]}>
@@ -413,7 +386,7 @@ export default function HomeScreen({
           <View style={styles.topEventsSection}>
             <View style={styles.sectionHeader}>
               <AppText style={styles.sectionTitle}>Top events for you</AppText>
-              <Pressable style={styles.seeAllBtn}>
+              <Pressable style={styles.seeAllBtn} onPress={() => onActivateSearch?.("")} accessibilityRole="button" accessibilityLabel="See all events">
                 <AppText style={styles.seeAllText}>See all</AppText>
                 <Ionicons name="chevron-forward" size={14} color={colors.primary} />
               </Pressable>
@@ -440,7 +413,7 @@ export default function HomeScreen({
                     <AppText style={styles.topEventTitle} numberOfLines={1}>{item.title}</AppText>
                     <View style={styles.topEventMetaLine}>
                       <Ionicons name="calendar-outline" size={12} color={colors.textSubtle} />
-                      <AppText style={styles.topEventMetaText}>{formatDate(item.date)} • {item.time || "10:00 AM"}</AppText>
+                      <AppText style={styles.topEventMetaText}>{formatDate(item.date)} • {item.time || "Time to be confirmed"}</AppText>
                     </View>
                     <View style={styles.topEventMetaLine}>
                       <Ionicons name="location-outline" size={12} color={colors.textSubtle} />
@@ -448,9 +421,9 @@ export default function HomeScreen({
                     </View>
                     <View style={styles.topEventBottomRow}>
                       <View style={{ flexDirection: "row" }}>
-                        {renderFaces(3, 16)}
+                        <Ionicons name="people-outline" size={16} color={colors.textMuted} />
                       </View>
-                      <AppText style={styles.topEventGoingText}>112 Going</AppText>
+                      <AppText style={styles.topEventGoingText}>{Number.isFinite(item.registeredCount) ? `${item.registeredCount} registered` : "RSVP count unavailable"}</AppText>
                     </View>
                   </View>
                 </ScalePressable>
@@ -486,7 +459,6 @@ export default function HomeScreen({
                 onPress={() => onOpenEvent?.(item.id)}
                 bookmarked={bookmarkedEventIds.includes(item.id)}
                 onToggleBookmark={() => onToggleBookmark?.(item.id)}
-                likePlayer={likePlayer}
               />
             ))
           )}
@@ -496,78 +468,23 @@ export default function HomeScreen({
   );
 }
 
-function SocialEventPost({ item, colors, styles, onPress, bookmarked, onToggleBookmark, likePlayer }) {
-  const [isLiked, setIsLiked] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const avatarUrl = `https://randomuser.me/api/portraits/men/${(String(item.id).charCodeAt(0) % 90) + 1}.jpg`;
-  
-  const handleLike = async () => {
-    const willLike = !isLiked;
-    setIsLiked(willLike);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    if (willLike) {
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.3,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: true,
-        })
-      ]).start();
-
-      try {
-        if (likePlayer) {
-          likePlayer.seekTo(0);
-          likePlayer.play();
-        }
-      } catch (e) {
-        console.log("Audio play error:", e);
-      }
-    } else {
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 0.8,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        })
-      ]).start();
-    }
-  };
-
+function SocialEventPost({ item, colors, styles, onPress, bookmarked, onToggleBookmark }) {
   return (
     <View style={styles.postCard}>
       {/* Post Header */}
       <View style={styles.postHeader}>
-        {(!item.organizer || item.organizer === "Student Union") ? (
-          <View style={[styles.postAvatar, { backgroundColor: "#0B2A15", alignItems: "center", justifyContent: "center" }]}>
-            <AppText style={{ color: "#2EFE7E", fontFamily: "Outfit_900Black", fontSize: ms(16) }}>SU</AppText>
-          </View>
-        ) : (
-          <Image source={{ uri: avatarUrl }} style={styles.postAvatar} />
-        )}
+        <Avatar name={item.organizer || ""} style={styles.postAvatar} />
         <View style={styles.postHeaderInfo}>
           <View style={styles.postAuthorRow}>
-            <AppText style={styles.postAuthorName}>{item.organizer || "Student Union"}</AppText>
-            <Ionicons name="checkmark-circle" size={14} color="#1DA1F2" />
+            <AppText style={styles.postAuthorName}>{item.organizer || "Organizer unavailable"}</AppText>
           </View>
           <View style={styles.postTimeRow}>
-            <AppText style={styles.postTimeText}>{formatRelativeTime(item.created_at || item.date)}</AppText>
+            <AppText style={styles.postTimeText}>{formatRelativeTime(item.createdAt)}</AppText>
             <AppText style={{ marginHorizontal: scale(4), color: colors.textMuted }}>•</AppText>
             <Ionicons name="globe-outline" size={11} color={colors.textMuted} />
           </View>
         </View>
-        <Pressable style={styles.postOptionsBtn}>
+        <Pressable style={styles.postOptionsBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel="View event details">
           <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
         </Pressable>
       </View>
@@ -597,16 +514,9 @@ function SocialEventPost({ item, colors, styles, onPress, bookmarked, onToggleBo
 
       {/* Action Footer */}
       <View style={styles.postActionFooter}>
-        <Pressable
-          style={styles.postActionBtn}
-          onPress={handleLike}
-          accessibilityRole="button"
-          accessibilityLabel={isLiked ? "Unlike" : "Like"}
-        >
-          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={18} color={isLiked ? "#ff4444" : colors.textSubtle} />
-          </Animated.View>
-          <AppText style={[styles.postActionText, isLiked && { color: "#ff4444", fontWeight: "700" }]}>Like</AppText>
+        <Pressable style={styles.postActionBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel="View event details">
+          <Ionicons name="information-circle-outline" size={18} color={colors.textSubtle} />
+          <AppText style={styles.postActionText}>Details</AppText>
         </Pressable>
         <Pressable
           style={styles.postActionBtn}
@@ -626,15 +536,11 @@ function SocialEventPost({ item, colors, styles, onPress, bookmarked, onToggleBo
 }
 
 function formatDate(dateText) {
-  const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) return dateText;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatEventDate(dateText);
 }
 
 function formatShortDate(dateText) {
-  const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatEventDate(dateText, { month: "short", day: "numeric" });
 }
 
 function formatRelativeTime(dateString) {

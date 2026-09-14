@@ -1,7 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Modal,
   Pressable,
   StyleSheet,
@@ -21,10 +24,15 @@ export default function SelectPickerModal({
   onSelect,
   onClose,
   searchPlaceholder = "Search...",
+  loading = false,
+  error = null,
+  onRetry,
+  emptyMessage = "No choices available yet.",
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
+  useEffect(() => { setSearch(""); }, [visible, title]);
 
   const filteredOptions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -51,7 +59,7 @@ export default function SelectPickerModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
         <View style={styles.sheet}>
           {/* Header */}
@@ -93,7 +101,12 @@ export default function SelectPickerModal({
           </View>
 
           {/* List */}
-          <FlatList
+          {loading ? <View style={styles.emptyWrap}><ActivityIndicator color={colors.primary} /><AppText>Loading choices…</AppText></View> : error ? (
+            <View style={styles.emptyWrap}>
+              <AppText style={styles.emptyText}>{error}</AppText>
+              {!!onRetry && <Pressable onPress={onRetry} style={styles.itemRow} accessibilityRole="button" accessibilityLabel="Retry loading choices"><AppText style={{ color: colors.primary }}>Try again</AppText></Pressable>}
+            </View>
+          ) : <FlatList
             data={filteredOptions}
             keyExtractor={(item, index) =>
               typeof item === "string" ? `${item}-${index}` : `${item.value}-${index}`
@@ -133,12 +146,12 @@ export default function SelectPickerModal({
             }}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <AppText style={styles.emptyText}>No matches found</AppText>
+                <AppText style={styles.emptyText}>{search ? "No matches found" : emptyMessage}</AppText>
               </View>
             }
-          />
+          />}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

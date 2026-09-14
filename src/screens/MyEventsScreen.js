@@ -9,6 +9,8 @@ import { EmptyState } from "../components/EmptyState";
 import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
+import { eventTimeStatus, formatEventDate } from "../utils/eventTime";
+import { useCurrentTime } from "../utils/useCurrentTime";
 
 export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, onBack, onOpenNotifications, onCreateEvent, onOpenAnnouncement, refreshing, onRefreshData }) {
   const { colors } = useAppTheme();
@@ -16,28 +18,30 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [activeTab, setActiveTab] = useState("All");
+  const nowTs = useCurrentTime();
 
   const tabs = isStaff ? ["All", "Published", "Draft", "Cancelled", "Past"] : ["All", "Upcoming", "Past"];
 
   const preparedEvents = useMemo(() => {
     const withStatus = events.map((item) => {
-      const isPast = new Date(`${item.date}T23:59:59`).getTime() < Date.now();
-      return { ...item, status: isPast ? "Past" : (item.status || "published") };
+      const timeStatus = eventTimeStatus(item, nowTs);
+      const status = item.status || "published";
+      return { ...item, timeStatus, status, displayStatus: status === "published" && timeStatus === "past" ? "past" : status };
     });
 
     const byTab = activeTab === "All"
       ? withStatus
       : activeTab === "Upcoming"
-        ? withStatus.filter((item) => item.status !== "Past" && item.status !== "cancelled")
-        : withStatus.filter((item) => item.status.toLowerCase() === activeTab.toLowerCase());
+        ? withStatus.filter((item) => item.status === "published" && ["upcoming", "ongoing"].includes(item.timeStatus))
+        : withStatus.filter((item) => item.displayStatus === activeTab.toLowerCase());
 
     const needle = searchText.trim().toLowerCase();
     if (!needle) {
       return byTab;
     }
 
-    return byTab.filter((item) => [item.title, item.category].join(" ").toLowerCase().includes(needle));
-  }, [activeTab, events, searchText]);
+    return byTab.filter((item) => [item.title, item.category, item.displayStatus].join(" ").toLowerCase().includes(needle));
+  }, [activeTab, events, searchText, nowTs]);
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}> 
@@ -152,7 +156,7 @@ export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, o
 
 function ManageEventCard({ event, onOpenEvent, colors, styles }) {
   const statusColor =
-    event.status === "Published" ? colors.primary : event.status === "Draft" ? colors.error : colors.textSubtle;
+    event.displayStatus === "published" ? colors.primary : event.displayStatus === "draft" ? colors.error : colors.textSubtle;
 
   return (
     <ScalePressable
@@ -173,7 +177,7 @@ function ManageEventCard({ event, onOpenEvent, colors, styles }) {
 
         <View style={styles.badgesRow}>
           <AppText style={[styles.badge, styles.badgeGreen]}>{event.category.toUpperCase()}</AppText>
-          <AppText style={[styles.badge, { color: statusColor, backgroundColor: colors.surfaceAlt }]}>{event.status.toUpperCase()}</AppText>
+          <AppText style={[styles.badge, { color: statusColor, backgroundColor: colors.surfaceAlt }]}>{event.displayStatus.toUpperCase()}</AppText>
         </View>
 
         <View style={styles.metaRow}>
@@ -186,11 +190,7 @@ function ManageEventCard({ event, onOpenEvent, colors, styles }) {
 }
 
 function formatDate(dateText) {
-  const d = new Date(dateText);
-  if (Number.isNaN(d.getTime())) {
-    return dateText;
-  }
-  return `${d.toLocaleString("en-US", { month: "short" })} ${d.getDate()}, ${d.getFullYear()}`;
+  return formatEventDate(dateText);
 }
 
 const createStyles = (colors) =>

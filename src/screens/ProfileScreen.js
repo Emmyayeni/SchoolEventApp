@@ -1,16 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
 import {
-  Image,
-  Modal,
   ScrollView,
   StyleSheet,
   Switch,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Avatar } from "../components/Avatar";
 import { AppText } from "../components/AppText";
 import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
@@ -34,13 +32,12 @@ export default function ProfileScreen({
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [showQrModal, setShowQrModal] = useState(false);
   const styles = getStyles(colors, isDark);
 
   const matricOrStaffId =
     user?.matricNumber ||
     user?.staffId ||
-    (isStaff ? "NSUK/STF/2026/042" : "NSUK/UG/2024/7821");
+    "Not provided";
 
   const isAdmin = user?.accountType === "admin";
 
@@ -52,20 +49,6 @@ export default function ProfileScreen({
       return isDark ? ["#064e3b", "#065f46", "#047857"] : ["#0b7a24", "#15803d", "#14532d"];
     }
     return ["#0b7a24", "#15803d", "#166534"];
-  };
-
-  const handleOpenQr = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (_e) {}
-    setShowQrModal(true);
-  };
-
-  const handleCloseQr = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (_e) {}
-    setShowQrModal(false);
   };
 
   return (
@@ -80,8 +63,8 @@ export default function ProfileScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
-          <AppText style={styles.title}>My Identity</AppText>
-          <AppText style={styles.subtitle}>NSUK Digital Campus Hub</AppText>
+          <AppText style={styles.title}>My Profile</AppText>
+          <AppText style={styles.subtitle}>NSUK Events</AppText>
         </View>
         <ScalePressable
           style={styles.settingsBtn}
@@ -111,7 +94,7 @@ export default function ProfileScreen({
             </View>
             <View style={styles.passTypeChip}>
               <AppText style={styles.passTypeChipText}>
-                {isAdmin ? "SYSTEM ADMIN" : isStaff ? "STAFF PASS" : "STUDENT PASS"}
+                {isAdmin ? "SYSTEM ADMIN" : isStaff ? "STAFF" : "STUDENT"}
               </AppText>
             </View>
           </View>
@@ -119,17 +102,8 @@ export default function ProfileScreen({
           {/* Card Main Body */}
           <View style={styles.passBodyRow}>
             <View style={styles.avatarWrap}>
-              <Image
-                source={{
-                  uri:
-                    user.avatar ||
-                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-                }}
-                style={styles.avatar}
-              />
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark" size={10} color="#ffffff" />
-              </View>
+              <Avatar uri={user.avatar} name={user.fullName} size={72} style={styles.avatar} />
+
             </View>
 
             <View style={styles.passInfoCol}>
@@ -137,7 +111,7 @@ export default function ProfileScreen({
                 {user.fullName || (isStaff ? "Faculty Member" : "Student Member")}
               </AppText>
               <AppText style={styles.passDepartment} numberOfLines={1}>
-                {user.department || "Faculty of Natural & Applied Sciences"}
+                {user.department || "Department not provided"}
               </AppText>
               <View style={styles.passIdRow}>
                 <AppText style={styles.passIdLabel}>ID: </AppText>
@@ -164,7 +138,7 @@ export default function ProfileScreen({
                     ? "Admin"
                     : isStaff
                     ? user.roleDesignation || "Organizer"
-                    : user.level || "300 Level"}
+                    : user.level || "Level not provided"}
                 </AppText>
               </View>
               {user.faculty && (
@@ -176,16 +150,7 @@ export default function ProfileScreen({
               )}
             </View>
 
-            {/* Event QR Pass Button */}
-            <ScalePressable
-              style={styles.qrPassBtn}
-              onPress={handleOpenQr}
-              accessibilityRole="button"
-              accessibilityLabel="View Event QR Pass"
-            >
-              <Ionicons name="qr-code" size={14} color="#0b7a24" />
-              <AppText style={styles.qrPassBtnText}>Event QR</AppText>
-            </ScalePressable>
+
           </View>
         </LinearGradient>
       </View>
@@ -199,9 +164,9 @@ export default function ProfileScreen({
         <View style={styles.statCard}>
           <View style={styles.verifiedDotRow}>
             <View style={styles.statusActiveDot} />
-            <AppText style={styles.statValueText}>Active</AppText>
+            <AppText style={styles.statValueText}>{user.accountStatus || "Unknown"}</AppText>
           </View>
-          <AppText style={styles.statLabel}>Pass Status</AppText>
+          <AppText style={styles.statLabel}>Account Status</AppText>
         </View>
         <View style={styles.statCard}>
           <AppText style={styles.statValue}>
@@ -319,44 +284,7 @@ export default function ProfileScreen({
         <AppText style={styles.logoutText}>Log Out</AppText>
       </ScalePressable>
 
-      {/* Event QR Check-In Modal */}
-      <Modal
-        visible={showQrModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseQr}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <AppText style={styles.modalTitle}>Campus Event Pass</AppText>
-              <ScalePressable onPress={handleCloseQr} hitSlop={10}>
-                <Ionicons name="close-circle" size={24} color={colors.textSubtle} />
-              </ScalePressable>
-            </View>
 
-            <View style={styles.qrContainer}>
-              <View style={styles.qrPlaceholder}>
-                <Ionicons name="qr-code" size={140} color="#0f172a" />
-              </View>
-              <AppText style={styles.qrStudentName}>{user.fullName}</AppText>
-              <AppText style={styles.qrStudentId}>{matricOrStaffId}</AppText>
-              <View style={styles.qrStatusChip}>
-                <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-                <AppText style={styles.qrStatusText}>Valid for Venue Check-In</AppText>
-              </View>
-            </View>
-
-            <AppText style={styles.qrHint}>
-              Present this pass to the event usher or organizer scanner at venue entrances.
-            </AppText>
-
-            <ScalePressable style={styles.modalCloseBtn} onPress={handleCloseQr}>
-              <AppText style={styles.modalCloseBtnText}>Done</AppText>
-            </ScalePressable>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }

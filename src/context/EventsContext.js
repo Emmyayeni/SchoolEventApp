@@ -134,9 +134,7 @@ export function EventsProvider({ children }) {
         if (activeUserId.current !== currentUserId) return;
 
         setVisibleRegistrations(allRegistrationRows);
-        setEvents(eventRows.map(event => event.createdBy === currentUserId || accountType === "admin" ? {
-          ...event, registeredCount: allRegistrationRows.filter(row => row.event_id === event.id && row.status === "registered").length,
-        } : event));
+        setEvents(eventRows);
         setRegisteredEventIds(
           registrationRows.filter((item) => item.status === "registered").map((item) => item.event_id)
         );
@@ -243,6 +241,9 @@ export function EventsProvider({ children }) {
     try {
       const result = await registerForEvent({ eventId, userId: user.id });
       const latestRegistrations = await fetchEventRegistrations(user.id);
+      const latestEvents = await fetchEvents();
+      if (activeUserId.current !== user.id) return { ok: false };
+      setEvents(latestEvents);
       setRegisteredEventIds(
         latestRegistrations.filter((item) => item.status === "registered").map((item) => item.event_id)
       );

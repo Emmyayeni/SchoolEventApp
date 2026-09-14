@@ -6,6 +6,7 @@
     "start": "expo start",
     "test": "node --test tests/*.test.cjs",
     "build:web": "expo export --platform web",
+    "check:mobile": "expo export --platform android --platform ios --output-dir dist-native",
     "check:backend": "node scripts/check-backend.cjs",
     "preview": "node scripts/preview.cjs",
     "android": "expo start --android",

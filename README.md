@@ -5,9 +5,16 @@ A React Native and Expo campus event information system for Nasarawa State Unive
 ## Run locally
 
 1. Install Node.js and run `npm ci`.
-2. Copy `.env.example` to `.env.local` and supply your Supabase public URL and anon/publishable key. Never place a service-role key in an Expo public variable.
+2. Create `.env.local` with the variables below and supply your Supabase public URL and anon/publishable key. Never place a service-role key in an Expo public variable.
 3. Follow the backend steps in [the completion checklist](docs/PROJECT_COMPLETION.md). The SQL baseline and migration must match the configured database.
 4. Run `npm start` for Expo, or `npm run web` for the browser preview.
+
+```dotenv
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
+```
+
+Environment files are ignored by Git. Keep your local values on your device.
 
 ## Verify
 

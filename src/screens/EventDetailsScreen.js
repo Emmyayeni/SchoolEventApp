@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, View, Share } from "react-native";
 import { Image } from "expo-image";
 import { AppText } from "../components/AppText";
@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
-import { eventCalendarUrl, eventStartTime } from "../utils/eventTime";
+import { eventCalendarUrl, eventTimeStatus, formatEventDate } from "../utils/eventTime";
+import { useCurrentTime } from "../utils/useCurrentTime";
 
 export default function EventDetailsScreen({
   event,
@@ -29,10 +30,11 @@ export default function EventDetailsScreen({
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
-  const [nowTs, setNowTs] = useState(Date.now());
+  const nowTs = useCurrentTime();
   const [showTicketModal, setShowTicketModal] = useState(false);
   
-  const eventStatus = useMemo(() => getEventTimeStatus(event, nowTs), [event, nowTs]);
+  const eventStatus = useMemo(() => ["cancelled", "draft"].includes(event.status)
+    ? event.status.toUpperCase() : eventTimeStatus(event, nowTs).toUpperCase(), [event, nowTs]);
   const isPast = eventStatus === "PAST";
   
   const capacity = Number(event?.capacity);
@@ -50,15 +52,11 @@ export default function EventDetailsScreen({
     registerLabel = "Registering...";
   }
   if (isWaitlisted) registerLabel = "Waitlisted";
+  if (eventStatus === "CANCELLED") registerLabel = "Event Cancelled";
+  if (eventStatus === "DRAFT") registerLabel = "Not Published";
+  if (eventStatus === "UNKNOWN") registerLabel = "Time to Be Confirmed";
 
-  const isRegistrationDisabled = isPast || isRegistered || isWaitlisted || registering || event.status === "cancelled" || event.status === "draft";
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNowTs(Date.now());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
+  const isRegistrationDisabled = isPast || isRegistered || isWaitlisted || registering || ["CANCELLED", "DRAFT", "UNKNOWN"].includes(eventStatus);
 
   const handleShare = async () => {
     try {
@@ -86,7 +84,7 @@ export default function EventDetailsScreen({
   
   const registrationSummary = useMemo(() => {
     const count = Number(event?.registeredCount);
-    if (!Number.isFinite(count) || count < 0) return "RSVP to join this event";
+    if (event?.registeredCount == null || !Number.isFinite(count) || count < 0) return "RSVP to join this event";
     const capacity = Number(event?.capacity);
     if (Number.isFinite(capacity) && capacity > 0) {
       return `${count} registered • ${Math.max(capacity - count, 0)} spots left`;
@@ -303,7 +301,7 @@ export default function EventDetailsScreen({
               <View style={styles.ticketBadgeRow}>
                 <View style={styles.confirmedBadge}>
                   <Ionicons name="checkmark-circle" size={12} color="#059669" />
-                  <AppText style={styles.confirmedText}>CONFIRMED ADMISSION</AppText>
+                  <AppText style={styles.confirmedText}>REGISTRATION CONFIRMED</AppText>
                 </View>
               </View>
             </View>
@@ -327,7 +325,7 @@ export default function EventDetailsScreen({
                 <View style={{ alignItems: "flex-end" }}>
                   <AppText style={styles.ticketFieldLabel}>ID / MATRIC</AppText>
                   <AppText style={styles.ticketFieldValue}>
-                    {user?.matricNumber || user?.staffId || "NSUK-VERIFIED"}
+                    {user?.matricNumber || user?.staffId || "Not provided"}
                   </AppText>
                 </View>
               </View>
@@ -375,26 +373,6 @@ export default function EventDetailsScreen({
       </Modal>
     </View>
   );
-}
-
-function formatEventDate(dateText) {
-  const parsed = new Date(`${dateText}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return dateText;
-  return `${parsed.toLocaleString("en-US", { month: "short" })} ${parsed.getDate()}, ${parsed.getFullYear()}`;
-}
-
-function getEventTimeStatus(event, nowTimestamp) {
-  const start = eventStartTime(event);
-  if (!start) return "UPCOMING";
-  const hasTime = !!String(event?.time || "").trim();
-  const end = new Date(start);
-  if (hasTime) end.setHours(end.getHours() + 2);
-  else end.setDate(end.getDate() + 1);
-
-  const now = new Date(nowTimestamp);
-  if (now < start) return "UPCOMING";
-  if (now >= end) return "PAST";
-  return "ONGOING";
 }
 
 function getAudienceLabels(targetAudience) {

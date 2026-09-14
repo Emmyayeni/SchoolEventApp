@@ -37,7 +37,8 @@ const DEFAULT_CREATE_EVENT_FORM = {
   time: "",
   venue: "",
   organizer: "",
-  image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80",
+  image: "",
+  status: "published",
   targetAudience: "all",
   capacity: "",
 };
@@ -99,7 +100,7 @@ export default function RootNavigator() {
   const [homeSearch] = useState("");
   const [selectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState(["tech", "football", "workshop", "science"]);
+  const [recentSearches, setRecentSearches] = useState([]);
   const [activeAdminScreen, setActiveAdminScreen] = useState("dashboard");
   const [editingUserId, setEditingUserId] = useState(null);
   const [adminSettings, setAdminSettings] = useState({
@@ -277,7 +278,7 @@ export default function RootNavigator() {
                   isStaff={isStaffUser}
                   onCreateEvent={() => {
                     setEditingEventId(null);
-                    setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+                    setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
                     setCreateEventErrors({});
                     navigation.navigate("CreateEvent");
                   }}
@@ -303,7 +304,7 @@ export default function RootNavigator() {
                     },
                     onCreateEvent: () => {
                       setEditingEventId(null);
-                      setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+                      setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
                       setCreateEventErrors({});
                       navigation.navigate("CreateEvent");
                     },
@@ -322,6 +323,7 @@ export default function RootNavigator() {
                     onBack: () => setActiveTab("home"),
                   }}
                   myEventsProps={{
+                    onOpenAnnouncement: () => navigation.navigate("SendAnnouncement"),
                     events: activeTab === "registrations" ? events.filter((e) => registeredEventIds.includes(e.id)) : myEvents,
                     isStaff: isStaffUser,
                     onOpenEvent: (id) => navigation.navigate("EventDetails", { eventId: id }),
@@ -329,7 +331,7 @@ export default function RootNavigator() {
                     onOpenNotifications: () => setActiveTab("notifications"),
                     onCreateEvent: () => {
                       setEditingEventId(null);
-                      setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+                      setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
                       setCreateEventErrors({});
                       navigation.navigate("CreateEvent");
                     },
@@ -349,6 +351,20 @@ export default function RootNavigator() {
                   }}
                   profileProps={{
                     user,
+                    isStaff: isStaffUser,
+                    totalRegistered: registeredEventIds.length,
+                    themeMode,
+                    onToggleTheme: () => setThemeMode(p => p === "dark" ? "light" : "dark"),
+                    onOpenMyEvents: () => setActiveTab(isStaffUser ? "my-events" : "registrations"),
+                    onOpenSavedEvents: () => setActiveTab("my-events"),
+                    onOpenNotifications: () => setActiveTab("notifications"),
+                    onOpenAnnouncement: () => navigation.navigate("SendAnnouncement"),
+                    onCreateEvent: () => {
+                      setEditingEventId(null);
+                      setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
+                      setCreateEventErrors({});
+                      navigation.navigate("CreateEvent");
+                    },
                     onEditProfile: () => navigation.navigate("EditProfile"),
                     onOpenSettings: () => navigation.navigate("Settings"),
                     onLogout: logout,
@@ -421,6 +437,7 @@ export default function RootNavigator() {
                       organizer: event.organizer || "",
                       image: event.image || DEFAULT_CREATE_EVENT_FORM.image,
                       targetAudience: event.targetAudience || "all",
+                      status: event.status || "published",
                       capacity: event.capacity ? String(event.capacity) : "",
                     });
                     navigation.navigate("CreateEvent");
@@ -455,13 +472,14 @@ export default function RootNavigator() {
                   setCreateEventErrors((p) => ({ ...p, [field]: undefined }));
                 }}
                 onUploadEventImage={uploadEventImage}
-                onSubmit={async () => {
-                  const errors = validateEvent(createEventForm);
+                onSubmit={async (status) => {
+                  const form = { ...createEventForm, status: status || createEventForm.status || "published" };
+                  const errors = validateEvent(form);
                   setCreateEventErrors(errors);
                   if (Object.keys(errors).length) return false;
-                  const res = await saveEvent(createEventForm, editingEventId);
+                  const res = await saveEvent(form, editingEventId);
                   if (res.ok) {
-                    setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+                    setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
                     setEditingEventId(null);
                     navigation.goBack();
                   }
@@ -566,7 +584,7 @@ export default function RootNavigator() {
                   onSwitchToUser: () => navigation.goBack(),
                   onCreateEvent: () => {
                     setEditingEventId(null);
-                    setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+                    setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
                     navigation.navigate("CreateEvent");
                   },
                 }}
@@ -575,14 +593,14 @@ export default function RootNavigator() {
                   onBack: () => setActiveAdminScreen("dashboard"),
                   onCreateEvent: () => {
                     setEditingEventId(null);
-                    setCreateEventForm(DEFAULT_CREATE_EVENT_FORM);
+                    setCreateEventForm({ ...DEFAULT_CREATE_EVENT_FORM, organizer: user?.fullName || "" });
                     navigation.navigate("CreateEvent");
                   },
                   onEditEvent: (id) => {
                     const evt = events.find((e) => e.id === id);
                     if (evt) {
                       setEditingEventId(id);
-                      setCreateEventForm(evt);
+                      setCreateEventForm({ ...evt, capacity: evt.capacity ? String(evt.capacity) : "" });
                       navigation.navigate("CreateEvent");
                     }
                   },

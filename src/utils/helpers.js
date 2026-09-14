@@ -1,3 +1,5 @@
+import { formatEventDate } from "./eventTime";
+
 export const filterByCategory = (events, selectedCategory) => {
   if (selectedCategory === "All") {
     return events;
@@ -22,9 +24,5 @@ export const searchEvents = (events, keyword) => {
 };
 
 export const formatDateLabel = (dateString) => {
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-  return date.toDateString();
+  return formatEventDate(dateString, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 };
