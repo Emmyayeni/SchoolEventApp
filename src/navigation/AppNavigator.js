@@ -3,7 +3,6 @@ import HomeScreen from "../screens/HomeScreen";
 import MyEventsScreen from "../screens/MyEventsScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
-import SavedEventsScreen from "../screens/SavedEventsScreen";
 import SearchScreen from "../screens/SearchScreen";
 import { useAppTheme } from "../theme/theme";
 import BottomTabs from "./BottomTabs";
@@ -18,7 +17,6 @@ export default function AppNavigator({
   myEventsProps,
   notificationsProps,
   profileProps,
-  savedEventsProps,
   refreshing,
   loadError,
   onRefreshData,
@@ -34,25 +32,14 @@ export default function AppNavigator({
     if (activeTab === "search") {
       return <SearchScreen {...searchProps} />;
     }
-    if (activeTab === "registrations") {
-      return <MyEventsScreen {...myEventsProps} isStaff={false} refreshing={refreshing} onRefreshData={onRefreshData} />;
-    }
     if (activeTab === "my-events") {
-      return isStaff ? (
-        <MyEventsScreen {...myEventsProps} refreshing={refreshing} onRefreshData={onRefreshData} />
-      ) : (
-        <SavedEventsScreen {...savedEventsProps} refreshing={refreshing} onRefreshData={onRefreshData} />
-      );
+      return <MyEventsScreen {...myEventsProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
     }
     if (activeTab === "notifications") {
       return <NotificationsScreen {...notificationsProps} refreshing={refreshing} onRefreshData={onRefreshData} />;
     }
     return <ProfileScreen {...profileProps} />;
   };
-
-  const unreadCount = (notificationsProps?.notifications || []).filter(
-    (n) => !n.read && !n.isRead
-  ).length;
 
   return (
     <View style={styles.container}>
@@ -68,7 +55,6 @@ export default function AppNavigator({
           onChange={onTabChange}
           isStaff={isStaff}
           onCreateEvent={onCreateEvent}
-          unreadCount={unreadCount}
         />
       </View>
     </View>

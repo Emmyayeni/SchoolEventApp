@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Animated, Dimensions, Pressable, StyleSheet, View } from "react-native";
 import { Avatar } from "./Avatar";
 import { AppText } from "./AppText";
@@ -21,8 +21,8 @@ export default function Sidebar({
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const translateX = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
-  const fade = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(-SIDEBAR_WIDTH));
+  const [fade] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (isOpen) {
@@ -54,15 +54,10 @@ export default function Sidebar({
     }
   }, [isOpen, fade, translateX]);
 
-  if (!isOpen && translateX._value === -SIDEBAR_WIDTH) {
-    return null;
-  }
-
   const navItems = [
     { key: "home", label: "Dashboard", icon: "home-outline", activeIcon: "home" },
     { key: "search", label: "Explore Events", icon: "compass-outline", activeIcon: "compass" },
-    { key: "my-events", label: ["organizer", "staff", "admin"].includes(user?.accountType) ? "Manage Events" : "Saved Events", icon: "calendar-outline", activeIcon: "calendar" },
-    { key: "registrations", label: "My Registrations", icon: "checkmark-circle-outline", activeIcon: "checkmark-circle" },
+    { key: "my-events", label: ["organizer", "staff", "admin"].includes(user?.accountType) ? "Manage Events" : "My Events", icon: "calendar-outline", activeIcon: "calendar" },
     { key: "notifications", label: "Notifications", icon: "notifications-outline", activeIcon: "notifications" },
     { key: "profile", label: "My Profile", icon: "person-outline", activeIcon: "person" },
   ];

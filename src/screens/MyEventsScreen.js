@@ -1,366 +1,134 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View, RefreshControl } from "react-native";
-import { AppText } from "../components/AppText";
-import { AppTextInput } from "../components/AppTextInput";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppText } from "../components/AppText";
 import { FadeInImage } from "../components/FadeInImage";
-import { EmptyState } from "../components/EmptyState";
-import { ScalePressable } from "../components/ScalePressable";
 import { useAppTheme } from "../theme/theme";
+import { eventTimeStatus, formatEventDate, parseEventDate } from "../utils/eventTime";
 import { ms, scale } from "../utils/responsive";
-import { eventTimeStatus, formatEventDate } from "../utils/eventTime";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
-export default function MyEventsScreen({ events, isStaff = false, onOpenEvent, onBack, onOpenNotifications, onCreateEvent, onOpenAnnouncement, refreshing, onRefreshData }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+export default function MyEventsScreen({ events = [], isStaff = false, registeredEventIds = [], bookmarkedEventIds = [], onOpenEvent, onOpenNotifications, onCreateEvent, onOpenAnnouncement, onToggleBookmark, refreshing, onRefreshData }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
-  const [searchText, setSearchText] = useState("");
-  const [activeTab, setActiveTab] = useState("All");
-  const nowTs = useCurrentTime();
+  const now = useCurrentTime();
+  const tabs = isStaff ? ["Published", "Drafts", "Past"] : ["Registered", "Saved", "Past"];
+  const [activeTab, setActiveTab] = useState(tabs[0]);
 
-  const tabs = isStaff ? ["All", "Published", "Draft", "Cancelled", "Past"] : ["All", "Upcoming", "Past"];
-
-  const preparedEvents = useMemo(() => {
-    const withStatus = events.map((item) => {
-      const timeStatus = eventTimeStatus(item, nowTs);
-      const status = item.status || "published";
-      return { ...item, timeStatus, status, displayStatus: status === "published" && timeStatus === "past" ? "past" : status };
-    });
-
-    const byTab = activeTab === "All"
-      ? withStatus
-      : activeTab === "Upcoming"
-        ? withStatus.filter((item) => item.status === "published" && ["upcoming", "ongoing"].includes(item.timeStatus))
-        : withStatus.filter((item) => item.displayStatus === activeTab.toLowerCase());
-
-    const needle = searchText.trim().toLowerCase();
-    if (!needle) {
-      return byTab;
+  const prepared = useMemo(() => events.map(event => ({ ...event, timeStatus: eventTimeStatus(event, now) })), [events, now]);
+  const tabEvents = useMemo(() => prepared.filter(event => {
+    const registered = registeredEventIds.includes(event.id);
+    const saved = bookmarkedEventIds.includes(event.id);
+    if (isStaff) {
+      if (activeTab === "Drafts") return event.status === "draft";
+      if (activeTab === "Past") return event.timeStatus === "past" || ["cancelled", "archived"].includes(event.status);
+      return event.status === "published" && event.timeStatus !== "past";
     }
+    if (activeTab === "Saved") return saved;
+    if (activeTab === "Past") return registered && event.timeStatus === "past";
+    return registered && event.timeStatus !== "past";
+  }), [activeTab, bookmarkedEventIds, isStaff, prepared, registeredEventIds]);
+  const tabCount = tab => prepared.filter(event => {
+    const registered = registeredEventIds.includes(event.id);
+    if (isStaff) {
+      if (tab === "Drafts") return event.status === "draft";
+      if (tab === "Past") return event.timeStatus === "past" || ["cancelled", "archived"].includes(event.status);
+      return event.status === "published" && event.timeStatus !== "past";
+    }
+    if (tab === "Saved") return bookmarkedEventIds.includes(event.id);
+    if (tab === "Past") return registered && event.timeStatus === "past";
+    return registered && event.timeStatus !== "past";
+  }).length;
 
-    return byTab.filter((item) => [item.title, item.category, item.displayStatus].join(" ").toLowerCase().includes(needle));
-  }, [activeTab, events, searchText, nowTs]);
-
-  return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}> 
-      <FlatList
-        data={preparedEvents}
-        keyExtractor={(item) => String(item.id)}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.primary} />}
-        renderItem={({ item }) => <ManageEventCard event={item} onOpenEvent={onOpenEvent} colors={colors} styles={styles} />}
-        ListEmptyComponent={
-          !refreshing ? (
-            <EmptyState
-              icon={searchText ? "search" : "calendar"}
-              title={searchText ? "No matches found" : `No ${activeTab.toLowerCase()} events`}
-              description={searchText ? "Try adjusting your search terms." : "You have no events matching this category."}
-            />
-          ) : null
-        }
-        ListHeaderComponent={
-          <View style={styles.headerWrap}>
-            <View style={styles.topRow}>
-              <Pressable
-                style={styles.iconBtn}
-                onPress={onBack}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-              >
-                <Ionicons name="arrow-back" size={17} color={colors.accent} />
-              </Pressable>
-              <AppText style={[styles.title, { color: colors.text }]}>{isStaff ? "Manage Events" : "My Events"}</AppText>
-              <Pressable
-                style={styles.iconBtn}
-                onPress={onOpenNotifications}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Notifications"
-              >
-                <Ionicons name="notifications" size={16} color={colors.primary} />
-              </Pressable>
-            </View>
-
-            <AppText style={styles.subtitle}>
-              {isStaff
-                ? "Create events, publish updates, and manage registrations."
-                : "Your registrations and campus event history."}
-            </AppText>
-
-            {isStaff && (
-              <Pressable
-                style={styles.announcementBtn}
-                onPress={onOpenAnnouncement}
-                accessibilityRole="button"
-                accessibilityLabel="Create announcement"
-              >
-                <Ionicons name="megaphone-outline" size={14} color={colors.primaryContrast} />
-                <AppText style={styles.announcementBtnText}>Create Announcement</AppText>
-              </Pressable>
-            )}
-
-            <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-              <Ionicons name="search" size={16} color={colors.textSubtle} />
-              <AppTextInput
-                value={searchText}
-                onChangeText={setSearchText}
-                placeholder={isStaff ? "Search events by name or status" : "Search events to join"}
-                placeholderTextColor={colors.textSubtle}
-                style={[styles.searchInput, { color: colors.text }]}
-              />
-            </View>
-
-            <FlatList
-              data={tabs}
-              horizontal
-              keyExtractor={(item) => item}
-              contentContainerStyle={styles.tabsRow}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const active = item === activeTab;
-                return (
-                  <Pressable
-                    style={styles.tabItem}
-                    onPress={() => setActiveTab(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={item}
-                    accessibilityState={{ selected: active }}
-                  >
-                    <AppText style={[styles.tabText, active && styles.tabTextActive]}>{item}</AppText>
-                    {active && <View style={styles.tabIndicator} />}
-                  </Pressable>
-                );
-              }}
-            />
-          </View>
-        }
-      />
-
-      {isStaff && (
-        <Pressable
-          style={styles.fab}
-          onPress={onCreateEvent}
-          accessibilityRole="button"
-          accessibilityLabel="Create event"
-        >
-          <Ionicons name="add" size={28} color={colors.primaryContrast} />
-        </Pressable>
-      )}
-    </View>
-  );
+  return <View style={[styles.page, { paddingTop: insets.top }]}>
+    <FlatList
+      data={tabEvents}
+      keyExtractor={event => String(event.id)}
+      renderItem={({ item }) => <PersonalEventCard event={item} isStaff={isStaff} saved={bookmarkedEventIds.includes(item.id)} onOpenEvent={onOpenEvent} onToggleBookmark={onToggleBookmark} colors={colors} styles={styles} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshData} tintColor={colors.accent} colors={[colors.accent]} />}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={<View>
+        <View style={styles.topBar}><View><AppText style={styles.eyebrow}>{isStaff ? "ORGANIZER SPACE" : "YOUR CAMPUS PLANS"}</AppText><AppText style={styles.title}>{isStaff ? "Manage events" : "My events"}</AppText></View><Pressable style={styles.iconButton} onPress={onOpenNotifications} accessibilityRole="button" accessibilityLabel="Open notifications"><Ionicons name="notifications-outline" size={23} color={colors.text} /></Pressable></View>
+        <AppText style={styles.subtitle}>{isStaff ? "Publish updates and keep track of your event schedule." : "Everything you registered for or saved, in one place."}</AppText>
+        {isStaff && <View style={styles.actions}><Pressable style={styles.primaryButton} onPress={onCreateEvent} accessibilityRole="button"><Ionicons name="add" size={20} color="#fff" /><AppText style={styles.primaryText}>Create event</AppText></Pressable><Pressable style={styles.secondaryButton} onPress={onOpenAnnouncement} accessibilityRole="button"><Ionicons name="megaphone-outline" size={19} color={colors.accent} /><AppText style={styles.secondaryText}>Announcement</AppText></Pressable></View>}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} accessibilityRole="tablist">{tabs.map(tab => <Pressable key={tab} onPress={() => setActiveTab(tab)} style={[styles.tab, tab === activeTab && styles.activeTab]} accessibilityRole="tab" accessibilityState={{ selected: tab === activeTab }}><AppText style={[styles.tabText, tab === activeTab && styles.activeTabText]}>{tab}</AppText><View style={[styles.count, tab === activeTab && styles.activeCount]}><AppText style={[styles.countText, tab === activeTab && styles.activeCountText]}>{tabCount(tab)}</AppText></View></Pressable>)}</ScrollView>
+        <View style={styles.sectionRow}><AppText style={styles.sectionTitle}>{activeTab}</AppText><AppText style={styles.helper}>{tabEvents.length} {tabEvents.length === 1 ? "event" : "events"}</AppText></View>
+      </View>}
+      ListEmptyComponent={!refreshing && <View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name={emptyIcon(activeTab)} size={32} color={colors.accent} /></View><AppText style={styles.sectionTitle}>{emptyTitle(activeTab)}</AppText><AppText style={styles.emptyText}>{emptyDescription(activeTab, isStaff)}</AppText>{isStaff && activeTab !== "Past" && <Pressable style={styles.primaryButton} onPress={onCreateEvent} accessibilityRole="button"><Ionicons name="add" size={20} color="#fff" /><AppText style={styles.primaryText}>Create an event</AppText></Pressable>}</View>}
+    />
+  </View>;
 }
 
-function ManageEventCard({ event, onOpenEvent, colors, styles }) {
-  const statusColor =
-    event.displayStatus === "published" ? colors.primary : event.displayStatus === "draft" ? colors.error : colors.textSubtle;
-
-  return (
-    <ScalePressable
-      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderSoft }]}
-      onPress={() => onOpenEvent(event.id)}
-      accessibilityRole="button"
-      accessibilityLabel={event.title}
-      accessibilityHint="Opens event details"
-    >
-      <FadeInImage source={{ uri: event.image }} style={styles.cardImage} />
-      <View style={styles.cardBody}>
-        <View style={styles.titleRow}>
-          <AppText style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
-            {event.title}
-          </AppText>
-          <Ionicons name="ellipsis-vertical" size={16} color={colors.textSubtle} />
-        </View>
-
-        <View style={styles.badgesRow}>
-          <AppText style={[styles.badge, styles.badgeGreen]}>{event.category.toUpperCase()}</AppText>
-          <AppText style={[styles.badge, { color: statusColor, backgroundColor: colors.surfaceAlt }]}>{event.displayStatus.toUpperCase()}</AppText>
-        </View>
-
-        <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={12} color={colors.textSubtle} />
-          <AppText style={styles.metaText}>{formatDate(event.date)} • {event.time}</AppText>
-        </View>
-      </View>
-    </ScalePressable>
-  );
+function PersonalEventCard({ event, isStaff, saved, onOpenEvent, onToggleBookmark, colors, styles }) {
+  const date = parseEventDate(event.date);
+  const status = event.status === "published" ? event.timeStatus : event.status;
+  const statusLabels = { upcoming: "Upcoming", ongoing: "Happening now", past: "Ended", draft: "Draft", cancelled: "Cancelled", archived: "Archived", unknown: "Schedule pending" };
+  return <View style={styles.card}>
+    <Pressable style={({ pressed }) => [styles.cardPress, pressed && { opacity: 0.82 }]} onPress={() => onOpenEvent?.(event.id)} accessibilityRole="button" accessibilityLabel={event.title} accessibilityHint="Opens event details">
+      <View style={styles.imageWrap}><FadeInImage source={{ uri: event.image }} style={styles.image} /><View style={styles.dateBadge}><AppText style={styles.month}>{date ? formatEventDate(event.date, { month: "short" }).toUpperCase() : "DATE"}</AppText><AppText style={styles.day}>{date ? date.getUTCDate() : "TBC"}</AppText></View></View>
+      <View style={styles.cardBody}><View style={styles.badgeRow}><AppText style={styles.category}>{event.category || "Campus event"}</AppText><View style={styles.statusBadge}><View style={[styles.statusDot, ["past", "cancelled", "archived"].includes(status) && { backgroundColor: colors.textSubtle }]} /><AppText style={styles.statusText}>{statusLabels[status] || status}</AppText></View></View><AppText style={styles.cardTitle} numberOfLines={2}>{event.title}</AppText><View style={styles.meta}><Ionicons name="time-outline" size={16} color={colors.textMuted} /><AppText style={styles.metaText}>{event.time || "Time to be confirmed"}</AppText></View><View style={styles.meta}><Ionicons name="location-outline" size={16} color={colors.textMuted} /><AppText style={styles.metaText} numberOfLines={1}>{event.venue || "Venue to be confirmed"}</AppText></View>{isStaff && <View style={styles.organizerFooter}><Ionicons name="people-outline" size={17} color={colors.accent} /><AppText style={styles.organizerFooterText}>{Number.isFinite(event.registeredCount) ? `${event.registeredCount} registered` : "Registration count unavailable"}</AppText><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></View>}</View>
+    </Pressable>
+    {!isStaff && saved && <Pressable style={styles.bookmark} onPress={() => onToggleBookmark?.(event.id)} accessibilityRole="button" accessibilityLabel={`Remove ${event.title} from saved events`}><Ionicons name="bookmark" size={20} color="#0b7a24" /></Pressable>}
+  </View>;
 }
 
-function formatDate(dateText) {
-  return formatEventDate(dateText);
+function emptyIcon(tab) { return tab === "Saved" ? "bookmark-outline" : tab === "Past" ? "time-outline" : "calendar-outline"; }
+function emptyTitle(tab) { return tab === "Saved" ? "No saved events yet" : tab === "Past" ? "No event history yet" : tab === "Drafts" ? "No drafts" : "Nothing planned yet"; }
+function emptyDescription(tab, staff) {
+  if (tab === "Saved") return "Save an event from Home or Explore and it will appear here.";
+  if (tab === "Past") return staff ? "Completed and cancelled events will appear here." : "Events you attended or registered for will appear here after they end.";
+  if (tab === "Drafts") return "Events you save as drafts will appear here until you publish them.";
+  return staff ? "Create an event to begin building your campus schedule." : "Register for an upcoming event and it will appear here.";
 }
 
-const createStyles = (colors) =>
-  StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: scale(14),
-    paddingBottom: scale(90),
-  },
-  headerWrap: {
-    paddingTop: scale(2),
-    marginBottom: scale(8),
-  },
-  subtitle: {
-    marginBottom: scale(8),
-    color: colors.textMuted,
-    fontSize: ms(12),
-    fontWeight: "600",
-  },
-  announcementBtn: {
-    alignSelf: "flex-start",
-    minHeight: scale(34),
-    borderRadius: 999,
-    paddingHorizontal: scale(12),
-    marginBottom: scale(9),
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: scale(6),
-  },
-  announcementBtnText: {
-    color: colors.primaryContrast,
-    fontSize: ms(12),
-    fontWeight: "800",
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: scale(10),
-  },
-  iconBtn: {
-    width: scale(28),
-    height: scale(28),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    color: colors.text,
-    fontSize: ms(20),
-    fontWeight: "900",
-  },
-  searchWrap: {
-    height: scale(44),
-    borderRadius: scale(22),
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: scale(14),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(8),
-    marginBottom: scale(10),
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: ms(13),
-    fontWeight: "500",
-    paddingVertical: 0,
-  },
-  tabsRow: {
-    gap: scale(16),
-  },
-  tabItem: {
-    alignItems: "center",
-    paddingBottom: scale(8),
-  },
-  tabText: {
-    color: colors.textSubtle,
-    fontSize: ms(13),
-    fontWeight: "700",
-  },
-  tabTextActive: {
-    color: colors.accent,
-    fontWeight: "800",
-  },
-  tabIndicator: {
-    marginTop: scale(5),
-    width: scale(24),
-    height: scale(2),
-    borderRadius: 2,
-    backgroundColor: colors.accent,
-  },
-  card: {
-    marginBottom: scale(10),
-    borderRadius: scale(16),
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-    padding: scale(10),
-    flexDirection: "row",
-    gap: scale(10),
-  },
-  cardImage: {
-    width: scale(72),
-    height: scale(72),
-    borderRadius: scale(12),
-    backgroundColor: colors.border,
-  },
-  cardBody: {
-    flex: 1,
-    gap: scale(5),
-  },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardTitle: {
-    flex: 1,
-    color: colors.text,
-    fontSize: ms(14),
-    fontWeight: "800",
-    marginRight: scale(6),
-  },
-  badgesRow: {
-    flexDirection: "row",
-    gap: scale(6),
-  },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(2),
-    fontSize: ms(9),
-    fontWeight: "900",
-    letterSpacing: 0.4,
-  },
-  badgeGreen: {
-    color: colors.accent,
-    backgroundColor: colors.surfaceAlt,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(5),
-  },
-  metaText: {
-    color: colors.textSubtle,
-    fontSize: ms(12),
-    fontWeight: "600",
-  },
-  fab: {
-    position: "absolute",
-    right: scale(16),
-    bottom: scale(16),
-    width: scale(52),
-    height: scale(52),
-    borderRadius: scale(26),
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 3,
-    shadowColor: colors.text,
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  });
+const getStyles = (colors, isDark) => StyleSheet.create({
+  page: { flex: 1, backgroundColor: isDark ? colors.background : "#f6f8f3" },
+  content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28 },
+  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  eyebrow: { color: colors.accent, fontSize: ms(10), fontWeight: "700", letterSpacing: 1.5, marginBottom: 7 },
+  title: { color: colors.text, fontSize: ms(29), lineHeight: ms(36), fontWeight: "600" },
+  iconButton: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
+  subtitle: { color: colors.textMuted, fontSize: ms(14), lineHeight: ms(21), marginTop: 8, marginBottom: 18, maxWidth: 330 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" },
+  primaryButton: { minHeight: 48, paddingHorizontal: 17, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: "#174b33" },
+  primaryText: { color: "#fff", fontSize: ms(14), fontWeight: "600" },
+  secondaryButton: { minHeight: 48, paddingHorizontal: 15, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
+  secondaryText: { color: colors.accent, fontSize: ms(14), fontWeight: "600" },
+  tabs: { gap: 8, paddingBottom: 22 },
+  tab: { minHeight: 48, paddingHorizontal: 15, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
+  activeTab: { backgroundColor: "#174b33", borderColor: "#174b33" },
+  tabText: { color: colors.textMuted, fontSize: ms(13), fontWeight: "600" },
+  activeTabText: { color: "#fff" },
+  count: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
+  activeCount: { backgroundColor: "rgba(255,255,255,0.18)" },
+  countText: { color: colors.textMuted, fontSize: ms(10), fontWeight: "700" },
+  activeCountText: { color: "#fff" },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  sectionTitle: { color: colors.text, fontSize: ms(19), lineHeight: ms(25), fontWeight: "600", flexShrink: 1 },
+  helper: { color: colors.textMuted, fontSize: ms(12) },
+  card: { borderRadius: 20, overflow: "hidden", marginBottom: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
+  cardPress: { flexDirection: "row", minHeight: 150 },
+  imageWrap: { width: scale(116), position: "relative", backgroundColor: colors.surfaceAlt },
+  image: { width: "100%", height: "100%" },
+  dateBadge: { position: "absolute", left: 10, top: 10, minWidth: 48, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: "#fff", alignItems: "center" },
+  month: { color: "#0b7a24", fontSize: ms(9), fontWeight: "700", letterSpacing: 0.7 },
+  day: { color: "#203729", fontSize: ms(19), fontWeight: "700" },
+  cardBody: { flex: 1, padding: 14, gap: 7 },
+  badgeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 7 },
+  category: { color: colors.accent, fontSize: ms(11), fontWeight: "600", flexShrink: 1 },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
+  statusText: { color: colors.textMuted, fontSize: ms(10) },
+  cardTitle: { color: colors.text, fontSize: ms(17), lineHeight: ms(22), fontWeight: "600" },
+  meta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  metaText: { color: colors.textMuted, fontSize: ms(12), flex: 1 },
+  organizerFooter: { flexDirection: "row", alignItems: "center", gap: 7, borderTopWidth: 1, borderColor: colors.borderSoft, paddingTop: 9, marginTop: 2 },
+  organizerFooterText: { color: colors.textMuted, fontSize: ms(11), flex: 1 },
+  bookmark: { position: "absolute", left: scale(61), bottom: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  empty: { alignItems: "center", paddingVertical: 52, gap: 13 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: colors.textMuted, fontSize: ms(14), lineHeight: ms(21), textAlign: "center", maxWidth: 290 },
+});

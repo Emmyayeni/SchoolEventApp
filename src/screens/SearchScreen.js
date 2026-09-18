@@ -1,564 +1,130 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EmptyState } from "../components/EmptyState";
-import { FadeInImage } from "../components/FadeInImage";
-import { ScalePressable } from "../components/ScalePressable";
+import EventCard from "../components/EventCard";
 import { useAppTheme } from "../theme/theme";
-import { ms, scale } from "../utils/responsive";
-import { campusDateKey, eventTimeStatus, formatEventDate } from "../utils/eventTime";
+import { campusDateKey, eventTimeStatus } from "../utils/eventTime";
+import { ms } from "../utils/responsive";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
-export default function SearchScreen({ value, results, onChange, onOpenEvent }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+const DATE_FILTERS = ["Upcoming", "Today", "This week", "Any date"];
+
+export default function SearchScreen({ value = "", results = [], bookmarkedEventIds = [], onChange, onOpenEvent, onToggleBookmark }) {
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [activeCategory, setActiveCategory] = useState("All Events");
-  const [dateFilter, setDateFilter] = useState("Any Date");
-  const [viewMode, setViewMode] = useState("list");
-  const nowTs = useCurrentTime();
+  const now = useCurrentTime();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+  const [category, setCategory] = useState("All categories");
+  const [dateFilter, setDateFilter] = useState("Upcoming");
+  const [venue, setVenue] = useState("All venues");
+  const [showFilters, setShowFilters] = useState(false);
 
-  const categories = [
-    { label: "All Events", icon: "apps" },
-    { label: "Academic", icon: "school" },
-    { label: "Social", icon: "people" },
-    { label: "Sports", icon: "football" },
-  ];
-
-  const cycleDateFilter = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (dateFilter === "Any Date") setDateFilter("Today");
-    else if (dateFilter === "Today") setDateFilter("Upcoming");
-    else setDateFilter("Any Date");
-  };
-
+  const visibleEvents = useMemo(() => results.filter(event => !event.status || event.status === "published"), [results]);
+  const categories = useMemo(() => ["All categories", ...new Set(visibleEvents.map(event => event.category?.trim()).filter(Boolean))], [visibleEvents]);
+  const venues = useMemo(() => ["All venues", ...new Set(visibleEvents.map(event => event.venue?.trim()).filter(Boolean))], [visibleEvents]);
   const filtered = useMemo(() => {
-    let list = results || [];
-
-    if (activeCategory === "Academic") {
-      list = list.filter((item) => ["Seminar", "Workshop", "Conference"].includes(item.category));
-    } else if (activeCategory === "Social") {
-      list = list.filter((item) => item.category === "Social");
-    } else if (activeCategory === "Sports") {
-      list = list.filter((item) => item.category === "Sports");
-    }
-
-    if (dateFilter === "Today") {
-      const todayStr = campusDateKey(nowTs);
-      list = list.filter((item) => String(item.date || "").startsWith(todayStr));
-    } else if (dateFilter === "Upcoming") {
-      list = list.filter((item) => item.status !== "cancelled" && item.status !== "draft" && eventTimeStatus(item, nowTs) === "upcoming");
-    }
-
-    return list;
-  }, [activeCategory, dateFilter, results, nowTs]);
+    const today = campusDateKey(now);
+    const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+    const weekEnd = campusDateKey(now, (7 - weekday) % 7);
+    return visibleEvents.filter(event => {
+      if (category !== "All categories" && event.category !== category) return false;
+      if (venue !== "All venues" && event.venue !== venue) return false;
+      if (dateFilter === "Today" && event.date !== today) return false;
+      if (dateFilter === "This week" && !(event.date >= today && event.date <= weekEnd)) return false;
+      if (dateFilter === "Upcoming" && !["upcoming", "ongoing"].includes(eventTimeStatus(event, now))) return false;
+      return true;
+    });
+  }, [category, dateFilter, now, venue, visibleEvents]);
+  const activeFilters = [dateFilter !== "Any date" && dateFilter, category !== "All categories" && category, venue !== "All venues" && venue].filter(Boolean);
+  const clearFilters = () => { setDateFilter("Upcoming"); setCategory("All categories"); setVenue("All venues"); };
 
   return (
-    <FlatList
-      data={filtered}
-      key={viewMode}
-      numColumns={viewMode === "grid" ? 2 : 1}
-      keyExtractor={(item) => String(item.id)}
-      showsVerticalScrollIndicator={false}
-      columnWrapperStyle={viewMode === "grid" ? styles.gridRow : undefined}
-      contentContainerStyle={[styles.contentContainer, { paddingTop: (insets?.top ?? 0) + scale(8), backgroundColor: colors.background }]}
-      renderItem={({ item }) => (
-        <ExploreCard
-          event={item}
-          nowTs={nowTs}
-          viewMode={viewMode}
-          colors={colors}
-          styles={styles}
-          onPress={() => onOpenEvent(item.id)}
-        />
-      )}
-      ListEmptyComponent={
-        <EmptyState
-          icon="search-outline"
-          title="No results found"
-          description="Try adjusting your search filters or keywords to find what you're looking for."
-        />
-      }
-      ListHeaderComponent={
-        <View style={styles.headerWrap}>
-          <View style={styles.topRow}>
-            <View style={styles.brandRow}>
-              <Ionicons name="school" size={14} color={colors.accent} />
-              <AppText style={styles.brandText}>NSUK Events</AppText>
-            </View>
-            <Pressable style={styles.actionBtn} onPress={cycleDateFilter} accessibilityRole="button" accessibilityLabel="Toggle date filter">
-              <Ionicons name="options-outline" size={14} color={colors.accent} />
-            </Pressable>
-          </View>
-
+    <View style={[styles.page, { paddingTop: insets.top }]}>
+      <FlatList
+        data={filtered}
+        keyExtractor={item => String(item.id)}
+        renderItem={({ item }) => <EventCard {...item} onPress={onOpenEvent} bookmarked={bookmarkedEventIds.includes(item.id)} onToggleBookmark={onToggleBookmark} />}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={<View>
+          <View style={styles.headingRow}><View><AppText style={styles.eyebrow}>DISCOVER CAMPUS</AppText><AppText style={styles.title}>Explore events</AppText></View><View style={styles.resultBadge}><AppText style={styles.resultCount}>{filtered.length}</AppText></View></View>
           <View style={styles.searchRow}>
-            <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-              <Ionicons name="search" size={15} color={colors.textSubtle} />
-              <AppTextInput
-                value={value}
-                onChangeText={onChange}
-                placeholder="Search events, workshops..."
-                placeholderTextColor={colors.textSubtle}
-                style={[styles.searchInput, { color: colors.text }]}
-              />
-              {!!value && (
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onChange("");
-                  }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear search"
-                >
-                  <Ionicons name="close-circle" size={16} color={colors.textSubtle} />
-                </Pressable>
-              )}
-            </View>
-            <Pressable
-              style={styles.filterBtn}
-              onPress={cycleDateFilter}
-              accessibilityRole="button"
-              accessibilityLabel="Toggle date filter"
-            >
-              <Ionicons name="funnel" size={15} color={colors.primaryContrast} />
-            </Pressable>
+            <View style={styles.searchBox}><Ionicons name="search-outline" size={22} color={colors.textMuted} /><AppTextInput value={value} onChangeText={onChange} placeholder="Search events and venues" placeholderTextColor={colors.textSubtle} style={styles.searchInput} />{!!value && <Pressable style={styles.smallButton} onPress={() => onChange?.("")} accessibilityRole="button" accessibilityLabel="Clear search"><Ionicons name="close" size={20} color={colors.textMuted} /></Pressable>}</View>
+            <Pressable style={styles.filterButton} onPress={() => setShowFilters(true)} accessibilityRole="button" accessibilityLabel="Open event filters"><Ionicons name="options-outline" size={22} color="#fff" />{activeFilters.length > 1 && <View style={styles.filterCount}><AppText style={styles.filterCountText}>{activeFilters.length}</AppText></View>}</Pressable>
           </View>
-
-          <View style={styles.metaFilterRow}>
-            <Pressable
-              style={[
-                styles.metaFilterChip,
-                dateFilter !== "Any Date" && { borderColor: colors.primary, backgroundColor: colors.accentTint },
-              ]}
-              onPress={cycleDateFilter}
-              accessibilityRole="button"
-              accessibilityLabel={`Filter date: ${dateFilter}`}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={11}
-                color={dateFilter !== "Any Date" ? colors.primary : colors.textMuted}
-              />
-              <AppText
-                style={[
-                  styles.metaFilterText,
-                  dateFilter !== "Any Date" && { color: colors.primary, fontWeight: "700" },
-                ]}
-              >
-                {dateFilter}
-              </AppText>
-              <Ionicons
-                name="swap-vertical"
-                size={11}
-                color={dateFilter !== "Any Date" ? colors.primary : colors.textMuted}
-              />
-            </Pressable>
-            <Pressable
-              style={styles.metaFilterChip}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons name="location-outline" size={11} color={colors.textMuted} />
-              <AppText style={styles.metaFilterText}>NSUK Campus</AppText>
-            </Pressable>
-          </View>
-
-          <View style={styles.switchRow}>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setViewMode("list");
-              }}
-              style={styles.switchItem}
-              accessibilityRole="button"
-              accessibilityLabel="List view"
-              accessibilityState={{ selected: viewMode === "list" }}
-            >
-              <AppText style={[styles.switchText, viewMode === "list" && styles.switchTextActive]}>List View</AppText>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setViewMode("grid");
-              }}
-              style={styles.switchItem}
-              accessibilityRole="button"
-              accessibilityLabel="Grid view"
-              accessibilityState={{ selected: viewMode === "grid" }}
-            >
-              <AppText style={[styles.switchText, viewMode === "grid" && styles.switchTextActive]}>Grid View</AppText>
-            </Pressable>
-          </View>
-
-          <FlatList
-            data={categories}
-            horizontal
-            keyExtractor={(item) => item.label}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryRow}
-            renderItem={({ item }) => {
-              const active = activeCategory === item.label;
-              const iconColor = active ? colors.primaryContrast : colors.accent;
-              return (
-                <Pressable
-                  style={[styles.categoryChip, active && styles.categoryChipActive]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setActiveCategory(item.label);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.label}
-                  accessibilityState={{ selected: active }}
-                >
-                  <Ionicons name={item.icon} size={12} color={iconColor} />
-                  <AppText style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{item.label}</AppText>
-                </Pressable>
-              );
-            }}
-          />
-        </View>
-      }
-    />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            {activeFilters.map(item => <Pressable key={item} style={styles.activeChip} onPress={() => item === dateFilter ? setDateFilter("Any date") : item === category ? setCategory("All categories") : setVenue("All venues")} accessibilityRole="button" accessibilityLabel={`Remove ${item} filter`}><AppText style={styles.activeChipText}>{item}</AppText><Ionicons name="close" size={15} color={colors.accent} /></Pressable>)}
+            {activeFilters.length === 0 && <AppText style={styles.helper}>Showing all available events</AppText>}
+          </ScrollView>
+          <View style={styles.listHeading}><AppText style={styles.sectionTitle}>{value ? `Results for “${value}”` : "Events for you"}</AppText>{activeFilters.length > 0 && <Pressable style={styles.clearButton} onPress={clearFilters} accessibilityRole="button"><AppText style={styles.clearText}>Reset</AppText></Pressable>}</View>
+        </View>}
+        ListEmptyComponent={<View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name="search-outline" size={32} color={colors.accent} /></View><AppText style={styles.sectionTitle}>No matching events</AppText><AppText style={styles.emptyText}>Try a different search or remove one of your filters.</AppText><Pressable style={styles.resetButton} onPress={() => { onChange?.(""); clearFilters(); }} accessibilityRole="button"><AppText style={styles.resetText}>Clear search and filters</AppText></Pressable></View>}
+      />
+      <Modal visible={showFilters} transparent animationType="slide" onRequestClose={() => setShowFilters(false)}>
+        <View style={styles.overlay}><Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowFilters(false)} /><View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 18) }]} accessibilityViewIsModal>
+          <View style={styles.handle} /><View style={styles.sheetHeader}><View><AppText style={styles.sheetTitle}>Filter events</AppText><AppText style={styles.helper}>Choose what you want to see</AppText></View><Pressable style={styles.closeButton} onPress={() => setShowFilters(false)} accessibilityRole="button" accessibilityLabel="Close filters"><Ionicons name="close" size={24} color={colors.text} /></Pressable></View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <FilterGroup title="Date" options={DATE_FILTERS} value={dateFilter} onChange={setDateFilter} colors={colors} styles={styles} />
+            <FilterGroup title="Category" options={categories} value={category} onChange={setCategory} colors={colors} styles={styles} />
+            <FilterGroup title="Venue" options={venues} value={venue} onChange={setVenue} colors={colors} styles={styles} />
+          </ScrollView>
+          <View style={styles.sheetActions}><Pressable style={styles.secondaryButton} onPress={clearFilters} accessibilityRole="button"><AppText style={styles.secondaryText}>Reset</AppText></Pressable><Pressable style={styles.applyButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setShowFilters(false); }} accessibilityRole="button"><AppText style={styles.applyText}>Show {filtered.length} events</AppText></Pressable></View>
+        </View></View>
+      </Modal>
+    </View>
   );
 }
 
-function ExploreCard({ event, nowTs, viewMode, onPress, colors, styles }) {
-  const status = getStatus(event, nowTs);
-  const ended = status.type === "past";
-
-  return (
-    <ScalePressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={event.title}
-      accessibilityHint="Opens event details"
-      style={[
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.borderSoft },
-        viewMode === "grid" && styles.cardGrid,
-        ended && styles.cardDisabled,
-      ]}
-    >
-      <View style={styles.imageWrap}>
-        <FadeInImage source={{ uri: event.image }} style={styles.image} resizeMode="cover" />
-        <View style={styles.badgeOverlay}>
-          <AppText style={[styles.badgeTag, status.type === "past" && styles.badgeGray]}>{status.label}</AppText>
-          <AppText style={styles.badgeTagSecondary} numberOfLines={1}>
-            {toCategoryLabel(event.category)}
-          </AppText>
-        </View>
-      </View>
-
-      <View style={styles.cardBody}>
-        <AppText style={[styles.eventTitle, { color: colors.text }, ended && styles.textMuted]} numberOfLines={2}>
-          {event.title}
-        </AppText>
-
-        <View style={styles.metaLine}>
-          <Ionicons name="calendar-outline" size={11} color={colors.textSubtle} />
-          <AppText style={styles.metaText}>{formatDate(event.date)}</AppText>
-          <Ionicons name="time-outline" size={11} color={colors.textSubtle} style={styles.timeIcon} />
-          <AppText style={styles.metaText}>{event.time}</AppText>
-        </View>
-
-        <View style={styles.metaLine}>
-          <Ionicons name="location-outline" size={11} color={colors.textSubtle} />
-          <AppText style={styles.metaText} numberOfLines={1}>
-            {event.venue}
-          </AppText>
-        </View>
-
-        <View style={styles.bottomRow}>
-          <AppText style={styles.attendingText}>{Number.isFinite(event.registeredCount) ? `${event.registeredCount} registered` : "View event details"}</AppText>
-          <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${event.title}`} style={[styles.actionButton, ended && styles.actionButtonDisabled]}>
-            <AppText style={[styles.actionButtonText, ended && styles.actionButtonTextDisabled]}>
-              {ended ? "View Details" : ["draft", "cancelled", "unknown"].includes(status.type) ? "View Details" : "Register"}
-            </AppText>
-          </Pressable>
-        </View>
-      </View>
-    </ScalePressable>
-  );
+function FilterGroup({ title, options, value, onChange, colors, styles }) {
+  return <View style={styles.group}><AppText style={styles.groupTitle}>{title}</AppText>{options.map(option => <Pressable key={option} style={styles.option} onPress={() => onChange(option)} accessibilityRole="radio" accessibilityState={{ checked: value === option }}><AppText style={styles.optionText} numberOfLines={2}>{option}</AppText><Ionicons name={value === option ? "radio-button-on" : "radio-button-off"} size={22} color={value === option ? colors.accent : colors.textSubtle} /></Pressable>)}</View>;
 }
 
-function getStatus(event, nowTs) {
-  const type = ["cancelled", "draft"].includes(event.status) ? event.status : eventTimeStatus(event, nowTs);
-  const labels = { upcoming: "UPCOMING", ongoing: "ONGOING", past: "ENDED", cancelled: "CANCELLED", draft: "DRAFT", unknown: "TIME TBC" };
-  return { type, label: labels[type] };
-}
-
-function toCategoryLabel(category) {
-  if (!category) {
-    return "ACADEMIC";
-  }
-  return category.toUpperCase();
-}
-
-function formatDate(dateText) {
-  return formatEventDate(dateText, { month: "short", day: "numeric" });
-}
-
-const createStyles = (colors) =>
-  StyleSheet.create({
-  contentContainer: {
-    backgroundColor: colors.background,
-    paddingHorizontal: scale(14),
-    paddingTop: scale(8),
-    paddingBottom: scale(22),
-  },
-  headerWrap: {
-    gap: scale(10),
-    marginBottom: scale(8),
-  },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(6),
-  },
-  brandText: {
-    color: colors.accent,
-    fontSize: ms(18),
-    fontWeight: "800",
-  },
-  actionBtn: {
-    width: scale(26),
-    height: scale(26),
-    borderRadius: scale(13),
-    backgroundColor: colors.surfaceAlt,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchRow: {
-    flexDirection: "row",
-    gap: scale(8),
-  },
-  searchBox: {
-    flex: 1,
-    height: scale(38),
-    borderRadius: scale(19),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: scale(12),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(6),
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: ms(13),
-    fontWeight: "500",
-    paddingVertical: 0,
-  },
-  filterBtn: {
-    width: scale(38),
-    height: scale(38),
-    borderRadius: scale(19),
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  metaFilterRow: {
-    flexDirection: "row",
-    gap: scale(8),
-  },
-  metaFilterChip: {
-    flex: 1,
-    minHeight: scale(30),
-    borderRadius: scale(15),
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: scale(4),
-  },
-  metaFilterText: {
-    color: colors.textMuted,
-    fontSize: ms(11),
-    fontWeight: "600",
-  },
-  switchRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: scale(22),
-    paddingTop: scale(2),
-  },
-  switchItem: {
-    paddingVertical: scale(4),
-  },
-  switchText: {
-    fontSize: ms(13),
-    fontWeight: "700",
-    color: colors.textSubtle,
-  },
-  switchTextActive: {
-    color: colors.accent,
-    textDecorationLine: "underline",
-  },
-  categoryRow: {
-    gap: scale(6),
-    paddingTop: scale(2),
-  },
-  categoryChip: {
-    borderRadius: 999,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(6),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(4),
-  },
-  categoryChipActive: {
-    backgroundColor: colors.primary,
-  },
-  categoryChipText: {
-    color: colors.textMuted,
-    fontSize: ms(11),
-    fontWeight: "800",
-  },
-  categoryChipTextActive: {
-    color: colors.primaryContrast,
-  },
-  gridRow: {
-    justifyContent: "space-between",
-  },
-  card: {
-    borderRadius: scale(14),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    overflow: "hidden",
-    marginBottom: scale(10),
-  },
-  cardGrid: {
-    width: "48.5%",
-  },
-  cardDisabled: {
-    opacity: 0.72,
-  },
-  imageWrap: {
-    width: "100%",
-    height: scale(110),
-    position: "relative",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-  },
-  badgeOverlay: {
-    position: "absolute",
-    left: scale(8),
-    top: scale(8),
-    right: scale(38),
-    flexDirection: "row",
-    gap: scale(4),
-  },
-  badgeTag: {
-    backgroundColor: colors.error,
-    color: colors.primaryContrast,
-    fontSize: ms(9),
-    fontWeight: "900",
-    paddingHorizontal: scale(6),
-    paddingVertical: scale(2),
-    borderRadius: 999,
-    letterSpacing: 0.4,
-  },
-  badgeTagSecondary: {
-    backgroundColor: colors.surfaceAlt,
-    color: colors.text,
-    fontSize: ms(9),
-    fontWeight: "900",
-    paddingHorizontal: scale(6),
-    paddingVertical: scale(2),
-    borderRadius: 999,
-    letterSpacing: 0.3,
-    flexShrink: 1,
-  },
-  badgeGray: {
-    backgroundColor: colors.textMuted,
-  },
-  bookmarkBadge: {
-    position: "absolute",
-    right: scale(8),
-    top: scale(8),
-    width: scale(24),
-    height: scale(24),
-    borderRadius: scale(12),
-    backgroundColor: colors.overlayStronger,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardBody: {
-    paddingHorizontal: scale(10),
-    paddingTop: scale(8),
-    paddingBottom: scale(10),
-    gap: scale(5),
-  },
-  eventTitle: {
-    color: colors.text,
-    fontSize: ms(13),
-    fontWeight: "800",
-    lineHeight: ms(18),
-  },
-  textMuted: {
-    color: colors.textMuted,
-  },
-  metaLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: scale(4),
-  },
-  timeIcon: {
-    marginLeft: scale(6),
-  },
-  metaText: {
-    color: colors.textSubtle,
-    fontSize: ms(11),
-    fontWeight: "600",
-    flexShrink: 1,
-  },
-  bottomRow: {
-    marginTop: scale(6),
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  attendingText: {
-    color: colors.textSubtle,
-    fontSize: ms(10),
-    fontWeight: "700",
-  },
-  actionButton: {
-    minHeight: scale(28),
-    borderRadius: scale(14),
-    backgroundColor: colors.primary,
-    paddingHorizontal: scale(12),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionButtonDisabled: {
-    backgroundColor: colors.borderSoft,
-  },
-  actionButtonText: {
-    color: colors.primaryContrast,
-    fontSize: ms(11),
-    fontWeight: "800",
-  },
-  actionButtonTextDisabled: {
-    color: colors.textSubtle,
-  },
-  });
+const getStyles = (colors, isDark) => StyleSheet.create({
+  page: { flex: 1, backgroundColor: isDark ? colors.background : "#f6f8f3" },
+  content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28 },
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 22 },
+  eyebrow: { color: colors.accent, fontSize: ms(10), fontWeight: "700", letterSpacing: 1.5, marginBottom: 7 },
+  title: { color: colors.text, fontSize: ms(29), lineHeight: ms(36), fontWeight: "600" },
+  resultBadge: { minWidth: 42, height: 42, paddingHorizontal: 10, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.accentTint },
+  resultCount: { color: colors.accent, fontSize: ms(15), fontWeight: "700" },
+  searchRow: { flexDirection: "row", gap: 10 },
+  searchBox: { flex: 1, minHeight: 56, borderRadius: 17, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
+  searchInput: { flex: 1, color: colors.text, fontSize: ms(14), paddingVertical: 0 },
+  smallButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  filterButton: { width: 56, height: 56, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#174b33" },
+  filterCount: { position: "absolute", top: -5, right: -5, minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.error },
+  filterCountText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  chips: { minHeight: 66, alignItems: "center", gap: 8, paddingVertical: 12 },
+  activeChip: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 40, paddingHorizontal: 13, borderRadius: 20, backgroundColor: colors.accentTint },
+  activeChipText: { color: colors.accent, fontSize: ms(12), fontWeight: "600", maxWidth: 160 },
+  helper: { color: colors.textMuted, fontSize: ms(13), lineHeight: ms(19) },
+  listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  sectionTitle: { color: colors.text, fontSize: ms(19), lineHeight: ms(25), fontWeight: "600", flexShrink: 1 },
+  clearButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 8 },
+  clearText: { color: colors.accent, fontSize: ms(13), fontWeight: "600" },
+  empty: { alignItems: "center", paddingVertical: 54, gap: 13 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: colors.textMuted, textAlign: "center", fontSize: ms(14), lineHeight: ms(21), maxWidth: 280 },
+  resetButton: { minHeight: 48, paddingHorizontal: 18, borderRadius: 14, justifyContent: "center", backgroundColor: "#174b33" },
+  resetText: { color: "#fff", fontSize: ms(14), fontWeight: "600" },
+  overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
+  sheet: { maxHeight: "88%", backgroundColor: colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 22 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, alignSelf: "center", marginTop: 10 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 17 },
+  sheetTitle: { color: colors.text, fontSize: ms(22), fontWeight: "600", marginBottom: 3 },
+  closeButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  group: { borderTopWidth: 1, borderColor: colors.borderSoft, paddingVertical: 15 },
+  groupTitle: { color: colors.text, fontSize: ms(15), fontWeight: "600", marginBottom: 6 },
+  option: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
+  optionText: { flex: 1, color: colors.textMuted, fontSize: ms(14) },
+  sheetActions: { flexDirection: "row", gap: 10, paddingTop: 14 },
+  secondaryButton: { minHeight: 52, paddingHorizontal: 22, borderRadius: 15, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.borderSoft },
+  secondaryText: { color: colors.text, fontSize: ms(14), fontWeight: "600" },
+  applyButton: { flex: 1, minHeight: 52, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#174b33", paddingHorizontal: 14 },
+  applyText: { color: "#fff", fontSize: ms(14), fontWeight: "600" },
+});

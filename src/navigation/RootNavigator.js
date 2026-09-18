@@ -100,7 +100,6 @@ export default function RootNavigator() {
   const [homeSearch] = useState("");
   const [selectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState([]);
   const [activeAdminScreen, setActiveAdminScreen] = useState("dashboard");
   const [editingUserId, setEditingUserId] = useState(null);
   const [adminSettings, setAdminSettings] = useState({
@@ -151,14 +150,7 @@ export default function RootNavigator() {
     return events.filter((e) => registeredEventIds.includes(e.id));
   }, [events, registeredEventIds, user?.accountType, user?.id]);
 
-  const clearRecentSearches = () => setRecentSearches([]);
-  const removeRecentSearch = (item) => setRecentSearches((prev) => prev.filter((i) => i !== item));
-  const onSearchChange = (query) => {
-    setSearchQuery(query);
-    if (query && !recentSearches.includes(query.toLowerCase())) {
-      setRecentSearches((prev) => [query.toLowerCase(), ...prev].slice(0, 8));
-    }
-  };
+  const onSearchChange = setSearchQuery;
 
   // Splash loading
   if (passwordRecovery) return <ChangePasswordScreen onDone={finishPasswordRecovery} onBack={async () => { await logout(); finishPasswordRecovery(); }} />;
@@ -313,19 +305,20 @@ export default function RootNavigator() {
                   }}
                   searchProps={{
                     value: searchQuery,
-                    recentSearches,
                     results: searchResults,
                     onChange: onSearchChange,
-                    onSelectRecent: setSearchQuery,
-                    onClearRecent: clearRecentSearches,
-                    onRemoveRecent: removeRecentSearch,
+                    bookmarkedEventIds,
+                    onToggleBookmark: handleToggleBookmark,
                     onOpenEvent: (id) => navigation.navigate("EventDetails", { eventId: id }),
                     onBack: () => setActiveTab("home"),
                   }}
                   myEventsProps={{
                     onOpenAnnouncement: () => navigation.navigate("SendAnnouncement"),
-                    events: activeTab === "registrations" ? events.filter((e) => registeredEventIds.includes(e.id)) : myEvents,
+                    events: isStaffUser ? myEvents : events,
                     isStaff: isStaffUser,
+                    registeredEventIds,
+                    bookmarkedEventIds,
+                    onToggleBookmark: handleToggleBookmark,
                     onOpenEvent: (id) => navigation.navigate("EventDetails", { eventId: id }),
                     onBack: () => setActiveTab("home"),
                     onOpenNotifications: () => setActiveTab("notifications"),
@@ -355,7 +348,7 @@ export default function RootNavigator() {
                     totalRegistered: registeredEventIds.length,
                     themeMode,
                     onToggleTheme: () => setThemeMode(p => p === "dark" ? "light" : "dark"),
-                    onOpenMyEvents: () => setActiveTab(isStaffUser ? "my-events" : "registrations"),
+                    onOpenMyEvents: () => setActiveTab("my-events"),
                     onOpenSavedEvents: () => setActiveTab("my-events"),
                     onOpenNotifications: () => setActiveTab("notifications"),
                     onOpenAnnouncement: () => navigation.navigate("SendAnnouncement"),
@@ -368,13 +361,6 @@ export default function RootNavigator() {
                     onEditProfile: () => navigation.navigate("EditProfile"),
                     onOpenSettings: () => navigation.navigate("Settings"),
                     onLogout: logout,
-                  }}
-                  savedEventsProps={{
-                    events,
-                    bookmarkedEventIds,
-                    onToggleBookmark: handleToggleBookmark,
-                    onOpenEvent: (id) => navigation.navigate("EventDetails", { eventId: id }),
-                    onBack: () => setActiveTab("home"),
                   }}
                 />
                 <Sidebar

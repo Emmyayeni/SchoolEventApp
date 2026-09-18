@@ -9,17 +9,11 @@ import { ms, scale } from "../utils/responsive";
 const tabs = [
   { key: "home", label: "Home", icon: "home-outline", activeIcon: "home" },
   { key: "search", label: "Explore", icon: "compass-outline", activeIcon: "compass" },
-  {
-    key: "notifications",
-    label: "Alerts",
-    icon: "notifications-outline",
-    activeIcon: "notifications",
-  },
-  { key: "my-events", label: "Saved", icon: "bookmark-outline", activeIcon: "bookmark" },
+  { key: "my-events", label: "My Events", icon: "calendar-outline", activeIcon: "calendar" },
   { key: "profile", label: "Profile", icon: "person-outline", activeIcon: "person" },
 ];
 
-export default function BottomTabs({ activeTab, onChange, isStaff = false, unreadCount = 0 }) {
+export default function BottomTabs({ activeTab, onChange }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark, insets);
@@ -40,11 +34,6 @@ export default function BottomTabs({ activeTab, onChange, isStaff = false, unrea
       <View style={styles.islandWrapper}>
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
-          const label = tab.key === "my-events" && isStaff ? "Events" : tab.label;
-          const iconName = tab.key === "my-events" && isStaff ? "calendar-outline" : tab.icon;
-          const activeIconName = tab.key === "my-events" && isStaff ? "calendar" : tab.activeIcon;
-          const showBadge = tab.key === "notifications" && unreadCount > 0;
-
           return (
             <Pressable
               key={tab.key}
@@ -53,25 +42,16 @@ export default function BottomTabs({ activeTab, onChange, isStaff = false, unrea
               hitSlop={8}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={label}
+              accessibilityLabel={tab.label}
             >
               <View style={styles.iconContainer}>
                 <Ionicons
-                  name={active ? activeIconName : iconName}
-                  size={active ? 20 : 19}
+                  name={active ? tab.activeIcon : tab.icon}
+                  size={22}
                   color={active ? (isDark ? "#34d399" : colors.primary) : colors.textSubtle}
                 />
-                {showBadge && (
-                  <View style={styles.badgeIndicator}>
-                    {unreadCount > 1 && (
-                      <AppText style={styles.badgeText}>
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                      </AppText>
-                    )}
-                  </View>
-                )}
               </View>
-              <AppText style={[styles.label, active && styles.activeLabel]}>{label}</AppText>
+              <AppText style={[styles.label, active && styles.activeLabel]}>{tab.label}</AppText>
             </Pressable>
           );
         })}
@@ -85,7 +65,7 @@ const getStyles = (colors, isDark, insets) =>
     outerContainer: {
       width: "100%",
       backgroundColor: "transparent",
-      paddingHorizontal: scale(12),
+      paddingHorizontal: scale(16),
       paddingBottom: Math.max(insets?.bottom ?? 0, 8),
       paddingTop: 4,
     },
@@ -94,11 +74,11 @@ const getStyles = (colors, isDark, insets) =>
       alignItems: "center",
       justifyContent: "space-around",
       backgroundColor: isDark ? "rgba(15, 23, 42, 0.96)" : "rgba(255, 255, 255, 0.98)",
-      borderRadius: scale(26),
+      borderRadius: scale(22),
       borderWidth: 1,
       borderColor: isDark ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)",
-      paddingVertical: scale(6),
-      paddingHorizontal: scale(6),
+      paddingVertical: scale(7),
+      paddingHorizontal: scale(8),
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: isDark ? 0.45 : 0.09,
@@ -109,7 +89,8 @@ const getStyles = (colors, isDark, insets) =>
       alignItems: "center",
       justifyContent: "center",
       flex: 1,
-      paddingVertical: scale(6),
+      minHeight: 52,
+      paddingVertical: scale(5),
       paddingHorizontal: scale(4),
       borderRadius: scale(18),
       gap: scale(2),
@@ -123,25 +104,6 @@ const getStyles = (colors, isDark, insets) =>
       justifyContent: "center",
       width: scale(24),
       height: scale(24),
-    },
-    badgeIndicator: {
-      position: "absolute",
-      top: -1,
-      right: -4,
-      minWidth: scale(8),
-      height: scale(8),
-      borderRadius: scale(4),
-      backgroundColor: "#ef4444",
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1.5,
-      borderColor: isDark ? "#0f172a" : "#ffffff",
-    },
-    badgeText: {
-      color: "#ffffff",
-      fontSize: ms(8),
-      fontWeight: "800",
-      paddingHorizontal: 2,
     },
     label: {
       fontSize: ms(10),
