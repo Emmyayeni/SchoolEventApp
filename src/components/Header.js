@@ -29,9 +29,9 @@ export function IconButton({
       accessibilityState={{ disabled }}
       style={({ pressed }) => [
         {
-          width: scale(40),
-          height: scale(40),
-          borderRadius: scale(20),
+          width: 48,
+          height: 48,
+          borderRadius: 24,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: background,
@@ -71,6 +71,7 @@ export function Header({
     <View
       style={[
         styles.header,
+        { backgroundColor: colors.background },
         border && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
         style,
       ]}

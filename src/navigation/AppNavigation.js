@@ -1,12 +1,18 @@
-import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { DarkTheme, DefaultTheme, NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { addNotificationReceivedListener, addNotificationResponseListener, getInitialNotificationData } from "../services/notifications";
 import RootNavigator from "./RootNavigator";
+import { useAppTheme } from "../theme/theme";
 
 export default function AppNavigation() {
   const navigation = useNavigationContainerRef();
+  const { colors, isDark } = useAppTheme();
+  const navigationTheme = useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+    return { ...base, colors: { ...base.colors, background: colors.background, card: colors.background, text: colors.text, border: colors.borderSoft, primary: colors.accent, notification: colors.error } };
+  }, [colors, isDark]);
   const { isAuthenticated } = useAuth();
   const { handleRefresh, refreshing, events, announcements } = useEvents();
   const [ready, setReady] = useState(false);
@@ -28,5 +34,5 @@ export default function AppNavigation() {
     else if (pending.announcementId) navigation.navigate("AnnouncementDetails", { announcementId: pending.announcementId });
     setPending(null);
   }, [pending, isAuthenticated, ready, refreshing, navigation, events, announcements]);
-  return <NavigationContainer ref={navigation} onReady={() => setReady(true)}><RootNavigator /></NavigationContainer>;
+  return <NavigationContainer theme={navigationTheme} ref={navigation} onReady={() => setReady(true)}><RootNavigator /></NavigationContainer>;
 }

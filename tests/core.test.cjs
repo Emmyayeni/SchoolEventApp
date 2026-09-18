@@ -284,3 +284,36 @@ test('reminders deduplicate, follow changed event times, and clear at logout', a
   await api.syncEventReminders({ userId: null });
   assert.equal(scheduled.size, 0);
 });
+
+const presentation = loadModule('src/utils/eventPresentation.js', eventTime);
+
+test('home filters use the campus week, exclude unpublished and ended events, and preserve source order', () => {
+  const now = Date.parse('2026-09-19T23:30:00Z'); // Sunday in Nigeria, Saturday in UTC.
+  const events = [
+    { id: 'next-week', date: '2026-09-21', time: '12:00', status: 'published' },
+    { id: 'today', date: '2026-09-20', time: '12:00', status: 'published' },
+    { id: 'draft', date: '2026-09-20', time: '12:00', status: 'draft' },
+    { id: 'cancelled', date: '2026-09-20', time: '12:00', status: 'cancelled' },
+    { id: 'ended', date: '2026-09-19', time: '12:00', status: 'published' },
+  ];
+  const ids = list => Array.from(list, event => event.id);
+  assert.deepEqual(ids(presentation.homeEventSelection(events, 'Today', now)), ['today']);
+  assert.deepEqual(ids(presentation.homeEventSelection(events, 'This week', now)), ['today']);
+  assert.deepEqual(ids(presentation.homeEventSelection(events, 'All', now)), ['today', 'next-week']);
+  assert.equal(events[0].id, 'next-week');
+});
+
+test('event actions keep closed events disabled and distinguish saved registrations, waitlists and in-flight requests', () => {
+  const event = { date: '2026-09-21', time: '12:00', status: 'published', capacity: 2, registeredCount: 2 };
+  const now = Date.parse('2026-09-20T12:00:00Z');
+  const action = (record = event, state = {}) => presentation.registrationPresentation(record, { now, ...state });
+  assert.equal(action().label, 'Join waitlist');
+  assert.equal(action({ ...event, registeredCount: null }).label, 'Register for event');
+  assert.equal(action(event, { isRegistered: true }).label, 'Registration details');
+  assert.equal(action(event, { isWaitlisted: true }).disabled, true);
+  assert.equal(action(event, { registering: true }).label, 'Registering…');
+  for (const status of ['draft', 'cancelled', 'archived']) {
+    assert.equal(action({ ...event, status }, { isRegistered: true }).disabled, true);
+  }
+  assert.equal(action({ ...event, date: '2026-09-19' }).label, 'Event ended');
+});

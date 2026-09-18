@@ -91,7 +91,7 @@ export default function RootNavigator() {
     adminAnalytics,
   } = useEvents();
 
-  const { mode: themeMode, setMode: setThemeMode } = useAppTheme();
+  const { mode: themeMode, setMode: setThemeMode, colors, isDark } = useAppTheme();
 
   // App UI state
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -187,7 +187,7 @@ export default function RootNavigator() {
         setAdminUsers(prev => prev.map(item => item.id === editingUserId ? { ...item, accountType } : item));
       } catch (error) { Alert.alert("Update failed", error.message); }
     }} />
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "default" }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: "default", statusBarStyle: isDark ? "light" : "dark", contentStyle: { backgroundColor: colors.background } }}>
       {!isAuthenticated ? (
         // Auth Stack
         <>
