@@ -40,6 +40,7 @@ export default function CreateEventScreen({
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showCategoryList, setShowCategoryList] = useState(false);
   const [showAudiencePicker, setShowAudiencePicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
@@ -58,9 +59,9 @@ export default function CreateEventScreen({
     return new Date();
   };
 
-  const parseTimeValue = () => {
+  const parseTimeValue = (value) => {
     const now = new Date();
-    const raw = String(values.time || "").trim();
+    const raw = String(value || "").trim();
     if (!raw) {
       return now;
     }
@@ -127,6 +128,16 @@ export default function CreateEventScreen({
       return;
     }
     onChange("time", formatTimeForField(selectedTime));
+  };
+
+  const onEndTimePicked = (_event, selectedTime) => {
+    if (Platform.OS === "android") {
+      setShowEndTimePicker(false);
+    }
+    if (!selectedTime) {
+      return;
+    }
+    onChange("endTime", formatTimeForField(selectedTime));
   };
 
   const handleUploadBanner = async () => {
@@ -326,17 +337,31 @@ export default function CreateEventScreen({
           />
         )}
 
+        <PickerField
+          label="Date"
+          value={values.date}
+          placeholder="Select date"
+          error={errors.date}
+          icon="calendar"
+          onPress={() => {
+            if (!formBusy) {
+              setShowDatePicker(true);
+            }
+          }}
+          disabled={formBusy}
+        />
+
         <View style={styles.doubleRow}>
           <View style={styles.halfField}>
             <PickerField
-              label="Date"
-              value={values.date}
-              placeholder="Select date"
-              error={errors.date}
-              icon="calendar"
+              label="Start time"
+              value={values.time}
+              placeholder="Select start"
+              error={errors.time}
+              icon="time"
               onPress={() => {
                 if (!formBusy) {
-                  setShowDatePicker(true);
+                  setShowTimePicker(true);
                 }
               }}
               disabled={formBusy}
@@ -344,14 +369,14 @@ export default function CreateEventScreen({
           </View>
           <View style={styles.halfField}>
             <PickerField
-              label="Time"
-              value={values.time}
-              placeholder="Select time"
-              error={errors.time}
+              label="End time"
+              value={values.endTime}
+              placeholder="Select end"
+              error={errors.endTime}
               icon="time"
               onPress={() => {
                 if (!formBusy) {
-                  setShowTimePicker(true);
+                  setShowEndTimePicker(true);
                 }
               }}
               disabled={formBusy}
@@ -365,7 +390,7 @@ export default function CreateEventScreen({
               value={parseDateValue()}
               mode="date"
               display={Platform.OS === "ios" ? "inline" : "default"}
-              onValueChange={onDatePicked}
+              onChange={onDatePicked}
             />
           </View>
         )}
@@ -373,10 +398,21 @@ export default function CreateEventScreen({
         {showTimePicker && (
           <View style={styles.inlinePickerWrap}>
             <DateTimePicker
-              value={parseTimeValue()}
+              value={parseTimeValue(values.time)}
               mode="time"
               display={Platform.OS === "ios" ? "spinner" : "default"}
-              onValueChange={onTimePicked}
+              onChange={onTimePicked}
+            />
+          </View>
+        )}
+
+        {showEndTimePicker && (
+          <View style={styles.inlinePickerWrap}>
+            <DateTimePicker
+              value={parseTimeValue(values.endTime || values.time)}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onEndTimePicked}
             />
           </View>
         )}

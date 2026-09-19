@@ -3,7 +3,7 @@
 # CHAPTER FOUR
 # SYSTEM IMPLEMENTATION AND TESTING
 
-> **Draft status:** This document describes the NSUK Events implementation and verification recorded on 14 September 2026, at commit `f4bdffd`. Chapters One to Three and the department's prescribed report format were not available when this draft was prepared. The headings and wording of the objectives should therefore be reconciled with those chapters before submission. Screenshot positions and outstanding evaluation activities are explicitly identified below.
+> **Draft status:** This document describes the NSUK Events implementation and verification updated on 19 September 2026. Chapters One to Three and the department's prescribed report format were not available when this draft was prepared. The headings and wording of the objectives should therefore be reconciled with those chapters before submission. Screenshot positions and outstanding evaluation activities are explicitly identified below.
 
 ## 4.1 Introduction
 
@@ -24,7 +24,7 @@ The principal implementation tools and their roles are presented in Table 4.1.
 | Tool or technology | Role in the system |
 | --- | --- |
 | React Native | Construction of the mobile interface and reusable native interface components. |
-| Expo SDK 54 | Mobile development workflow, platform configuration and integration with device features. |
+| Expo SDK 57 | Mobile development workflow, platform configuration and integration with device features. |
 | JavaScript | Application logic, validation, service calls and state management. |
 | React Navigation | Movement between authentication, event, profile and administrative screens. |
 | Supabase Auth | Authentication, session handling and password-recovery integration. |
@@ -52,7 +52,7 @@ When a user requests event information, the mobile interface calls the appropria
 
 This separation allows the same data-access functions to support several screens. For example, event information is used by the home feed, search results and event details. Reusable selection sheets provide a consistent way of choosing academic information and event options on a phone.
 
-The application includes locally cached event and announcement data. Cached content can support continuity when previously retrieved information is available, but it may become outdated. The system does not provide a complete offline process for creating, approving or synchronizing all application records.
+The application includes locally cached event and announcement data. Cached content can support continuity when previously retrieved information is available, but it may become outdated. The system does not provide a complete offline process for creating, approving or synchronizing all application records. The main mobile navigation uses Home, Explore, My Events and Profile tabs; notification access remains available through the screen headers.
 
 ## 4.4 Database Implementation
 
@@ -66,7 +66,7 @@ The database stores operational records separately from reference information us
 | --- | --- |
 | `profiles` | Stores application profile information, account type, approval status and the device push-token field. |
 | `admin_users` | Stores administrative role assignments. |
-| `events` | Stores event descriptions, dates, start times, venues, organizers, audience, capacity and publication status. |
+| `events` | Stores event descriptions, dates, start and end times, venues, organizers, audience, capacity and publication status. |
 | `event_registrations` | Associates users with events and records registration or waitlist status. |
 | `event_bookmarks` | Associates users with events they have saved. |
 | `announcements` | Stores announcements, audience information and attachment references. |
@@ -99,7 +99,7 @@ These totals measure registrations, not confirmed physical attendance. The syste
 
 The account-approval and mobile-data migrations were packaged into one SQL file for the existing database. The migrations add the required columns, reference catalogues and registration-count function. They also clear the exact stock-photo URLs previously inserted as application defaults, while preserving other photo references and application records.
 
-On 14 September 2026, the combined SQL was executed through the Supabase SQL Editor and success was reported. A subsequent read-only check confirmed that the expected tables, columns and registration-count function were available through the configured API. Local tests also verified rerunning the migrations and preserving the tested existing records.
+On 14 September 2026, the account and mobile-data SQL was executed through the Supabase SQL Editor and success was reported. A subsequent read-only check confirmed that those tables, columns and the registration-count function were available through the configured API. On 19 September 2026, an additional idempotent migration for event end times was prepared and verified by the local migration test; it remains to be applied to the live project.
 
 The live check establishes schema availability. It does not, by itself, establish that all authenticated workflows, storage rules or notification integrations operate correctly on a phone.
 
@@ -125,7 +125,7 @@ Authorized organizers can enter and update event information. The form uses sele
 
 Validation rejects missing required information, impossible dates, invalid times and non-positive or fractional capacities. Saving an event as a draft persists the draft status in the database. The draft action remains subject to the implemented form validation; it should not be described as unrestricted saving of an incomplete form.
 
-Owner and administrative functions support event management within the applicable permissions. Status information distinguishes published events from drafts, cancellations and other supported states. Since the schema does not store an event end time, the current display uses a two-hour duration estimate for timed event status. Calendar export retains a one-hour default duration. These defaults are implementation limitations rather than measured event lengths.
+Owner and administrative functions support event management within the applicable permissions. Status information distinguishes published events from drafts, cancellations and other supported states. The event form now collects start and end times with native time pickers. Status labels and calendar exports use the stored interval, including events that finish after midnight.
 
 ### 4.5.4 Event Registration, Waitlists and Bookmarks
 
@@ -161,7 +161,7 @@ Test fixtures were used only to create controlled conditions in the local tests.
 
 | Verification activity | Recorded result | Meaning and scope |
 | --- | --- | --- |
-| Automated test suite (`npm test`) | 33 tests passed; 0 failed. | The scenarios encoded in the suite passed under their controlled test conditions. |
+| Automated test suite (`npm test`) | 35 tests passed; 0 failed. | The scenarios encoded in the suite passed under their controlled test conditions. |
 | Static analysis (`npm run lint`) | Passed. | No lint failure was reported for the checked source. |
 | Android export | Passed. | Android JavaScript/Hermes bundle generation completed. |
 | iOS export | Passed. | iOS JavaScript/Hermes bundle generation completed. |
@@ -250,7 +250,7 @@ React Native and Expo were used for the application interface and mobile integra
 
 Database work addressed account approval, notification fields, academic and event reference catalogues, and controlled access to aggregate registration counts. Selection controls were introduced where users choose from defined values. Text fields remain for information such as names, descriptions and new venue details. Dummy display values and legacy default photo references were removed or replaced with neutral missing-data states.
 
-Verification comprised 33 passing automated tests, successful lint checks, Android and iOS exports, and a successful live schema check after the database migrations were applied. These results establish a tested implementation baseline. They do not establish operational readiness for every native integration or demonstrate the effects of the application on the university community.
+Verification comprised 35 passing automated tests, successful Expo 57 lint checks, Android and iOS exports, and a successful live schema check for the previously applied database migrations. These results establish a tested implementation baseline. The event-end-time migration still needs live application. The results do not establish operational readiness for every native integration or demonstrate the effects of the application on the university community.
 
 ## 5.3 Principal Findings
 
@@ -283,7 +283,7 @@ The principal limitations of the documented implementation and evaluation are as
 1. **Incomplete device evaluation:** Physical-device tests for permissions, uploads, notification receipt, password-reset links and full authenticated workflows have not been recorded.
 2. **No user-study results:** The work contains no measured usability scores, participant feedback, task timings or attendance outcomes.
 3. **Reference-data maintenance:** The initial faculty and department catalogue comes from the project baseline and requires institutional review for completeness and accuracy.
-4. **Estimated event duration:** Event end times are not stored. Timed status labels use a two-hour estimate, while calendar export uses a one-hour default.
+4. **End-time migration pending:** Start and end times are implemented and locally tested, but the new column still needs to be applied to the live Supabase project.
 5. **Limited offline operation:** Cached records can be stale, and the application does not provide a complete offline write-and-synchronization workflow. Reminders may remain outdated until event information is refreshed.
 6. **Unverified notification deployment:** Function deployment, webhook settings and push delivery need confirmation. Delivery receipt processing and automated retries are not implemented.
 7. **Dataset-size constraints:** Lists and analytics need pagination to reliably handle records beyond the API row limit.
@@ -307,7 +307,7 @@ The university should identify personnel responsible for maintaining faculty, de
 
 ### 5.6.4 Improve Event Timing and Notification Reliability
 
-An explicit event end-time field should replace estimated durations and provide a consistent basis for status labels, calendar entries and reminders. Notification delivery should be strengthened with receipt handling, controlled retries and visible failure records. These improvements should be evaluated on devices under both reliable and interrupted network connections.
+The prepared event end-time migration should be applied to the live project and verified through an installed build. Notification delivery should be strengthened with receipt handling, controlled retries and visible failure records. These improvements should be evaluated on devices under both reliable and interrupted network connections.
 
 ### 5.6.5 Prepare for Larger Datasets
 
@@ -345,4 +345,4 @@ This section is an editorial checklist and should be removed from the submitted 
 - `docs/MOBILE_DATABASE_SETUP.md`: migration procedure, reference-data provenance and live schema verification.
 - `src/utils/validation.js`, `src/utils/eventTime.js` and relevant screen/service modules: implemented validation, date handling and data flows.
 - `tests/core.test.cjs`, `tests/migrations.test.cjs` and `tests/webhooks.test.cjs`: encoded regression scenarios.
-- Recorded verification of commit `f4bdffd` on 14 September 2026: 33 tests passed, lint passed, Android/iOS exports passed, and the post-migration live schema check passed.
+- Recorded verification updated on 19 September 2026: 35 tests passed, Expo 57 lint passed, Android/iOS exports passed, and the earlier post-migration live schema check passed. The event-end-time migration awaits live application.

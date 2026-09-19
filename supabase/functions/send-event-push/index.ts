@@ -1,7 +1,16 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+type ProfileRow = {
+  id: string;
+  expo_push_token: string | null;
+};
+
+type NotificationRow = {
+  user_id: string;
+};
+
 // Database webhook: INSERT and UPDATE on public.events. Never call from the client.
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
   const secret = Deno.env.get("EVENT_WEBHOOK_SECRET");
   if (!secret) return new Response("Webhook secret is not configured", { status: 503 });
@@ -14,7 +23,7 @@ Deno.serve(async (req) => {
     if (event.status !== "published" && !(event.status === "cancelled" && old?.status === "published")) {
       return Response.json({ skipped: true });
     }
-    const fields = ["title", "description", "event_date", "start_time", "venue", "status", "target_audience"];
+    const fields = ["title", "description", "event_date", "start_time", "end_time", "venue", "status", "target_audience"];
     if (payload.type === "UPDATE" && old && !fields.some(field => old[field] !== event[field])) return Response.json({ skipped: true });
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     let query = db.from("profiles").select("id,expo_push_token").eq("account_status", "approved");
@@ -22,15 +31,16 @@ Deno.serve(async (req) => {
     else if (event.target_audience === "staff") query = query.in("account_type", ["staff", "organizer", "admin"]);
     const { data: profiles, error } = await query;
     if (error) throw error;
-    const recipients = (profiles || []).filter(profile => profile.id !== event.created_by);
+    const recipients = (profiles || []).filter((profile: ProfileRow) => profile.id !== event.created_by);
     if (!recipients.length) return Response.json({ inboxCreated: 0, pushAccepted: 0 });
     const title = `${payload.type === "INSERT" || old?.status === "draft" ? "New event" : "Event update"}: ${event.title}`;
-    const message = event.status === "cancelled" ? "This event has been cancelled." : `${event.event_date} · ${event.start_time || "Time TBA"} · ${event.venue}`;
-    const rows = recipients.map(profile => ({ user_id: profile.id, event_id: event.id, title, message, type: "event", source_key: `${event.id}:${event.updated_at || event.created_at}:${profile.id}` }));
+    const timeRange = event.start_time ? `${event.start_time}${event.end_time ? `–${event.end_time}` : ""}` : "Time TBA";
+    const message = event.status === "cancelled" ? "This event has been cancelled." : `${event.event_date} · ${timeRange} · ${event.venue}`;
+    const rows = recipients.map((profile: ProfileRow) => ({ user_id: profile.id, event_id: event.id, title, message, type: "event", source_key: `${event.id}:${event.updated_at || event.created_at}:${profile.id}` }));
     const { data: inserted, error: insertError } = await db.from("notifications").upsert(rows, { onConflict: "source_key", ignoreDuplicates: true }).select("user_id");
     if (insertError) throw insertError;
-    const newRecipients = new Set((inserted || []).map(row => row.user_id));
-    const messages = recipients.filter(profile => newRecipients.has(profile.id) && /^(ExponentPushToken|ExpoPushToken)\[/.test(profile.expo_push_token || "")).map(profile => ({ to: profile.expo_push_token, title, body: message, sound: "default", channelId: "default", data: { eventId: event.id, type: "event" } }));
+    const newRecipients = new Set((inserted || []).map((row: NotificationRow) => row.user_id));
+    const messages = recipients.filter((profile: ProfileRow) => newRecipients.has(profile.id) && /^(ExponentPushToken|ExpoPushToken)\[/.test(profile.expo_push_token || "")).map((profile: ProfileRow) => ({ to: profile.expo_push_token, title, body: message, sound: "default", channelId: "default", data: { eventId: event.id, type: "event" } }));
     const errors: unknown[] = [];
     let accepted = 0;
     for (let i = 0; i < messages.length; i += 100) {

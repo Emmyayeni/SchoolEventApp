@@ -1,4 +1,15 @@
 {
-  "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.d.ts",
+    "supabase/functions/**/*.ts",
+    "supabase/functions/**/*.d.ts"
+  ]
 }

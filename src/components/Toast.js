@@ -18,7 +18,7 @@ export function useToast() {
 
 export function ToastProvider({ children }) {
   const [toastConfig, setToastConfig] = useState(null);
-  const slideAnim = useRef(new Animated.Value(-100)).current;
+  const [slideAnim] = useState(() => new Animated.Value(-100));
   const timeoutRef = useRef(null);
 
   const hideToast = useCallback(() => {

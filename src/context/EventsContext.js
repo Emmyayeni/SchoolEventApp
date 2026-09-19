@@ -46,7 +46,10 @@ export function EventsProvider({ children }) {
   const [loadError, setLoadError] = useState(null);
   const [dataLoadedFor, setDataLoadedFor] = useState(null);
   const activeUserId = useRef(null);
-  activeUserId.current = isAuthenticated ? user?.id : null;
+
+  useEffect(() => {
+    activeUserId.current = isAuthenticated ? user?.id : null;
+  }, [isAuthenticated, user?.id]);
 
   // Restore cache on launch & subscribe to Supabase Realtime
   useEffect(() => {
@@ -171,23 +174,28 @@ export function EventsProvider({ children }) {
 
   // Load app data when user is authenticated
   useEffect(() => {
-    setEvents([]);
-    setAnnouncements([]);
-    setNotifications([]);
-    setAdminUsers([]);
-    setVisibleRegistrations([]);
-    setRegisteredEventIds([]);
-    setWaitlistedEventIds([]);
-    setBookmarkedEventIds([]);
-    setRefreshing(false);
-    setLoadError(null);
-    setDataLoadedFor(null);
-    if (isAuthenticated && user?.id) {
-      loadAppData(user.id, user.accountType, user.role);
-      registerForPushNotificationsAsync(user.id).catch((e) => {
-        console.log("Push registration error:", e);
-      });
-    }
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      setEvents([]);
+      setAnnouncements([]);
+      setNotifications([]);
+      setAdminUsers([]);
+      setVisibleRegistrations([]);
+      setRegisteredEventIds([]);
+      setWaitlistedEventIds([]);
+      setBookmarkedEventIds([]);
+      setRefreshing(false);
+      setLoadError(null);
+      setDataLoadedFor(null);
+      if (isAuthenticated && user?.id) {
+        loadAppData(user.id, user.accountType, user.role);
+        registerForPushNotificationsAsync(user.id).catch((e) => {
+          console.log("Push registration error:", e);
+        });
+      }
+    });
+    return () => { active = false; };
   }, [isAuthenticated, user?.id, user?.accountType, user?.role, loadAppData]);
 
   useEffect(() => {

@@ -1,10 +1,24 @@
 const fs = require('node:fs');
-const dotenv = require('dotenv');
+
+function parseEnv(text) {
+  const values = {};
+  for (const rawLine of String(text).split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const separator = line.indexOf('=');
+    if (separator < 1) continue;
+    const key = line.slice(0, separator).trim();
+    let value = line.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    values[key] = value;
+  }
+  return values;
+}
 
 async function main() {
   const config = {};
   for (const file of ['.env', '.env.production', '.env.local']) {
-    if (fs.existsSync(file)) Object.assign(config, dotenv.parse(fs.readFileSync(file)));
+    if (fs.existsSync(file)) Object.assign(config, parseEnv(fs.readFileSync(file, 'utf8')));
   }
   Object.assign(config, process.env);
   const url = config.EXPO_PUBLIC_SUPABASE_URL;
@@ -12,7 +26,7 @@ async function main() {
   if (!url || !key) throw new Error('Set the public Supabase URL and key in .env.local.');
   const tables = {
     profiles: 'id,account_type,account_status,expo_push_token',
-    events: 'id,event_date,start_time,capacity,status',
+    events: 'id,event_date,start_time,end_time,capacity,status',
     event_registrations: 'event_id,user_id,status',
     announcements: 'id,attachment_urls,target_audience',
     notifications: 'id,event_id,announcement_id,is_read,source_key',

@@ -12,7 +12,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo-google-fonts/outfit": "^0.4.3",
@@ -26,8 +27,6 @@
     "@supabase/supabase-js": "^2.99.2",
     "expo": "~57.0.22",
     "expo-asset": "~57.0.17",
-    "expo-audio": "~57.0.5",
-    "expo-av": "~16.0.8",
     "expo-constants": "~57.0.18",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",

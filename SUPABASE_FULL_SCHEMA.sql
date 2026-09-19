@@ -250,6 +250,7 @@ create table if not exists public.events (
   description text not null,
   event_date date not null,
   start_time time,
+  end_time time,
   venue text not null,
   organizer text not null,
   image_url text,

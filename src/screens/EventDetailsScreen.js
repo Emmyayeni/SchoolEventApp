@@ -9,7 +9,7 @@ import { Header } from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
-import { eventCalendarUrl, formatEventDate } from "../utils/eventTime";
+import { eventCalendarUrl, formatEventDate, formatEventTimeRange } from "../utils/eventTime";
 import { registrationPresentation } from "../utils/eventPresentation";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
@@ -32,7 +32,7 @@ export default function EventDetailsScreen({ event, isRegistered, isWaitlisted =
     catch { Alert.alert("Calendar", "Could not open the calendar. Please try again."); }
   };
   const share = async () => {
-    try { await Share.share({ message: `${event.title}\n${formatEventDate(event.date)} · ${event.time || "Time to be confirmed"}\n${event.venue || "Venue to be confirmed"}` }); }
+    try { await Share.share({ message: `${event.title}\n${formatEventDate(event.date)} · ${formatEventTimeRange(event)}\n${event.venue || "Venue to be confirmed"}` }); }
     catch (error) { Alert.alert("Could not share event", error.message); }
   };
   const register = async () => {
@@ -60,7 +60,7 @@ export default function EventDetailsScreen({ event, isRegistered, isWaitlisted =
           <View style={styles.organizerRow}><View style={styles.organizerIcon}><Ionicons name="person-outline" size={18} color={colors.accent} /></View><View style={styles.flex}><AppText style={styles.detailLabel}>Organized by</AppText><AppText style={styles.organizerName}>{event.organizer || "Organizer to be confirmed"}</AppText></View></View>
           {canManageEvent && <Pressable style={styles.manageButton} onPress={() => setSheet("manage")} accessibilityRole="button" accessibilityLabel="Manage this event"><Ionicons name="options-outline" size={20} color={colors.accent} /><AppText style={styles.link}>Manage event</AppText><Ionicons name="chevron-down" size={18} color={colors.accent} /></Pressable>}
           <View style={styles.infoCard}>
-            {detail("calendar-outline", "Date & time", `${formatEventDate(event.date) || "Date to be confirmed"}\n${event.time || "Time to be confirmed"}`)}
+            {detail("calendar-outline", "Date & time", `${formatEventDate(event.date) || "Date to be confirmed"}\n${formatEventTimeRange(event)}`)}
             <View style={styles.divider} />
             {detail("location-outline", "Venue", event.venue || "Venue to be confirmed")}
           </View>
@@ -95,7 +95,7 @@ export default function EventDetailsScreen({ event, isRegistered, isWaitlisted =
                 <View style={styles.confirmation}><Ionicons name="checkmark-circle" size={24} color={colors.accent} /><AppText style={styles.confirmationText}>You’re registered</AppText></View>
                 <AppText style={styles.sheetEventTitle}>{event.title}</AppText>
                 {detail("person-outline", "Registered account", user?.fullName || "Your account")}
-                {detail("calendar-outline", "Date & time", `${formatEventDate(event.date)} · ${event.time || "Time to be confirmed"}`)}
+                {detail("calendar-outline", "Date & time", `${formatEventDate(event.date)} · ${formatEventTimeRange(event)}`)}
                 {detail("location-outline", "Venue", event.venue || "Venue to be confirmed")}
                 <Pressable style={styles.calendarButton} onPress={addToCalendar} accessibilityRole="button"><Ionicons name="calendar-number-outline" size={21} color={colors.accent} /><AppText style={styles.link}>Add to my calendar</AppText></Pressable>
               </>}

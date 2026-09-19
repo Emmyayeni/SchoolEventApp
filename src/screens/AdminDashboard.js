@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Animated, Image, ScrollView, StyleSheet, View, RefreshControl, Pressable } from "react-native";
 import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,8 +41,8 @@ export default function AdminDashboard({
     .map((item) => item.charAt(0).toUpperCase())
     .join("");
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(20));
 
   useEffect(() => {
     Animated.parallel([

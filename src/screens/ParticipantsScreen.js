@@ -20,7 +20,10 @@ export default function ParticipantsScreen({ event, onBack }) {
     catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }, [event.id]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const task = setTimeout(load, 0);
+    return () => clearTimeout(task);
+  }, [load]);
   return <View style={{ flex: 1, paddingTop: insets.top + 12, backgroundColor: colors.background }}>
     <View style={{ paddingHorizontal: 20, gap: 8, paddingBottom: 20 }}>
       <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back to event"><AppText style={{ color: colors.primary }}>← Back to event</AppText></Pressable>

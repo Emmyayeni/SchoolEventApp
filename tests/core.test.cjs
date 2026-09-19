@@ -82,11 +82,12 @@ test('academic selectors load actual rows and restrict departments to the chosen
 
 test('draft and cancellation selections persist in the event database payload', async () => {
   const { data, calls } = dataFixture();
-  const form = { title: 'Test', date: '2026-12-01', time: '12:00 PM', status: 'draft', targetAudience: 'students', capacity: '10' };
+  const form = { title: 'Test', date: '2026-12-01', time: '12:00 PM', endTime: '2:00 PM', status: 'draft', targetAudience: 'students', capacity: '10' };
   await data.createEventFromForm({ form, userId: 'organizer' });
   assert.equal(calls[0].value.status, 'draft');
   assert.equal(calls[0].value.target_audience, 'students');
   assert.equal(calls[0].value.capacity, 10);
+  assert.equal(calls[0].value.end_time, '14:00:00');
   assert.equal(calls[0].value.image_url, '');
   await data.updateEventFromForm({ eventId: 'event-1', userId: 'organizer', form: { ...form, status: 'cancelled' } });
   assert.equal(calls[1].value.status, 'cancelled');
@@ -103,9 +104,11 @@ test('campus time is converted to UTC without using the device timezone', () => 
   assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '12:00 AM' }).toISOString(), '2026-10-11T23:00:00.000Z');
   assert.equal(eventTime.eventStartTime({ date: '2026-10-12', time: '25:30' }), null);
 });
-test('calendar uses the real start time and escapes event details', () => {
-  const url = new URL(eventTime.eventCalendarUrl({ date: '2026-10-12', time: '2:30 PM', title: 'Science & Arts', venue: 'Main Hall' }));
-  assert.equal(url.searchParams.get('dates'), '20261012T133000Z/20261012T143000Z');
+test('calendar uses the stored start and end times and escapes event details', () => {
+  const event = { date: '2026-10-12', time: '2:30 PM', endTime: '5:00 PM', title: 'Science & Arts', venue: 'Main Hall' };
+  const url = new URL(eventTime.eventCalendarUrl(event));
+  assert.equal(url.searchParams.get('dates'), '20261012T133000Z/20261012T160000Z');
+  assert.equal(eventTime.formatEventTimeRange(event), '2:30 PM – 5:00 PM');
   assert.equal(url.searchParams.get('text'), 'Science & Arts');
   assert.equal(url.searchParams.get('ctz'), 'Africa/Lagos');
 });
@@ -125,12 +128,12 @@ test('invalid event dates and seconds cannot silently become valid calendar date
   assert.equal(eventTime.eventStartTime({ date: '2028-02-29', time: '12:00:30' }).toISOString(), '2028-02-29T11:00:30.000Z');
 });
 
-test('event statuses use the start time and two-hour duration rather than date midnight', () => {
-  const event = { date: '2026-10-12', time: '2:30 PM' };
+test('event statuses use stored start and end times rather than an estimated duration', () => {
+  const event = { date: '2026-10-12', time: '2:30 PM', endTime: '5:30 PM' };
   assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T13:29:59Z')), 'upcoming');
   assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T13:30:00Z')), 'ongoing');
-  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T15:29:59Z')), 'ongoing');
-  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T15:30:00Z')), 'past');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T16:29:59Z')), 'ongoing');
+  assert.equal(eventTime.eventTimeStatus(event, Date.parse('2026-10-12T16:30:00Z')), 'past');
   assert.equal(eventTime.eventTimeStatus({ date: 'bad' }), 'unknown');
   assert.equal(eventTime.eventTimeStatus({ date: '2026-10-12', time: 'bad' }), 'unknown');
 });
@@ -174,10 +177,11 @@ test('signup validates confirmation, account type and student information', () =
   assert.ok(student.faculty);
 });
 test('events reject impossible dates, times and fractional capacity', () => {
-  const base = { title: 'Career fair', category: 'Workshop', description: 'Meet employers', venue: 'Main hall', organizer: 'NSUK', date: '2026-10-12', time: '2:30 PM', capacity: '100' };
+  const base = { title: 'Career fair', category: 'Workshop', description: 'Meet employers', venue: 'Main hall', organizer: 'NSUK', date: '2026-10-12', time: '2:30 PM', endTime: '4:30 PM', capacity: '100' };
   assert.equal(Object.keys(validation.validateEvent(base)).length, 0);
   assert.ok(validation.validateEvent({ ...base, date: '2026-02-30' }).date);
   assert.ok(validation.validateEvent({ ...base, time: '25:00' }).time);
+  assert.ok(validation.validateEvent({ ...base, endTime: '' }).endTime);
   assert.ok(validation.validateEvent({ ...base, capacity: '2.5' }).capacity);
 });
 

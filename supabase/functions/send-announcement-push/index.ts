@@ -36,7 +36,7 @@ type ProfileRow = {
   account_type: string | null;
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
   // Required shared-secret gate. Configure the same value as a custom header
   // (x-webhook-secret) on the Database Webhook to reject spoofed calls.
   const requiredSecret = Deno.env.get("ANNOUNCEMENT_WEBHOOK_SECRET");
-  if (!requiredSecret) return new Response("Webhook secret is not configured", { status: 503 });
+  if (!requiredSecret)
+    return new Response("Webhook secret is not configured", { status: 503 });
   if (req.headers.get("x-webhook-secret") !== requiredSecret) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -68,9 +69,10 @@ Deno.serve(async (req) => {
 
   // 1. Resolve target audience -> recipient profiles.
   //    target_audience is stored normalized as any of: "all" | "staff" | "students".
-  const audience = Array.isArray(record.target_audience) && record.target_audience.length
-    ? record.target_audience
-    : ["all"];
+  const audience =
+    Array.isArray(record.target_audience) && record.target_audience.length
+      ? record.target_audience
+      : ["all"];
 
   let query = supabase
     .from("profiles")
@@ -91,7 +93,9 @@ Deno.serve(async (req) => {
   }
 
   // Don't notify the sender about their own announcement.
-  let recipients = (profiles ?? []).filter((p: ProfileRow) => p.id !== record.sender_id);
+  let recipients = (profiles ?? []).filter(
+    (p: ProfileRow) => p.id !== record.sender_id,
+  );
 
   // 2. Fan out in-app notification rows so the announcement shows in each user's feed.
   if (recipients.length) {
@@ -104,18 +108,32 @@ Deno.serve(async (req) => {
       is_read: false,
       source_key: `announcement:${record.id}:${p.id}`,
     }));
-    const { data: inserted, error: insertError } = await supabase.from("notifications").upsert(rows, { onConflict: "source_key", ignoreDuplicates: true }).select("user_id");
+    const { data: inserted, error: insertError } = await supabase
+      .from("notifications")
+      .upsert(rows, { onConflict: "source_key", ignoreDuplicates: true })
+      .select("user_id");
     if (insertError) {
-      console.error("Failed to insert in-app notifications:", insertError.message);
+      console.error(
+        "Failed to insert in-app notifications:",
+        insertError.message,
+      );
       return new Response("Failed to save notifications", { status: 500 });
     }
-    const newRecipients = new Set((inserted || []).map(row => row.user_id));
-    recipients = recipients.filter(profile => newRecipients.has(profile.id));
+    const newRecipients = new Set<string>(
+      (inserted || []).map((row: { user_id: string }) => row.user_id),
+    );
+    recipients = recipients.filter((profile: ProfileRow) =>
+      newRecipients.has(profile.id),
+    );
   }
 
   // 3. Build + send Expo push messages (skip users with no / invalid token).
   const messages = recipients
-    .filter((p: ProfileRow) => typeof p.expo_push_token === "string" && p.expo_push_token.startsWith("Expo"))
+    .filter(
+      (p: ProfileRow) =>
+        typeof p.expo_push_token === "string" &&
+        p.expo_push_token.startsWith("Expo"),
+    )
     .map((p: ProfileRow) => ({
       to: p.expo_push_token,
       sound: "default",
@@ -137,7 +155,9 @@ Deno.serve(async (req) => {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          ...(expoAccessToken ? { Authorization: `Bearer ${expoAccessToken}` } : {}),
+          ...(expoAccessToken
+            ? { Authorization: `Bearer ${expoAccessToken}` }
+            : {}),
         },
         body: JSON.stringify(chunk),
       });

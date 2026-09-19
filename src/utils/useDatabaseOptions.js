@@ -9,10 +9,13 @@ export function useDatabaseOptions(loader) {
 
   useEffect(() => {
     let active = true;
-    setOptions([]);
-    setLoading(true);
-    setError(null);
-    Promise.resolve().then(loader).then(rows => {
+    Promise.resolve().then(() => {
+      if (!active) return [];
+      setOptions([]);
+      setLoading(true);
+      setError(null);
+      return loader();
+    }).then(rows => {
       if (active) setOptions(rows);
     }).catch(() => {
       if (active) setError("Could not load choices. Check your connection and try again.");

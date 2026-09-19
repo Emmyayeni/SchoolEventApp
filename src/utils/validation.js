@@ -37,7 +37,10 @@ export function validateEvent(values = {}) {
     errors.date = "Select a valid date.";
   }
   const time = String(values.time || "").trim();
-  if (!/^(?:(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM)|(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)$/i.test(time)) errors.time = "Select a valid time.";
+  const endTime = String(values.endTime || "").trim();
+  const timePattern = /^(?:(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM)|(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)$/i;
+  if (!timePattern.test(time)) errors.time = "Select a valid start time.";
+  if (!timePattern.test(endTime)) errors.endTime = "Select a valid end time.";
   if (String(values.capacity ?? "").trim() && (!Number.isInteger(Number(values.capacity)) || Number(values.capacity) <= 0)) errors.capacity = "Capacity must be a positive whole number.";
   if (values.targetAudience && !["all", "students", "staff"].includes(values.targetAudience)) errors.targetAudience = "Select a valid audience.";
   if (values.status && !["draft", "published", "cancelled", "archived"].includes(values.status)) errors.status = "Select a valid event status.";

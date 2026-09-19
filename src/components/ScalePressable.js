@@ -1,8 +1,8 @@
-import React, { useRef } from "react";
+import React, { useState } from "react";
 import { Animated, Pressable } from "react-native";
 
 export function ScalePressable({ children, style, onPress, scaleTo = 0.96, disabled = false, ...props }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const handlePressIn = () => {
     if (disabled) return;

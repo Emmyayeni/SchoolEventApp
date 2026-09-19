@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { AppText } from "./AppText";
 import { FadeInImage } from "./FadeInImage";
 import { useAppTheme } from "../theme/theme";
-import { formatEventDate, parseEventDate } from "../utils/eventTime";
+import { formatEventDate, formatEventTimeRange, parseEventDate } from "../utils/eventTime";
 import { ms, scale } from "../utils/responsive";
 
-export default function EventCard({ id, title, image, date, time, venue, category, onPress, bookmarked = false, onToggleBookmark, featured = false }) {
+export default function EventCard({ id, title, image, date, time, endTime, venue, category, onPress, bookmarked = false, onToggleBookmark, featured = false }) {
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
   const validDate = parseEventDate(date);
@@ -24,7 +24,7 @@ export default function EventCard({ id, title, image, date, time, venue, categor
         <View style={styles.body}>
           {!!category && <AppText style={styles.category}>{category}</AppText>}
           <AppText style={[styles.title, featured && styles.featuredTitle]} numberOfLines={2}>{title}</AppText>
-          <View style={styles.metaRow}><Ionicons name="time-outline" size={17} color={colors.textMuted} /><AppText style={styles.meta}>{[formatEventDate(date, { weekday: "short", month: "short", day: "numeric" }), time || "Time to be confirmed"].filter(Boolean).join(" · ")}</AppText></View>
+          <View style={styles.metaRow}><Ionicons name="time-outline" size={17} color={colors.textMuted} /><AppText style={styles.meta}>{[formatEventDate(date, { weekday: "short", month: "short", day: "numeric" }), formatEventTimeRange({ time, endTime })].filter(Boolean).join(" · ")}</AppText></View>
           <View style={styles.metaRow}><Ionicons name="location-outline" size={17} color={colors.textMuted} /><AppText style={styles.meta} numberOfLines={2}>{venue || "Venue to be confirmed"}</AppText></View>
           {featured && <View style={styles.detailsRow}><AppText style={styles.details}>Explore this event</AppText><Ionicons name="arrow-forward" size={18} color={colors.accent} /></View>}
         </View>

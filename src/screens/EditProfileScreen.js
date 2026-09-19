@@ -30,7 +30,8 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
 
   // Academic data states
   const facultyOptions = useDatabaseOptions(fetchAcademicFaculties);
-  const departmentLoader = useCallback(() => fetchAcademicDepartments(values?.faculty || ""), [values?.faculty]);
+  const selectedFaculty = values?.faculty || "";
+  const departmentLoader = useCallback(() => fetchAcademicDepartments(selectedFaculty), [selectedFaculty]);
   const departmentOptions = useDatabaseOptions(departmentLoader);
   const levelOptions = useDatabaseOptions(fetchAcademicLevels);
 

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FlatList,
   ActivityIndicator,
@@ -32,7 +32,11 @@ export default function SelectPickerModal({
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
-  useEffect(() => { setSearch(""); }, [visible, title]);
+
+  const handleClose = () => {
+    setSearch("");
+    onClose();
+  };
 
   const filteredOptions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -57,10 +61,10 @@ export default function SelectPickerModal({
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <Pressable style={styles.dismissArea} onPress={onClose} />
+        <Pressable style={styles.dismissArea} onPress={handleClose} />
         <View style={styles.sheet}>
           {/* Header */}
           <View style={styles.header}>
@@ -68,7 +72,7 @@ export default function SelectPickerModal({
             <View style={styles.headerRow}>
               <AppText style={styles.title}>{title}</AppText>
               <Pressable
-                onPress={onClose}
+                onPress={handleClose}
                 style={styles.closeBtn}
                 hitSlop={8}
                 accessibilityRole="button"
