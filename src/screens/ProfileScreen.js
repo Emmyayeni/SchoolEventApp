@@ -4,7 +4,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
   ScrollView,
   StyleSheet,
-  Switch,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,7 +19,7 @@ export default function ProfileScreen({
   totalRegistered = 0,
   favoriteCategory,
   themeMode,
-  onToggleTheme,
+  onThemeModeChange,
   onEditProfile,
   onOpenMyEvents,
   onOpenSavedEvents,
@@ -230,28 +229,42 @@ export default function ProfileScreen({
       <SectionTitle title="PREFERENCES & SETTINGS" colors={colors} />
       <View style={styles.listCard}>
         <View style={styles.preferenceRow}>
-          <View style={styles.rowLeft}>
+          <View style={styles.preferenceIdentity}>
             <View
               style={[
-                styles.rowIconWrap,
+                styles.preferenceIcon,
                 { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : colors.surfaceAlt },
               ]}
             >
-              <Ionicons name="moon" size={16} color={colors.primary} />
+              <Ionicons name={themeMode === "dark" ? "moon" : themeMode === "light" ? "sunny" : "phone-portrait"} size={16} color={colors.primary} />
             </View>
-            <AppText style={[styles.rowLabel, { color: colors.text }]}>Dark Mode</AppText>
+            <View>
+              <AppText style={styles.preferenceLabel}>Appearance</AppText>
+              <AppText style={styles.preferenceHint}>{themeMode === "system" ? "Matches your phone" : `${themeMode[0].toUpperCase()}${themeMode.slice(1)} mode`}</AppText>
+            </View>
           </View>
-          <Switch
-            value={themeMode === "dark"}
-            onValueChange={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch (_e) {}
-              onToggleTheme();
-            }}
-            trackColor={{ false: colors.borderSoft, true: colors.primary }}
-            thumbColor={colors.primaryContrast}
-          />
+          <View style={styles.compactThemeOptions} accessibilityRole="radiogroup">
+            {[
+              ["system", "phone-portrait-outline"],
+              ["light", "sunny-outline"],
+              ["dark", "moon-outline"],
+            ].map(([mode, icon]) => {
+              const selected = themeMode === mode;
+              return <ScalePressable
+                key={mode}
+                style={[styles.compactThemeButton, selected && styles.compactThemeButtonSelected]}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  onThemeModeChange?.(mode);
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={`${mode} appearance`}
+                accessibilityState={{ checked: selected }}
+              >
+                <Ionicons name={icon} size={17} color={selected ? colors.primaryContrast : colors.textMuted} />
+              </ScalePressable>;
+            })}
+          </View>
         </View>
 
         <Divider colors={colors} />
@@ -666,6 +679,50 @@ const getStyles = (colors, isDark) =>
       justifyContent: "space-between",
       paddingVertical: scale(12),
       paddingHorizontal: scale(14),
+      gap: scale(10),
+    },
+    preferenceIdentity: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(10),
+    },
+    preferenceIcon: {
+      width: scale(32),
+      height: scale(32),
+      borderRadius: scale(16),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    preferenceLabel: {
+      color: colors.text,
+      fontSize: ms(14),
+      fontWeight: "600",
+    },
+    preferenceHint: {
+      color: colors.textSubtle,
+      fontSize: ms(10),
+      marginTop: scale(2),
+    },
+    compactThemeOptions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: scale(5),
+    },
+    compactThemeButton: {
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(12),
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    compactThemeButtonSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
     },
     logoutBtn: {
       flexDirection: "row",

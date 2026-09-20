@@ -180,7 +180,7 @@ export default function RootNavigator() {
         setAdminUsers(prev => prev.map(item => item.id === editingUserId ? { ...item, accountType } : item));
       } catch (error) { Alert.alert("Update failed", error.message); }
     }} />
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "default", statusBarStyle: isDark ? "light" : "dark", contentStyle: { backgroundColor: colors.background } }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: "default", statusBarAnimation: "fade", statusBarColor: colors.background, statusBarStyle: isDark ? "light" : "dark", contentStyle: { backgroundColor: colors.background } }}>
       {!isAuthenticated ? (
         // Auth Stack
         <>
@@ -348,7 +348,7 @@ export default function RootNavigator() {
                     isStaff: isStaffUser,
                     totalRegistered: registeredEventIds.length,
                     themeMode,
-                    onToggleTheme: () => setThemeMode(p => p === "dark" ? "light" : "dark"),
+                    onThemeModeChange: setThemeMode,
                     onOpenMyEvents: () => setActiveTab("my-events"),
                     onOpenSavedEvents: () => setActiveTab("my-events"),
                     onOpenNotifications: () => setActiveTab("notifications"),
@@ -517,7 +517,7 @@ export default function RootNavigator() {
               <SettingsScreen
                 themeMode={themeMode}
                 onChangePassword={() => navigation.navigate("ChangePassword")}
-                onToggleTheme={() => setThemeMode((p) => (p === "dark" ? "light" : "dark"))}
+                onThemeModeChange={setThemeMode}
                 onBack={() => navigation.goBack()}
                 onLogout={logout}
               />

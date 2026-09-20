@@ -68,8 +68,8 @@ export default function HomeScreen({ user, dashboardType = "student", bookmarked
 }
 
 const createStyles = (colors, isDark) => StyleSheet.create({
-  page: { flex: 1, backgroundColor: isDark ? colors.background : "#f6f8f3" },
-  appBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 6, backgroundColor: isDark ? colors.background : "#f6f8f3", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoft },
+  page: { flex: 1, backgroundColor: colors.background },
+  appBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 6, backgroundColor: colors.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoft },
   iconButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   brand: { flexDirection: "row", alignItems: "center", gap: 8 },
   brandText: { fontSize: ms(17), fontWeight: "600", color: colors.text },

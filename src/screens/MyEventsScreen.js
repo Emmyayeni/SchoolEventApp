@@ -85,7 +85,7 @@ function emptyDescription(tab, staff) {
 }
 
 const getStyles = (colors, isDark) => StyleSheet.create({
-  page: { flex: 1, backgroundColor: isDark ? colors.background : "#f6f8f3" },
+  page: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28 },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   eyebrow: { color: colors.accent, fontSize: ms(10), fontWeight: "700", letterSpacing: 1.5, marginBottom: 7 },

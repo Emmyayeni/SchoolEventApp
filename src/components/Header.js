@@ -109,13 +109,13 @@ export function Header({
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: scale(52),
-    paddingHorizontal: scale(8),
+    minHeight: scale(58),
+    paddingHorizontal: scale(10),
     flexDirection: "row",
     alignItems: "center",
   },
   side: {
-    minWidth: scale(40),
+    minWidth: scale(48),
     flexDirection: "row",
     alignItems: "center",
   },

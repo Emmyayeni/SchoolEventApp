@@ -73,10 +73,10 @@ const getStyles = (colors, isDark, insets) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-around",
-      backgroundColor: isDark ? "rgba(15, 23, 42, 0.96)" : "rgba(255, 255, 255, 0.98)",
+      backgroundColor: colors.surface,
       borderRadius: scale(22),
       borderWidth: 1,
-      borderColor: isDark ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)",
+      borderColor: colors.borderSoft,
       paddingVertical: scale(7),
       paddingHorizontal: scale(8),
       shadowColor: "#000",
@@ -96,7 +96,7 @@ const getStyles = (colors, isDark, insets) =>
       gap: scale(2),
     },
     itemActive: {
-      backgroundColor: isDark ? "rgba(16, 185, 129, 0.16)" : "rgba(11, 122, 36, 0.1)",
+      backgroundColor: colors.accentTint,
     },
     iconContainer: {
       position: "relative",

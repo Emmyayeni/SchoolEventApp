@@ -1,12 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
-export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLogout, onChangePassword }) {
-  const { colors } = useAppTheme();
+const APPEARANCE_MODES = [
+  { key: "system", label: "System", icon: "phone-portrait-outline" },
+  { key: "light", label: "Light", icon: "sunny-outline" },
+  { key: "dark", label: "Dark", icon: "moon-outline" },
+];
+
+export default function SettingsScreen({ themeMode, onThemeModeChange, onBack, onLogout, onChangePassword }) {
+  const { colors, resolvedMode } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const openDeviceSettings = () => Platform.OS === "web"
@@ -41,14 +47,32 @@ export default function SettingsScreen({ themeMode, onToggleTheme, onBack, onLog
         <Divider styles={styles} />
         <SettingsRow icon="shield-checkmark" label="Device permissions" onPress={openDeviceSettings} colors={colors} styles={styles} />
         <Divider styles={styles} />
-        <ToggleRow
-          icon={themeMode === "dark" ? "moon" : "sunny"}
-          label="Dark Mode"
-          value={themeMode === "dark"}
-          onValueChange={onToggleTheme}
-          colors={colors}
-          styles={styles}
-        />
+        <View style={styles.appearanceSection}>
+          <View style={styles.appearanceHeading}>
+            <View style={styles.iconWrap}><Ionicons name="color-palette-outline" size={16} color={colors.primary} /></View>
+            <View style={styles.appearanceCopy}>
+              <AppText style={styles.rowText}>Appearance</AppText>
+              <AppText style={styles.appearanceHint}>{themeMode === "system" ? `Following your phone · ${resolvedMode}` : `${themeMode[0].toUpperCase()}${themeMode.slice(1)} mode selected`}</AppText>
+            </View>
+          </View>
+          <View style={styles.themeOptions} accessibilityRole="radiogroup">
+            {APPEARANCE_MODES.map(option => {
+              const selected = themeMode === option.key;
+              return <Pressable
+                key={option.key}
+                onPress={() => onThemeModeChange?.(option.key)}
+                style={({ pressed }) => [styles.themeOption, selected && styles.themeOptionSelected, pressed && { opacity: 0.78 }]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={`${option.label} appearance`}
+              >
+                <View style={[styles.themeIcon, selected && styles.themeIconSelected]}><Ionicons name={option.icon} size={19} color={selected ? colors.primaryContrast : colors.textMuted} /></View>
+                <AppText style={[styles.themeLabel, selected && styles.themeLabelSelected]}>{option.label}</AppText>
+                {selected && <Ionicons name="checkmark-circle" size={17} color={colors.primary} />}
+              </Pressable>;
+            })}
+          </View>
+        </View>
       </View>
 
       <SectionTitle title="NOTIFICATIONS" colors={colors} styles={styles} />
@@ -106,26 +130,6 @@ function SettingsRow({ icon, label, colors, styles, onPress }) {
       </View>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
-  );
-}
-
-function ToggleRow({ icon, label, value, onValueChange, colors, styles }) {
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <View style={styles.iconWrap}>
-          <Ionicons name={icon} size={15} color={colors.primary} />
-        </View>
-        <AppText style={styles.rowText}>{label}</AppText>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor={colors.primaryContrast}
-        ios_backgroundColor={colors.border}
-      />
-    </View>
   );
 }
 
@@ -209,6 +213,62 @@ const getStyles = (colors) =>
   rowText: {
     fontSize: ms(14),
     fontWeight: "700",
+    color: colors.text,
+  },
+  appearanceSection: {
+    padding: scale(14),
+    gap: scale(13),
+  },
+  appearanceHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(10),
+  },
+  appearanceCopy: {
+    flex: 1,
+  },
+  appearanceHint: {
+    marginTop: scale(2),
+    color: colors.textSubtle,
+    fontSize: ms(11),
+  },
+  themeOptions: {
+    flexDirection: "row",
+    gap: scale(8),
+  },
+  themeOption: {
+    flex: 1,
+    minHeight: scale(76),
+    borderRadius: scale(14),
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: scale(5),
+    padding: scale(8),
+  },
+  themeOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.accentTint,
+  },
+  themeIcon: {
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceAlt,
+  },
+  themeIconSelected: {
+    backgroundColor: colors.primary,
+  },
+  themeLabel: {
+    color: colors.textMuted,
+    fontSize: ms(11),
+    fontWeight: "700",
+  },
+  themeLabelSelected: {
     color: colors.text,
   },
   divider: {

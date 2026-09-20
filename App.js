@@ -9,7 +9,8 @@ import {
   Outfit_900Black,
 } from "@expo-google-fonts/outfit";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet } from "react-native";
+import { NavigationBar } from "expo-navigation-bar";
+import { Platform, StatusBar as NativeStatusBar, StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -23,9 +24,18 @@ import { ThemeProvider, useAppTheme } from "./src/theme/theme";
 
 function ThemedShell({ children }) {
   const { colors, isDark } = useAppTheme();
+
+  useEffect(() => {
+    NativeStatusBar.setBarStyle(isDark ? "light-content" : "dark-content", true);
+    if (Platform.OS === "android") {
+      NativeStatusBar.setBackgroundColor(colors.background, true);
+    }
+  }, [colors.background, isDark]);
+
   return (
     <SafeAreaView edges={["bottom", "left", "right"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={colors.background} translucent={false} />
+      <StatusBar animated style={isDark ? "light" : "dark"} backgroundColor={colors.background} translucent={false} />
+      <NavigationBar style={isDark ? "dark" : "light"} />
       <ErrorBoundary>{children}</ErrorBoundary>
     </SafeAreaView>
   );
