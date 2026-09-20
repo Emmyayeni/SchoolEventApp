@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Alert,
     Platform,
+    KeyboardAvoidingView,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -14,6 +15,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "../components/AppText";
 import { AppTextInput } from "../components/AppTextInput";
+import { FadeInImage } from "../components/FadeInImage";
+import { resolveStoragePublicUrl, STORAGE_BUCKETS } from "../services/storage";
 import SelectPickerModal from "../components/SelectPickerModal";
 import {
     fetchEventCategories,
@@ -185,7 +188,7 @@ export default function CreateEventScreen({
       }
 
       onChange("image", uploadResult.path);
-      Alert.alert("Uploaded", "Event banner uploaded successfully.");
+
     } catch (_error) {
       Alert.alert("Upload failed", "Could not upload event image.");
     } finally {
@@ -222,6 +225,7 @@ export default function CreateEventScreen({
   };
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <ScrollView
       style={[styles.page, { backgroundColor: colors.background }]}
       contentContainerStyle={[
@@ -248,7 +252,9 @@ export default function CreateEventScreen({
         </AppText>
       </View>
 
-      <AppText style={styles.sectionLabel}>Event Banner</AppText>
+      <AppText style={styles.sectionLabel}>Event banner (optional)</AppText>
+      {!!values.image?.trim() && <FadeInImage source={{ uri: resolveStoragePublicUrl(values.image, STORAGE_BUCKETS.eventImages) }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 16, marginBottom: 12 }} />}
+
       <Pressable
         style={[
           styles.bannerUpload,
@@ -269,7 +275,7 @@ export default function CreateEventScreen({
           )}
         </View>
         <AppText style={styles.bannerText}>
-          {uploadingBanner ? "Uploading image..." : "Click to upload image"}
+          {uploadingBanner ? "Uploading image..." : values.image?.trim() ? "Tap to replace image" : "Tap to add an image"}
         </AppText>
         <AppText style={styles.bannerHint}>
           {values.image?.trim()
@@ -277,6 +283,8 @@ export default function CreateEventScreen({
             : "Recommended: 1200 x 675 pixels"}
         </AppText>
       </Pressable>
+
+      {!!values.image?.trim() && <Pressable onPress={() => onChange("image", "")} disabled={formBusy} accessibilityRole="button" accessibilityLabel="Remove event banner" style={{ minHeight: 48, justifyContent: "center", alignItems: "center" }}><AppText style={{ color: colors.error }}>Remove banner</AppText></Pressable>}
 
       <FormCard
         title="BASIC DETAILS"
@@ -558,6 +566,7 @@ export default function CreateEventScreen({
         onClose={() => setShowVenuePicker(false)}
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

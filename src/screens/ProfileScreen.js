@@ -18,7 +18,7 @@ export default function ProfileScreen({
   isStaff = false,
   totalRegistered = 0,
   favoriteCategory,
-  themeMode,
+  themeMode = "system",
   onThemeModeChange,
   onEditProfile,
   onOpenMyEvents,
@@ -106,7 +106,7 @@ export default function ProfileScreen({
             </View>
 
             <View style={styles.passInfoCol}>
-              <AppText style={styles.passName} numberOfLines={1}>
+              <AppText style={styles.passName} numberOfLines={2}>
                 {user.fullName || (isStaff ? "Faculty Member" : "Student Member")}
               </AppText>
               <AppText style={styles.passDepartment} numberOfLines={1}>
@@ -118,14 +118,7 @@ export default function ProfileScreen({
               </View>
             </View>
 
-            <ScalePressable
-              style={styles.editButton}
-              onPress={onEditProfile}
-              accessibilityRole="button"
-              accessibilityLabel="Edit profile"
-            >
-              <Ionicons name="pencil" size={15} color="#ffffff" />
-            </ScalePressable>
+
           </View>
 
           {/* Card Bottom Bar */}
@@ -154,30 +147,11 @@ export default function ProfileScreen({
         </LinearGradient>
       </View>
 
-      {/* Engagement & Activity Metrics */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <AppText style={styles.statValue}>{totalRegistered}</AppText>
-          <AppText style={styles.statLabel}>Registered</AppText>
-        </View>
-        <View style={styles.statCard}>
-          <View style={styles.verifiedDotRow}>
-            <View style={styles.statusActiveDot} />
-            <AppText style={styles.statValueText}>{user.accountStatus || "Unknown"}</AppText>
-          </View>
-          <AppText style={styles.statLabel}>Account Status</AppText>
-        </View>
-        <View style={styles.statCard}>
-          <AppText style={styles.statValue}>
-            {user.level || (isStaff ? "Staff" : "General")}
-          </AppText>
-          <AppText style={styles.statLabel}>Standing</AppText>
-        </View>
-      </View>
+      <ActionRow icon="create-outline" label="Edit profile" colors={colors} onPress={onEditProfile} />
 
       {/* Action Hub */}
       <SectionTitle
-        title={isStaff ? "ORGANIZER COMMAND" : "CAMPUS ACTIVITIES"}
+        title={isStaff ? "ORGANIZER TOOLS" : "CAMPUS ACTIVITIES"}
         colors={colors}
       />
 
@@ -228,7 +202,7 @@ export default function ProfileScreen({
       {/* Preferences & Settings */}
       <SectionTitle title="PREFERENCES & SETTINGS" colors={colors} />
       <View style={styles.listCard}>
-        <View style={styles.preferenceRow}>
+        <View style={[styles.preferenceRow, { flexDirection: "column", alignItems: "stretch", gap: 12 }]}>
           <View style={styles.preferenceIdentity}>
             <View
               style={[
@@ -262,6 +236,7 @@ export default function ProfileScreen({
                 accessibilityState={{ checked: selected }}
               >
                 <Ionicons name={icon} size={17} color={selected ? colors.primaryContrast : colors.textMuted} />
+                <AppText style={{ fontSize: ms(12), color: selected ? colors.primaryContrast : colors.textMuted }}>{mode[0].toUpperCase() + mode.slice(1)}</AppText>
               </ScalePressable>;
             })}
           </View>
@@ -711,8 +686,9 @@ const getStyles = (colors, isDark) =>
       gap: scale(5),
     },
     compactThemeButton: {
-      width: scale(36),
-      height: scale(36),
+      width: 72,
+      minHeight: 60,
+      gap: 4,
       borderRadius: scale(12),
       alignItems: "center",
       justifyContent: "center",

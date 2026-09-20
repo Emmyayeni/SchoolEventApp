@@ -11,7 +11,7 @@ import { ms } from "../utils/responsive";
 import { homeEventSelection } from "../utils/eventPresentation";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
-export default function HomeScreen({ user, dashboardType = "student", bookmarkedEventIds = [], events = [], featuredEvents = [], announcements = [], notifications = [], onToggleBookmark, onOpenNotifications, onOpenEvent, onOpenProfile, onActivateSearch, onOpenAnnouncementDetails, onCreateEvent, onOpenManageEvents, refreshing = false, onRefreshData, onOpenSidebar }) {
+export default function HomeScreen({ user, dashboardType = "student", bookmarkedEventIds = [], registeredEventIds = [], waitlistedEventIds = [], events = [], featuredEvents = [], announcements = [], notifications = [], onToggleBookmark, onOpenNotifications, onOpenEvent, onOpenProfile, onActivateSearch, onOpenAnnouncementDetails, onCreateEvent, onOpenManageEvents, refreshing = false, onRefreshData, onOpenSidebar }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -24,7 +24,7 @@ export default function HomeScreen({ user, dashboardType = "student", bookmarked
   const unread = notifications.filter(item => !item.read && !item.isRead).length;
   const isOrganizer = dashboardType === "staff";
   const announcement = announcements[0];
-  const renderCard = (item, spotlight = false) => <EventCard {...item} featured={spotlight} bookmarked={bookmarkedEventIds.includes(item.id)} onToggleBookmark={onToggleBookmark} onPress={onOpenEvent} />;
+  const renderCard = (item, spotlight = false) => <EventCard {...item} featured={spotlight} compact={!spotlight} registrationStatus={registeredEventIds.includes(item.id) ? "Registered" : waitlistedEventIds.includes(item.id) ? "On waitlist" : undefined} bookmarked={bookmarkedEventIds.includes(item.id)} onToggleBookmark={onToggleBookmark} onPress={onOpenEvent} />;
 
   return (
     <View style={[styles.page, { paddingTop: insets.top }]}>
@@ -46,7 +46,7 @@ export default function HomeScreen({ user, dashboardType = "student", bookmarked
         contentContainerStyle={styles.content}
         ListHeaderComponent={<>
           <View style={styles.greetingRow}>
-            <View style={styles.greetingCopy}><AppText style={styles.eyebrow}>YOUR CAMPUS, CONNECTED</AppText><AppText style={styles.greeting}>Hello, {firstName}.</AppText><AppText style={styles.subtitle}>Find your next campus moment.</AppText></View>
+            <View style={styles.greetingCopy}><AppText style={styles.greeting}>Hello, {firstName}.</AppText><AppText style={styles.subtitle}>Find your next campus moment.</AppText></View>
             <Pressable style={styles.avatarButton} onPress={onOpenProfile} accessibilityRole="button" accessibilityLabel="Open profile"><Avatar uri={user?.avatar} name={user?.fullName || ""} size={48} /></Pressable>
           </View>
           <Pressable style={styles.search} onPress={() => onActivateSearch?.("")} accessibilityRole="button" accessibilityLabel="Search campus events"><Ionicons name="search-outline" size={22} color={colors.textMuted} /><AppText style={styles.searchText}>Search events and venues</AppText><Ionicons name="arrow-forward" size={20} color={colors.accent} /></Pressable>
@@ -57,7 +57,7 @@ export default function HomeScreen({ user, dashboardType = "student", bookmarked
           <View style={styles.filters} accessibilityRole="tablist">
             {["All", "Today", "This week"].map(label => <Pressable key={label} onPress={() => setFilter(label)} style={[styles.filter, filter === label && styles.activeFilter]} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: filter === label }}><AppText style={[styles.filterText, filter === label && styles.activeFilterText]}>{label}</AppText></Pressable>)}
           </View>
-          {!!announcement && <Pressable style={styles.announcement} onPress={() => onOpenAnnouncementDetails?.(announcement.id)} accessibilityRole="button" accessibilityLabel={`Campus notice: ${announcement.title}`}><View style={styles.noticeIcon}><Ionicons name="megaphone-outline" size={20} color={isDark ? "#facc15" : "#7b5b15"} /></View><View style={styles.flex}><AppText style={styles.noticeLabel}>CAMPUS NOTICE</AppText><AppText style={styles.noticeTitle} numberOfLines={2}>{announcement.title}</AppText></View><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></Pressable>}
+          {!!announcement && <Pressable style={styles.announcement} onPress={() => onOpenAnnouncementDetails?.(announcement.id)} accessibilityRole="button" accessibilityLabel={`Campus notice: ${announcement.title}`}><View style={styles.noticeIcon}><Ionicons name="megaphone-outline" size={20} color={isDark ? "#facc15" : "#7b5b15"} /></View><View style={styles.flex}><AppText style={styles.noticeLabel}>CAMPUS NOTICE</AppText><AppText style={styles.noticeTitle} numberOfLines={1}>{announcement.title}</AppText></View><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></Pressable>}
           {featured && <><View style={styles.sectionRow}><AppText style={styles.sectionTitle}>{filter === "All" ? "Don't miss this" : filter === "Today" ? "Happening today" : "On this week"}</AppText></View>{renderCard(featured, true)}</>}
           {list.length > 0 && <View style={styles.sectionRow}><AppText style={styles.sectionTitle}>More to explore</AppText><Pressable style={styles.textButton} onPress={() => onActivateSearch?.("")} accessibilityRole="button" accessibilityLabel="Explore all events"><AppText style={styles.linkText}>See all</AppText><Ionicons name="arrow-forward" size={17} color={colors.accent} /></Pressable></View>}
         </>}
@@ -76,7 +76,7 @@ const createStyles = (colors, isDark) => StyleSheet.create({
   badge: { position: "absolute", right: 1, top: 2, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, backgroundColor: colors.error, alignItems: "center", justifyContent: "center" },
   badgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
   content: { paddingHorizontal: 20, paddingBottom: 24 },
-  greetingRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 22, paddingBottom: 24 },
+  greetingRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 16, paddingBottom: 18 },
   greetingCopy: { flex: 1 },
   eyebrow: { fontSize: ms(10), fontWeight: "700", letterSpacing: 1.6, color: colors.accent, marginBottom: 8 },
   greeting: { fontSize: ms(29), lineHeight: ms(36), fontWeight: "600", color: colors.text },
@@ -84,12 +84,12 @@ const createStyles = (colors, isDark) => StyleSheet.create({
   avatarButton: { padding: 4, borderRadius: 30, borderWidth: 1, borderColor: colors.borderSoft },
   search: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 56, padding: 15, borderRadius: 17, backgroundColor: isDark ? colors.surface : "#fff", borderWidth: 1, borderColor: colors.borderSoft },
   searchText: { flex: 1, fontSize: ms(14), color: colors.textMuted },
-  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 20 },
+  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 14 },
   filter: { minHeight: 48, paddingHorizontal: 17, paddingVertical: 12, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? colors.surface : "#fff", borderWidth: 1, borderColor: colors.borderSoft },
   activeFilter: { backgroundColor: "#174b33", borderColor: "#174b33" },
   filterText: { fontSize: ms(13), fontWeight: "600", color: colors.textMuted },
   activeFilterText: { color: "#fff" },
-  announcement: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: isDark ? colors.surface : "#f3edda", padding: 14, borderRadius: 16, marginBottom: 24 },
+  announcement: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: isDark ? colors.surface : "#f3edda", padding: 10, borderRadius: 16, marginBottom: 18 },
   noticeIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   noticeLabel: { fontSize: ms(10), letterSpacing: 1, fontWeight: "700", color: isDark ? "#facc15" : "#7b5b15", marginBottom: 4 },
   noticeTitle: { fontSize: ms(14), lineHeight: ms(20), fontWeight: "500", color: colors.text },

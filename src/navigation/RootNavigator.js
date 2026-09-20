@@ -277,6 +277,8 @@ export default function RootNavigator() {
                   }}
                   homeProps={{
                     user,
+                    registeredEventIds,
+                    waitlistedEventIds,
                     dashboardType: isStaffUser ? "staff" : "student",
                     bookmarkedEventIds,
                     featuredEvents,
