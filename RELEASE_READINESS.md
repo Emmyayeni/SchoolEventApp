@@ -3,7 +3,7 @@
 ## Verified status (21 September 2026)
 
 - All expected database columns are now available, including events.end_time after the migration.
-- Both push functions currently return HTTP 404 and need deployment.
+- Both push functions are deployed. Their secrets are configured in Edge Functions and Vault; the event and announcement triggers are enabled. Unauthorized calls return 401; authenticated non-delivery checks pass.
 - Firebase configuration is present, validated, and uploaded to the preview and production EAS environments. FCM service-account credentials are not yet verified.
 - A real installed-device push test is required before release.
 
