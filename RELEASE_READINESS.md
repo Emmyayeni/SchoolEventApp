@@ -4,8 +4,12 @@
 
 - All expected database columns are now available, including events.end_time after the migration.
 - Both push functions currently return HTTP 404 and need deployment.
-- Firebase configuration is absent and FCM credentials are not yet verified.
+- Firebase configuration is present, validated, and uploaded to the preview and production EAS environments. FCM service-account credentials are not yet verified.
 - A real installed-device push test is required before release.
+
+Expo project: https://expo.dev/accounts/nsuk-events/projects/nsuk-events
+
+Owner: nsuk-events. Project ID: ba4b45b8-62ca-450c-b700-32abc37c6595.
 
 ## Firebase credentials: browser steps
 

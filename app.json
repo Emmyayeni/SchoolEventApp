@@ -70,8 +70,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "9a4d962b-962a-43f6-98b1-d9a4e0f9d141"
+        "projectId": "ba4b45b8-62ca-450c-b700-32abc37c6595"
       }
-    }
+    },
+    "owner": "nsuk-events"
   }
 }
