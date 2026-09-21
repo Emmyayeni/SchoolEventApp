@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo } from "react";
 import { useColorScheme } from "react-native";
 
+export const BRAND_GREEN = "#0b7a24";
+
 const palette = {
   light: {
     background: "#f6f8f3",
@@ -35,25 +37,25 @@ const palette = {
     alphaTextLow: "rgba(226, 232, 240, 0.55)",
   },
   dark: {
-    background: "#07110d",
-    surface: "#0e1b15",
-    surfaceAlt: "#17271f",
-    border: "#2c4035",
-    borderSoft: "#24372e",
-    text: "#f4f8f5",
-    textMuted: "#c0cec5",
-    textSubtle: "#8fa197",
+    background: "#0b141a",
+    surface: "#111b21",
+    surfaceAlt: "#202c33",
+    border: "#3b4a54",
+    borderSoft: "#2a3942",
+    text: "#e9edef",
+    textMuted: "#c1cbd1",
+    textSubtle: "#8696a0",
     primary: "#0b7a24",
     primaryContrast: "#ffffff",
-    accent: "#4ade80",
+    accent: "#00a884",
     accentContrast: "#ffffff",
-    accentTint: "#123923",
-    surfaceSunken: "#040b08",
-    borderStrong: "#53695d",
-    success: "#4ade80",
+    accentTint: "#103b36",
+    surfaceSunken: "#080f13",
+    borderStrong: "#667781",
+    success: "#00a884",
     warning: "#facc15",
     error: "#ef4444",
-    unreadBg: "#10231a",
+    unreadBg: "#182a30",
     unreadBorder: "#0b7a24",
     overlay: "rgba(0, 0, 0, 0.36)",
     overlayStrong: "rgba(17, 24, 39, 0.55)",

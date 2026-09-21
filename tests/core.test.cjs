@@ -321,3 +321,36 @@ test('event actions keep closed events disabled and distinguish saved registrati
   }
   assert.equal(action({ ...event, date: '2026-09-19' }).label, 'Event ended');
 });
+
+test('push registration creates Android channels before permission and persists the Expo token', async () => {
+  const calls = [];
+  const native = {
+    setNotificationHandler() {}, AndroidImportance: { MAX: 5, HIGH: 4 },
+    async setNotificationChannelAsync(id) { calls.push(`channel:${id}`); },
+    async getPermissionsAsync() { return { status: 'undetermined' }; },
+    async requestPermissionsAsync() { calls.push('permission'); return { status: 'granted' }; },
+    async getExpoPushTokenAsync(options) { assert.equal(options.projectId, 'project-1'); return { data: 'ExpoPushToken[test]' }; },
+  };
+  const api = loadModule('src/services/notifications.js', {
+    console: { log() {}, warn() {}, error() {} }, process: { env: {} },
+    Constants: { appOwnership: 'standalone', easConfig: { projectId: 'project-1' } },
+    Device: { isDevice: true }, Platform: { OS: 'android' }, require: () => native,
+    supabase: { from: () => ({ update: value => ({ eq: async (key, id) => { calls.push('save'); assert.equal(id, 'user-1'); assert.equal(value.expo_push_token, 'ExpoPushToken[test]'); return { error: null }; } }) }) },
+  });
+  assert.equal(await api.registerForPushNotificationsAsync('user-1'), 'ExpoPushToken[test]');
+  assert.deepEqual(calls, ['channel:default', 'channel:event-reminders', 'permission', 'save']);
+  calls.length = 0;
+  assert.equal(await api.registerForPushNotificationsAsync('user-1', { requestPermission: false }), null);
+  assert.deepEqual(calls, ['channel:default', 'channel:event-reminders']);
+});
+
+test('push registration does not report success when token persistence fails', async () => {
+  const api = loadModule('src/services/notifications.js', {
+    console: { log() {}, warn() {}, error() {} }, process: { env: {} },
+    Constants: { appOwnership: 'standalone', easConfig: { projectId: 'project-1' } },
+    Device: { isDevice: true }, Platform: { OS: 'ios' },
+    require: () => ({ setNotificationHandler() {}, getPermissionsAsync: async () => ({ status: 'granted' }), getExpoPushTokenAsync: async () => ({ data: 'ExpoPushToken[test]' }) }),
+    supabase: { from: () => ({ update: () => ({ eq: async () => ({ error: { message: 'offline' } }) }) }) },
+  });
+  assert.equal(await api.registerForPushNotificationsAsync('user-1'), null);
+});

@@ -8,6 +8,7 @@ import {
   Outfit_800ExtraBold,
   Outfit_900Black,
 } from "@expo-google-fonts/outfit";
+import * as NativeSplash from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { NavigationBar } from "expo-navigation-bar";
 import { Platform, StatusBar as NativeStatusBar, StyleSheet } from "react-native";
@@ -17,24 +18,29 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { ToastProvider } from "./src/components/Toast";
-import { AuthProvider } from "./src/context/AuthContext";
+import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { EventsProvider } from "./src/context/EventsContext";
 import AppNavigation from "./src/navigation/AppNavigation";
-import { ThemeProvider, useAppTheme } from "./src/theme/theme";
+import { BRAND_GREEN, ThemeProvider, useAppTheme } from "./src/theme/theme";
+
+NativeSplash.preventAutoHideAsync().catch(() => {});
 
 function ThemedShell({ children }) {
   const { colors, isDark } = useAppTheme();
+  const { authInitializing, hasSeenOnboarding, passwordRecovery } = useAuth();
+  const showingWelcome = !passwordRecovery && (authInitializing || !hasSeenOnboarding);
+  const background = showingWelcome ? (isDark ? BRAND_GREEN : "#ffffff") : colors.background;
 
   useEffect(() => {
     NativeStatusBar.setBarStyle(isDark ? "light-content" : "dark-content", true);
     if (Platform.OS === "android") {
-      NativeStatusBar.setBackgroundColor(colors.background, true);
+      NativeStatusBar.setBackgroundColor(background, true);
     }
-  }, [colors.background, isDark]);
+  }, [background, isDark]);
 
   return (
-    <SafeAreaView edges={["bottom", "left", "right"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <StatusBar animated style={isDark ? "light" : "dark"} backgroundColor={colors.background} translucent={false} />
+    <SafeAreaView edges={["bottom", "left", "right"]} style={[styles.safeArea, { backgroundColor: background }]}>
+      <StatusBar animated style={isDark ? "light" : "dark"} backgroundColor={background} translucent={false} />
       <NavigationBar style={isDark ? "dark" : "light"} />
       <ErrorBoundary>{children}</ErrorBoundary>
     </SafeAreaView>
@@ -62,7 +68,11 @@ export default function App() {
     Outfit_900Black,
   });
 
-  if (!fontsLoaded && !fontError) {
+  useEffect(() => {
+    if (themeReady && (fontsLoaded || fontError)) NativeSplash.hideAsync().catch(() => {});
+  }, [themeReady, fontsLoaded, fontError]);
+
+  if (!themeReady || (!fontsLoaded && !fontError)) {
     return null;
   }
 

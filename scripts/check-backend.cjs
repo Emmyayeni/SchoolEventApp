@@ -48,6 +48,12 @@ async function main() {
       process.exitCode = 1;
     }
   }
+  // Read-only probe: never dispatch a notification during a readiness check.
+  for (const name of ['send-event-push', 'send-announcement-push']) {
+    const response = await fetch(`${url}/functions/v1/${name}`, { method: 'GET', signal: AbortSignal.timeout(15000) });
+    if (response.status === 405) console.log(`OK ${name}: deployed and rejects GET (secrets/webhook delivery still need verification)`);
+    else { console.error(`FAIL ${name}: HTTP ${response.status}; deploy the function with shared-secret authentication and --no-verify-jwt`); process.exitCode = 1; }
+  }
   const rpcResponse = await fetch(`${url}/rest/v1/rpc/get_event_registration_counts`, {
     method: 'POST',
     headers: { apikey: key, 'Content-Type': 'application/json' },

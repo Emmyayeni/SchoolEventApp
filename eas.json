@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 14.0.0"
+    "version": ">= 14.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -15,7 +16,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://bwtfwytnsphmsgpnlhiw.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_U62S7_iLO3guLWx_6vuCDw_iDU8kbU0"
-      }
+      },
+      "environment": "preview"
     },
     "production": {
       "android": {
@@ -24,7 +26,9 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://bwtfwytnsphmsgpnlhiw.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_U62S7_iLO3guLWx_6vuCDw_iDU8kbU0"
-      }
+      },
+      "autoIncrement": true,
+      "environment": "production"
     }
   },
   "submit": {

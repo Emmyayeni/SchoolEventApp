@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, AppState } from "react-native";
 import {
   createAnnouncement,
   createEventFromForm,
@@ -21,7 +21,7 @@ import {
 } from "../services/supabaseData";
 import { supabase } from "../../lib/supabase";
 import { STORAGE_BUCKETS, uploadImageToBucket } from "../services/storage";
-import { registerForPushNotificationsAsync, syncEventReminders } from "../services/notifications";
+import { addPushTokenListener, registerForPushNotificationsAsync, syncEventReminders } from "../services/notifications";
 import { useAuth } from "./AuthContext";
 
 const CACHE_EVENTS_KEY = "@nsuk/cached_events";
@@ -197,6 +197,15 @@ export function EventsProvider({ children }) {
     });
     return () => { active = false; };
   }, [isAuthenticated, user?.id, user?.accountType, user?.role, loadAppData]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    // Retry offline token registration and recheck permissions after Settings.
+    const refreshPush = () => registerForPushNotificationsAsync(user.id, { requestPermission: false }).catch(() => {});
+    const appState = AppState.addEventListener("change", state => { if (state === "active") refreshPush(); });
+    const token = addPushTokenListener(refreshPush);
+    return () => { appState.remove(); token.remove(); };
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (authInitializing) return;

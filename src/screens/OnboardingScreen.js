@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image, PanResponder, Pressable, StyleSheet, View } from "react-native";
+import { Image, PanResponder, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText } from "../components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAppTheme } from "../theme/theme";
+import { StatusBar } from "expo-status-bar";
+import { BRAND_GREEN, useAppTheme } from "../theme/theme";
 import { hp, ms, scale } from "../utils/responsive";
 
 const slides = [
@@ -31,7 +32,8 @@ const slides = [
 ];
 
 export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetStarted }) {
-  const { colors, isDark } = useAppTheme();
+  const { colors: themeColors, isDark } = useAppTheme();
+  const colors = isDark ? { ...themeColors, background: BRAND_GREEN, surface: "#ffffff", surfaceAlt: "#eaf4e8", text: "#ffffff", textMuted: "#eff9ec", textSubtle: "#e1efdd", primary: "#ffffff", primaryContrast: BRAND_GREEN, accent: BRAND_GREEN, borderSoft: "#69a876" } : themeColors;
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark, insets);
 
@@ -63,7 +65,8 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
   });
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <ScrollView style={{ flex: 1, backgroundColor: isDark ? BRAND_GREEN : "#ffffff" }} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} {...panResponder.panHandlers}>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={isDark ? BRAND_GREEN : "#ffffff"} />
       {isThirdSlide ? (
         <View style={styles.topRowThird}>
           <Pressable
@@ -96,7 +99,7 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
         <Image source={slide.image} style={[styles.image]} />
         {showBellBadge && (
           <View style={styles.bellBadge}>
-            <Ionicons name="notifications" size={scale(16)} color={colors.primaryContrast} />
+            <Ionicons name="notifications" size={scale(16)} color="#ffffff" />
           </View>
         )}
       </View>
@@ -136,9 +139,9 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
         style={styles.ctaButton}
         onPress={isLast ? onGetStarted : onNext}
         accessibilityRole="button"
-        accessibilityLabel={isLast || isFirstSlide ? "Get Started" : "Next"}
+        accessibilityLabel={isLast ? "Get Started" : "Next"}
       >
-        <AppText style={styles.ctaText}>{isLast || isFirstSlide ? "Get Started" : "Next"}</AppText>
+        <AppText style={styles.ctaText}>{isLast ? "Get Started" : "Next"}</AppText>
         <Ionicons name={isLast ? "rocket" : "arrow-forward"} size={scale(18)} color={colors.primaryContrast} />
       </Pressable>
 
@@ -147,9 +150,9 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
           style={styles.remindWrap}
           onPress={onSkip}
           accessibilityRole="button"
-          accessibilityLabel="Remind me later"
+          accessibilityLabel="Continue to sign in"
         >
-          <AppText style={styles.remindText}>Remind me later</AppText>
+          <AppText style={styles.remindText}>Continue to sign in</AppText>
         </Pressable>
       ) : isSecondSlide ? (
         <View style={styles.remindWrap}>
@@ -161,14 +164,15 @@ export default function OnboardingScreen({ step, onNext, onPrev, onSkip, onGetSt
           <AppText style={styles.bottomBadgeText}>Your Campus Event Guide</AppText>
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const getStyles = (colors, isDark, insets) =>
   StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
+    gap: 16,
     paddingHorizontal: scale(20),
     paddingTop: (insets?.top || 0) + scale(8),
     paddingBottom: Math.max(insets?.bottom || 0, scale(18)),
@@ -186,8 +190,8 @@ const getStyles = (colors, isDark, insets) =>
     justifyContent: "space-between",
   },
   backTopBtn: {
-    width: scale(28),
-    height: scale(28),
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -246,9 +250,9 @@ const getStyles = (colors, isDark, insets) =>
   },
   imageWrapThird: {
     width: "98%",
-    height: hp(50),
-    minHeight: scale(340),
-    maxHeight: scale(460),
+    height: hp(32),
+    minHeight: scale(200),
+    maxHeight: scale(300),
     borderRadius: scale(24),
     backgroundColor: colors.surfaceAlt,
   },
@@ -288,8 +292,8 @@ const getStyles = (colors, isDark, insets) =>
   },
   titleThird: {
     color: colors.text,
-    fontSize: ms(44),
-    lineHeight: ms(52),
+    fontSize: ms(30),
+    lineHeight: ms(38),
     letterSpacing: 0,
     maxWidth: "96%",
   },

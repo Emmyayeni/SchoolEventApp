@@ -46,3 +46,10 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Native push configuration and private signing credentials
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+credentials.json
+*-firebase-adminsdk-*.json

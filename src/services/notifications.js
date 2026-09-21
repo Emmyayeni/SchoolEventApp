@@ -122,6 +122,7 @@ export async function requestNotificationPermissionsAsync() {
     return { granted: false, status: "undetermined" };
   }
   try {
+    await configureAndroidChannels();
     const permissions = await Notifications.requestPermissionsAsync();
     return permissions;
   } catch (e) {
@@ -137,7 +138,7 @@ export async function requestNotificationPermissionsAsync() {
  * Registers the device for Expo Push Notifications and saves the token to Supabase.
  * Returns the token string on success, or null if unsupported/failed.
  */
-export async function registerForPushNotificationsAsync(userId) {
+export async function registerForPushNotificationsAsync(userId, { requestPermission = true } = {}) {
   if (Platform.OS === "web") {
     console.log(
       "[Notifications] Push notifications not supported on web without VAPID config.",
@@ -158,7 +159,7 @@ export async function registerForPushNotificationsAsync(userId) {
       await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
-    if (existingStatus !== "granted") {
+    if (existingStatus !== "granted" && requestPermission) {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
@@ -174,14 +175,15 @@ export async function registerForPushNotificationsAsync(userId) {
       const projectId = getEasProjectId();
       if (!projectId) {
         console.warn(
-          "[Notifications] EAS Project ID not found in app config; token request may fail.",
+          "[Notifications] EAS Project ID is missing from app config.",
         );
+        return null;
       }
 
       const params = projectId ? { projectId } : {};
       const pushTokenData = await Notifications.getExpoPushTokenAsync(params);
       token = pushTokenData?.data ?? null;
-      console.log("[Notifications] Expo Push Token obtained:", token);
+
     } catch (e) {
       console.error(
         "[Notifications] Error getting push token:",
@@ -212,6 +214,7 @@ export async function registerForPushNotificationsAsync(userId) {
           "[Notifications] Error saving push token to profile:",
           error.message,
         );
+        return null;
       } else {
         console.log(
           "[Notifications] Push token successfully synchronized with Supabase profile.",
@@ -222,6 +225,7 @@ export async function registerForPushNotificationsAsync(userId) {
         "[Notifications] Exception saving push token to Supabase:",
         e?.message || e,
       );
+      return null;
     }
   }
 
@@ -475,6 +479,10 @@ export function addNotificationResponseListener(handler) {
  * Subscribe to foreground notifications received while the app is active.
  * Returns a subscription object with a `.remove()` method.
  */
+export function addPushTokenListener(handler) {
+  return Notifications?.addPushTokenListener(handler) || { remove() {} };
+}
+
 export function addNotificationReceivedListener(handler) {
   if (!Notifications) {
     return { remove: () => {} };
