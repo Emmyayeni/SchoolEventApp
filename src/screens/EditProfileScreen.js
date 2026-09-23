@@ -175,12 +175,6 @@ export default function EditProfileScreen({ values, onChange, onUploadAvatar, on
           editable={!formBusy}
         />
 
-        <AppText style={styles.label}>Email (Read Only)</AppText>
-        <View style={[styles.input, styles.readOnlyRow]}>
-          <AppText style={styles.readOnlyText}>{values.email}</AppText>
-          <Ionicons name="lock-closed" size={15} color={colors.textSubtle} />
-        </View>
-
         <AppText style={styles.label}>Phone Number</AppText>
         <AppTextInput
           value={values.phoneNumber || values.phone || ""}
@@ -377,16 +371,6 @@ const getStyles = (colors, isDark) =>
     color: colors.text,
     paddingHorizontal: scale(12),
     justifyContent: "center",
-  },
-  readOnlyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  readOnlyText: {
-    color: colors.textSubtle,
-    fontSize: ms(14),
-    fontWeight: "600",
   },
   rowLabels: {
     marginTop: scale(2),
