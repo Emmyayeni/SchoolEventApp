@@ -334,7 +334,7 @@ export default function RootNavigator() {
                   }}
                   notificationsProps={{
                     notifications,
-                    onNotificationPress: (item) => {
+                    onPressItem: (item) => {
                       handleNotificationPress(item);
                       if (item.eventId) {
                         navigation.navigate("EventDetails", { eventId: item.eventId });
@@ -342,7 +342,7 @@ export default function RootNavigator() {
                         navigation.navigate("AnnouncementDetails", { announcementId: item.announcementId });
                       }
                     },
-                    onMarkAllAsRead: markAllNotificationsRead,
+                    onMarkAllRead: markAllNotificationsRead,
                     onBack: () => setActiveTab("home"),
                   }}
                   profileProps={{

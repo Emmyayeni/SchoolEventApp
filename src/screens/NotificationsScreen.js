@@ -1,247 +1,44 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { AppText } from "../components/AppText";
+import { useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppText } from "../components/AppText";
 import { EmptyState } from "../components/EmptyState";
+import NotificationItem from "../components/NotificationItem";
 import { useAppTheme } from "../theme/theme";
-import { ms, scale } from "../utils/responsive";
 
-export default function NotificationsScreen({ notifications, onPressItem, onMarkAllRead, onBack }) {
-  const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+export default function NotificationsScreen({ notifications = [], onPressItem, onMarkAllRead, onBack, refreshing = false, onRefreshData }) {
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const sections = {
-    today: notifications.filter((item, index) => index < 2),
-    yesterday: notifications.filter((item, index) => index >= 2 && index < 4),
-    earlier: notifications.filter((item, index) => index >= 4),
+  const [marking, setMarking] = useState(false);
+  const unread = notifications.filter(item => !item.isRead).length;
+  const markRead = async () => {
+    if (marking || !unread || !onMarkAllRead) return;
+    setMarking(true);
+    try { await onMarkAllRead(); } finally { setMarking(false); }
   };
-
-  const fallbackEarlier = [
-    {
-      id: "fallback-1",
-      title: "NOTICE",
-      message: "The Inter-Faculty Marathon has been postponed until further notice.",
-      time: "2 days ago",
-      tone: "red",
-    },
-    {
-      id: "fallback-2",
-      title: "GENERAL UPDATE",
-      message: "Monthly campus maintenance scheduled for this weekend.",
-      time: "4 days ago",
-      tone: "green",
-    },
-  ];
-
-  const todayItems = sections.today.length > 0 ? sections.today : notifications.slice(0, 2);
-  const yesterdayItems = sections.yesterday.length > 0 ? sections.yesterday : notifications.slice(2, 4);
-  const earlierItems = sections.earlier.length > 0 ? sections.earlier : fallbackEarlier;
-
-  return (
-    <ScrollView
-      style={[styles.page, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: (insets?.top ?? 0) + scale(8) }]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.headerRow}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={onBack}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={18} color={colors.accent} />
-        </Pressable>
-        <AppText style={[styles.title, { color: colors.text }]}>Notifications</AppText>
-        <Pressable
-          onPress={onMarkAllRead}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Mark all as read"
-        >
-          <AppText style={styles.markRead}>Mark all as read</AppText>
-        </Pressable>
-      </View>
-
-      {notifications.length === 0 ? (
-        <EmptyState
-          icon="notifications-off-outline"
-          title="No notifications yet"
-          description="We'll let you know when there's an update."
-        />
-      ) : (
-        <>
-          <Section title="TODAY" items={todayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
-          <Section title="YESTERDAY" items={yesterdayItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
-          <Section title="EARLIER" items={earlierItems} onPressItem={onPressItem} colors={colors} isDark={isDark} styles={styles} />
-        </>
-      )}
-    </ScrollView>
-  );
-}
-
-function Section({ title, items, onPressItem, colors, isDark, styles }) {
-  if (!items || items.length === 0) {
-    return null;
-  }
-
-  return (
-    <View style={styles.sectionWrap}>
-      <AppText style={styles.sectionTitle}>{title}</AppText>
-      {items.map((item) => (
-        <Pressable
-          key={String(item.id)}
-          style={[styles.row, { borderBottomColor: colors.borderSoft }]}
-          onPress={() => onPressItem?.(item)}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.title}: ${item.message}`}
-          accessibilityHint="Opens notification details"
-        >
-          <View style={[styles.iconWrap, getToneWrap(item, colors)]}>
-            <Ionicons name={getIcon(item)} size={16} color={getToneColor(item, colors)} />
-          </View>
-          <View style={styles.rowBody}>
-            <View style={styles.rowTop}>
-              <AppText style={[styles.itemTitle, { color: getToneColor(item, colors) }]}>{item.title}</AppText>
-              <AppText style={styles.itemTime}>{item.time}</AppText>
-            </View>
-            <AppText style={[styles.itemMessage, { color: isDark ? colors.textMuted : colors.text }]}>{item.message}</AppText>
-          </View>
-        </Pressable>
-      ))}
+  return <View style={[styles.page, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={styles.header}>
+      <Pressable onPress={onBack} style={styles.button} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="arrow-back" size={24} color={colors.text} /></Pressable>
+      <AppText style={[styles.title, { color: colors.text }]}>Notifications</AppText>
     </View>
-  );
+    <View style={styles.actions}>
+      <AppText style={{ color: colors.textMuted }} accessibilityLiveRegion="polite">{unread ? `${unread} unread` : "All caught up"}</AppText>
+      <Pressable onPress={markRead} disabled={!unread || marking} style={styles.markButton} accessibilityRole="button" accessibilityLabel="Mark all as read" accessibilityState={{ disabled: !unread || marking, busy: marking }}>
+        {marking ? <ActivityIndicator color={colors.accent} /> : <Ionicons name="checkmark-done" size={20} color={unread ? colors.accent : colors.textSubtle} />}
+        <AppText style={{ color: unread ? colors.accent : colors.textSubtle }}>{marking ? "Saving..." : "Mark all as read"}</AppText>
+      </Pressable>
+    </View>
+    <FlatList data={notifications} keyExtractor={item => String(item.id)} refreshing={refreshing} onRefresh={onRefreshData} contentContainerStyle={styles.list}
+      renderItem={({ item }) => <NotificationItem {...item} onPress={() => onPressItem?.(item)} />}
+      ListEmptyComponent={<EmptyState icon="notifications-off-outline" title="No notifications yet" description="Event updates and announcements will appear here." />} />
+  </View>;
 }
-
-function getIcon(item) {
-  const title = (item.title || "").toLowerCase();
-  if (title.includes("notice")) {
-    return "alert-circle";
-  }
-  if (title.includes("reminder")) {
-    return "notifications";
-  }
-  if (title.includes("update")) {
-    return "folder-open";
-  }
-  if (title.includes("new")) {
-    return "calendar";
-  }
-  return "information-circle";
-}
-
-function getToneColor(item, colors) {
-  const title = (item.title || "").toLowerCase();
-  const tone = item.tone || "";
-  if (tone === "red" || title.includes("notice")) {
-    return colors.error;
-  }
-  return colors.accent;
-}
-
-function getToneWrap(item, colors) {
-  const title = (item.title || "").toLowerCase();
-  const tone = item.tone || "";
-  if (tone === "red" || title.includes("notice")) {
-    return { backgroundColor: colors.surfaceAlt };
-  }
-  return { backgroundColor: colors.surfaceAlt };
-}
-
-const createStyles = (colors) =>
-  StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: scale(14),
-    paddingTop: scale(12),
-    paddingBottom: scale(20),
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: scale(10),
-  },
-  backBtn: {
-    width: scale(26),
-    height: scale(26),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    color: colors.text,
-    fontSize: ms(22),
-    fontWeight: "900",
-  },
-  markRead: {
-    color: colors.accent,
-    fontSize: ms(12),
-    fontWeight: "800",
-  },
-  emptyContainer: {
-    paddingVertical: scale(60),
-    alignItems: "center",
-    justifyContent: "center",
-    gap: scale(12),
-  },
-  emptyText: {
-    fontSize: ms(14),
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  sectionWrap: {
-    marginTop: scale(8),
-  },
-  sectionTitle: {
-    color: colors.textSubtle,
-    fontSize: ms(13),
-    fontWeight: "900",
-    letterSpacing: 1,
-    marginBottom: scale(6),
-  },
-  row: {
-    flexDirection: "row",
-    gap: scale(10),
-    paddingVertical: scale(10),
-  },
-  iconWrap: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: scale(2),
-  },
-  rowBody: {
-    flex: 1,
-  },
-  rowTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    gap: scale(8),
-  },
-  itemTitle: {
-    fontSize: ms(12),
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  itemTime: {
-    color: colors.textSubtle,
-    fontSize: ms(10),
-    fontWeight: "700",
-  },
-  itemMessage: {
-    marginTop: scale(2),
-    color: colors.text,
-    fontSize: ms(13),
-    fontWeight: "600",
-    lineHeight: ms(19),
-  },
-  });
+const styles = StyleSheet.create({
+  page: { flex: 1 }, header: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 },
+  button: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  title: { fontSize: 23, fontWeight: "700", flexShrink: 1 },
+  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, gap: 8 },
+  markButton: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8 },
+  list: { padding: 16, paddingBottom: 24 },
+});

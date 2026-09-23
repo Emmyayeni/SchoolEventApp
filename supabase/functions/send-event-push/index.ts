@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
     const { data: inserted, error: insertError } = await db.from("notifications").upsert(rows, { onConflict: "source_key", ignoreDuplicates: true }).select("user_id");
     if (insertError) throw insertError;
     const newRecipients = new Set((inserted || []).map((row: NotificationRow) => row.user_id));
-    const messages = recipients.filter((profile: ProfileRow) => newRecipients.has(profile.id) && /^(ExponentPushToken|ExpoPushToken)\[/.test(profile.expo_push_token || "")).map((profile: ProfileRow) => ({ to: profile.expo_push_token, title, body: message, sound: "default", channelId: "default", data: { eventId: event.id, type: "event" } }));
+    const messages = recipients.filter((profile: ProfileRow) => newRecipients.has(profile.id) && /^(ExponentPushToken|ExpoPushToken)\[/.test(profile.expo_push_token || "")).map((profile: ProfileRow) => ({ to: profile.expo_push_token, title, body: message, sound: "default", priority: "high", channelId: "default", data: { eventId: event.id, type: "event" } }));
     const errors: unknown[] = [];
     let accepted = 0;
     for (let i = 0; i < messages.length; i += 100) {

@@ -1,11 +1,13 @@
 # NSUK Events: release and push setup
 
-## Verified status (21 September 2026)
+## Verified status (23 September 2026)
 
 - All expected database columns are now available, including events.end_time after the migration.
 - Both push functions are deployed. Their secrets are configured in Edge Functions and Vault; the event and announcement triggers are enabled. Unauthorized calls return 401; authenticated non-delivery checks pass.
-- Firebase configuration is present, validated, and uploaded to the preview and production EAS environments. FCM service-account credentials are not yet verified.
-- A real installed-device push test is required before release.
+- Firebase configuration is present, validated, and uploaded to the preview and production EAS environments. The matching FCM V1 service account is assigned to the Android application in EAS.
+- A targeted push returned an Expo receipt of `ok`; the user confirmed its banner appeared on the installed Android APK.
+- `send-event-status-push` and its minute-by-minute cron job are deployed. Registered, approved attendees receive ongoing and ended alerts based on Nigeria time. Ended alerts require an explicit end time. Queue entries retry transient failures, expire after at most 30 minutes, and reject cancelled or rescheduled events. Physical-device testing of both scheduled transitions is still required.
+- The updated notification controls, bottom navigation and event-history UI require a new APK.
 
 Expo project: https://expo.dev/accounts/nsuk-events/projects/nsuk-events
 
@@ -77,3 +79,7 @@ Production creates an AAB for Google Play. Test through a Play internal testing 
 For iOS, configure Apple distribution/APNs credentials and test a signed physical-device build separately. Firebase Android setup does not enable iOS notifications.
 
 Current token storage retains one push token per profile: the most recently registered device receives remote pushes. It is not a multi-device registration system.
+
+## Scheduled event status alerts
+
+Deploy `send-event-status-push` with `--no-verify-jwt` and apply `supabase/APPLY_EVENT_STATUS_PUSH.sql`. It uses the existing EVENT_WEBHOOK_SECRET in Vault and Edge Function secrets. The protected queue is service-role-only; inbox notifications are deduplicated by event, phase, boundary and recipient. A successful Expo ticket marks the queue sent; it is not a delivery receipt. Delivery can duplicate if a worker crashes after Expo accepts a send but before saving the ticket.

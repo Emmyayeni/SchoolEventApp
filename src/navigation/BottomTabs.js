@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "../components/AppText";
 import { useAppTheme } from "../theme/theme";
 import { ms, scale } from "../utils/responsive";
@@ -15,17 +14,12 @@ const tabs = [
 
 export default function BottomTabs({ activeTab, onChange }) {
   const { colors, isDark } = useAppTheme();
-  const insets = useSafeAreaInsets();
-  const styles = getStyles(colors, isDark, insets);
+  const styles = getStyles(colors, isDark);
 
   const handleTabPress = (tabKey) => {
     if (tabKey !== activeTab) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } catch (_e) {
-        // Safe fallback if haptics unavailable
-      }
       onChange(tabKey);
+      Haptics.selectionAsync().catch(() => {});
     }
   };
 
@@ -39,7 +33,6 @@ export default function BottomTabs({ activeTab, onChange }) {
               key={tab.key}
               onPress={() => handleTabPress(tab.key)}
               style={[styles.item, active && styles.itemActive]}
-              hitSlop={8}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={tab.label}
@@ -60,30 +53,22 @@ export default function BottomTabs({ activeTab, onChange }) {
   );
 }
 
-const getStyles = (colors, isDark, insets) =>
+const getStyles = (colors, isDark) =>
   StyleSheet.create({
     outerContainer: {
       width: "100%",
-      backgroundColor: "transparent",
-      paddingHorizontal: scale(16),
-      paddingBottom: Math.max(insets?.bottom ?? 0, 8),
-      paddingTop: 4,
+      backgroundColor: colors.surface,
     },
     islandWrapper: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-around",
       backgroundColor: colors.surface,
-      borderRadius: scale(22),
-      borderWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSoft,
       paddingVertical: scale(7),
       paddingHorizontal: scale(8),
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.45 : 0.09,
-      shadowRadius: 14,
-      elevation: 10,
+
     },
     item: {
       alignItems: "center",

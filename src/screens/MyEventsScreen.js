@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "../components/AppText";
 import { FadeInImage } from "../components/FadeInImage";
 import { useAppTheme } from "../theme/theme";
-import { eventTimeStatus, formatEventDate, formatEventTimeRange, parseEventDate } from "../utils/eventTime";
+import { formatEventDate, formatEventTimeRange, parseEventDate } from "../utils/eventTime";
 import { ms, scale } from "../utils/responsive";
+import { personalEventGroups } from "../utils/personalEvents";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
 export default function MyEventsScreen({ events = [], isStaff = false, registeredEventIds = [], bookmarkedEventIds = [], onOpenEvent, onOpenNotifications, onCreateEvent, onOpenAnnouncement, onToggleBookmark, refreshing, onRefreshData }) {
@@ -17,30 +18,9 @@ export default function MyEventsScreen({ events = [], isStaff = false, registere
   const tabs = isStaff ? ["Published", "Drafts", "Past"] : ["Registered", "Saved", "Past"];
   const [activeTab, setActiveTab] = useState(tabs[0]);
 
-  const prepared = useMemo(() => events.map(event => ({ ...event, timeStatus: eventTimeStatus(event, now) })), [events, now]);
-  const tabEvents = useMemo(() => prepared.filter(event => {
-    const registered = registeredEventIds.includes(event.id);
-    const saved = bookmarkedEventIds.includes(event.id);
-    if (isStaff) {
-      if (activeTab === "Drafts") return event.status === "draft";
-      if (activeTab === "Past") return event.timeStatus === "past" || ["cancelled", "archived"].includes(event.status);
-      return event.status === "published" && event.timeStatus !== "past";
-    }
-    if (activeTab === "Saved") return saved;
-    if (activeTab === "Past") return registered && event.timeStatus === "past";
-    return registered && event.timeStatus !== "past";
-  }), [activeTab, bookmarkedEventIds, isStaff, prepared, registeredEventIds]);
-  const tabCount = tab => prepared.filter(event => {
-    const registered = registeredEventIds.includes(event.id);
-    if (isStaff) {
-      if (tab === "Drafts") return event.status === "draft";
-      if (tab === "Past") return event.timeStatus === "past" || ["cancelled", "archived"].includes(event.status);
-      return event.status === "published" && event.timeStatus !== "past";
-    }
-    if (tab === "Saved") return bookmarkedEventIds.includes(event.id);
-    if (tab === "Past") return registered && event.timeStatus === "past";
-    return registered && event.timeStatus !== "past";
-  }).length;
+  const groups = useMemo(() => personalEventGroups(events, { isStaff, registeredEventIds, bookmarkedEventIds, now }), [events, isStaff, registeredEventIds, bookmarkedEventIds, now]);
+  const tabEvents = groups[activeTab] || [];
+  const tabCount = tab => groups[tab].length;
 
   return <View style={[styles.page, { paddingTop: insets.top }]}>
     <FlatList
@@ -54,7 +34,7 @@ export default function MyEventsScreen({ events = [], isStaff = false, registere
         <View style={styles.topBar}><View><AppText style={styles.eyebrow}>{isStaff ? "ORGANIZER SPACE" : "YOUR CAMPUS PLANS"}</AppText><AppText style={styles.title}>{isStaff ? "Manage events" : "My events"}</AppText></View><Pressable style={styles.iconButton} onPress={onOpenNotifications} accessibilityRole="button" accessibilityLabel="Open notifications"><Ionicons name="notifications-outline" size={23} color={colors.text} /></Pressable></View>
         <AppText style={styles.subtitle}>{isStaff ? "Publish updates and keep track of your event schedule." : "Everything you registered for or saved, in one place."}</AppText>
         {isStaff && <View style={styles.actions}><Pressable style={styles.primaryButton} onPress={onCreateEvent} accessibilityRole="button"><Ionicons name="add" size={20} color="#fff" /><AppText style={styles.primaryText}>Create event</AppText></Pressable><Pressable style={styles.secondaryButton} onPress={onOpenAnnouncement} accessibilityRole="button"><Ionicons name="megaphone-outline" size={19} color={colors.accent} /><AppText style={styles.secondaryText}>Announcement</AppText></Pressable></View>}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} accessibilityRole="tablist">{tabs.map(tab => <Pressable key={tab} onPress={() => setActiveTab(tab)} style={[styles.tab, tab === activeTab && styles.activeTab]} accessibilityRole="tab" accessibilityState={{ selected: tab === activeTab }}><AppText style={[styles.tabText, tab === activeTab && styles.activeTabText]}>{tab}</AppText><View style={[styles.count, tab === activeTab && styles.activeCount]}><AppText style={[styles.countText, tab === activeTab && styles.activeCountText]}>{tabCount(tab)}</AppText></View></Pressable>)}</ScrollView>
+        <View style={styles.tabs} accessibilityRole="tablist">{tabs.map(tab => <Pressable key={tab} onPress={() => setActiveTab(tab)} style={[styles.tab, tab === activeTab && styles.activeTab]} accessibilityRole="tab" accessibilityState={{ selected: tab === activeTab }}><AppText style={[styles.tabText, tab === activeTab && styles.activeTabText]}>{tab}</AppText><View style={[styles.count, tab === activeTab && styles.activeCount]}><AppText style={[styles.countText, tab === activeTab && styles.activeCountText]}>{tabCount(tab)}</AppText></View></Pressable>)}</View>
         <View style={styles.sectionRow}><AppText style={styles.sectionTitle}>{activeTab}</AppText><AppText style={styles.helper}>{tabEvents.length} {tabEvents.length === 1 ? "event" : "events"}</AppText></View>
       </View>}
       ListEmptyComponent={!refreshing && <View style={styles.empty}><View style={styles.emptyIcon}><Ionicons name={emptyIcon(activeTab)} size={32} color={colors.accent} /></View><AppText style={styles.sectionTitle}>{emptyTitle(activeTab)}</AppText><AppText style={styles.emptyText}>{emptyDescription(activeTab, isStaff)}</AppText>{isStaff && activeTab !== "Past" && <Pressable style={styles.primaryButton} onPress={onCreateEvent} accessibilityRole="button"><Ionicons name="add" size={20} color="#fff" /><AppText style={styles.primaryText}>Create an event</AppText></Pressable>}</View>}
@@ -79,7 +59,7 @@ function emptyIcon(tab) { return tab === "Saved" ? "bookmark-outline" : tab === 
 function emptyTitle(tab) { return tab === "Saved" ? "No saved events yet" : tab === "Past" ? "No event history yet" : tab === "Drafts" ? "No drafts" : "Nothing planned yet"; }
 function emptyDescription(tab, staff) {
   if (tab === "Saved") return "Save an event from Home or Explore and it will appear here.";
-  if (tab === "Past") return staff ? "Completed and cancelled events will appear here." : "Events you attended or registered for will appear here after they end.";
+  if (tab === "Past") return staff ? "Completed and cancelled events will appear here." : "Your registered and saved events stay here after they end.";
   if (tab === "Drafts") return "Events you save as drafts will appear here until you publish them.";
   return staff ? "Create an event to begin building your campus schedule." : "Register for an upcoming event and it will appear here.";
 }
@@ -97,8 +77,8 @@ const getStyles = (colors, isDark) => StyleSheet.create({
   primaryText: { color: "#fff", fontSize: ms(14), fontWeight: "600" },
   secondaryButton: { minHeight: 48, paddingHorizontal: 15, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
   secondaryText: { color: colors.accent, fontSize: ms(14), fontWeight: "600" },
-  tabs: { gap: 8, paddingBottom: 22 },
-  tab: { minHeight: 48, paddingHorizontal: 15, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
+  tabs: { flexDirection: "row", gap: 8, paddingBottom: 22 },
+  tab: { flex: 1, minHeight: 68, paddingHorizontal: 4, paddingVertical: 10, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft },
   activeTab: { backgroundColor: "#174b33", borderColor: "#174b33" },
   tabText: { color: colors.textMuted, fontSize: ms(13), fontWeight: "600" },
   activeTabText: { color: "#fff" },

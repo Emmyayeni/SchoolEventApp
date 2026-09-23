@@ -136,7 +136,7 @@ Deno.serve(async (req: Request) => {
     )
     .map((p: ProfileRow) => ({
       to: p.expo_push_token,
-      sound: "default",
+      sound: "default", priority: "high",
       title: record.subject,
       body: record.message,
       channelId: "default",

@@ -17,7 +17,7 @@ function handlerFor(name, secrets = {}) {
   return handler;
 }
 
-for (const [name, secretKey] of [['send-announcement-push', 'ANNOUNCEMENT_WEBHOOK_SECRET'], ['send-event-push', 'EVENT_WEBHOOK_SECRET']]) {
+for (const [name, secretKey] of [['send-announcement-push', 'ANNOUNCEMENT_WEBHOOK_SECRET'], ['send-event-push', 'EVENT_WEBHOOK_SECRET'], ['send-event-status-push', 'EVENT_WEBHOOK_SECRET']]) {
   test(`${name}: rejects an unconfigured shared secret`, async () => {
     const response = await handlerFor(name)(new Request('https://test.invalid', { method: 'POST' }));
     assert.equal(response.status, 503);

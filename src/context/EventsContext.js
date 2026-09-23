@@ -46,6 +46,9 @@ export function EventsProvider({ children }) {
   const [loadError, setLoadError] = useState(null);
   const [dataLoadedFor, setDataLoadedFor] = useState(null);
   const activeUserId = useRef(null);
+  const loadSequence = useRef(0);
+  const freshFeedFor = useRef(null);
+  const eventRevision = useRef(0);
 
   useEffect(() => {
     activeUserId.current = isAuthenticated ? user?.id : null;
@@ -62,7 +65,7 @@ export function EventsProvider({ children }) {
           AsyncStorage.getItem(`${CACHE_EVENTS_KEY}/${currentUserId}`),
           AsyncStorage.getItem(`${CACHE_ANNOUNCEMENTS_KEY}/${currentUserId}`),
         ]);
-        if (!active) return;
+        if (!active || freshFeedFor.current === currentUserId) return;
         if (cachedEvents) {
           const parsed = JSON.parse(cachedEvents);
           if (Array.isArray(parsed) && parsed.length > 0) setEvents(parsed);
@@ -93,9 +96,11 @@ export function EventsProvider({ children }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "events" },
         (_payload) => {
+          const revision = ++eventRevision.current;
           fetchEvents()
             .then((latestEvents) => {
-              if (active && Array.isArray(latestEvents)) {
+              if (active && revision === eventRevision.current && Array.isArray(latestEvents)) {
+                freshFeedFor.current = currentUserId;
                 setEvents(latestEvents);
                 AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(latestEvents)).catch(() => {});
               }
@@ -116,6 +121,8 @@ export function EventsProvider({ children }) {
 
   const loadAppData = useCallback(
     async (currentUserId, accountType, userRole) => {
+      const sequence = ++loadSequence.current;
+      const revision = ++eventRevision.current;
       try {
         setRefreshing(true);
         setLoadError(null);
@@ -134,10 +141,11 @@ export function EventsProvider({ children }) {
         const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows, adminUserRows, allRegistrationRows] =
           await Promise.all(baseQueries);
 
-        if (activeUserId.current !== currentUserId) return;
+        if (activeUserId.current !== currentUserId || sequence !== loadSequence.current) return;
+        freshFeedFor.current = currentUserId;
 
         setVisibleRegistrations(allRegistrationRows);
-        setEvents(eventRows);
+        if (revision === eventRevision.current) setEvents(eventRows);
         setRegisteredEventIds(
           registrationRows.filter((item) => item.status === "registered").map((item) => item.event_id)
         );
@@ -154,13 +162,13 @@ export function EventsProvider({ children }) {
         }
 
         // Cache for offline/instant launch
-        AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(eventRows)).catch(() => {});
+        if (revision === eventRevision.current) AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(eventRows)).catch(() => {});
         AsyncStorage.setItem(`${CACHE_ANNOUNCEMENTS_KEY}/${currentUserId}`, JSON.stringify(announcementRows)).catch(() => {});
       } catch (err) {
-        if (activeUserId.current === currentUserId) setLoadError(err?.message || "Could not load campus updates.");
+        if (activeUserId.current === currentUserId && sequence === loadSequence.current) setLoadError(err?.message || "Could not load campus updates.");
         console.log("Error loading app data:", err?.message || err);
       } finally {
-        if (activeUserId.current === currentUserId) setRefreshing(false);
+        if (activeUserId.current === currentUserId && sequence === loadSequence.current) setRefreshing(false);
       }
     },
     []
@@ -172,11 +180,21 @@ export function EventsProvider({ children }) {
     }
   }, [user, loadAppData]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") handleRefresh();
+    });
+    return () => subscription.remove();
+  }, [isAuthenticated, user?.id, handleRefresh]);
+
   // Load app data when user is authenticated
   useEffect(() => {
     let active = true;
     Promise.resolve().then(() => {
       if (!active) return;
+      freshFeedFor.current = null;
+      loadSequence.current += 1;
       setEvents([]);
       setAnnouncements([]);
       setNotifications([]);
@@ -337,7 +355,7 @@ export function EventsProvider({ children }) {
       await markNotificationAsRead({ notificationId: item.id, userId: user.id });
       setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, isRead: true } : entry)));
     } catch (error) {
-      console.log("Could not mark notification as read:", error);
+      Alert.alert("Could not mark as read", error?.message || "Please try again.");
     }
   };
 
@@ -345,8 +363,10 @@ export function EventsProvider({ children }) {
     try {
       await markAllNotificationsAsRead(user.id);
       setNotifications((prev) => prev.map((entry) => ({ ...entry, isRead: true })));
+      return true;
     } catch (_error) {
       Alert.alert("Error", "Could not mark all notifications as read.");
+      return false;
     }
   };
 
@@ -358,11 +378,15 @@ export function EventsProvider({ children }) {
           form: formData,
           userId: user.id,
         });
+        eventRevision.current += 1;
+        freshFeedFor.current = user.id;
         setEvents((prev) => prev.map((item) => (item.id === updated.id ? { ...updated, registeredCount: item.registeredCount } : item)));
         return { ok: true, event: updated };
       } else {
         const created = await createEventFromForm({ form: formData, userId: user.id });
-        setEvents((prev) => [created, ...prev]);
+        eventRevision.current += 1;
+        freshFeedFor.current = user.id;
+        setEvents((prev) => [created, ...prev.filter(item => item.id !== created.id)]);
         return { ok: true, event: created };
       }
     } catch (error) {
@@ -378,6 +402,7 @@ export function EventsProvider({ children }) {
       } else {
         await deleteEventById({ eventId, userId: user.id });
       }
+      eventRevision.current += 1;
       setEvents((prev) => prev.filter((item) => item.id !== eventId));
       setBookmarkedEventIds((prev) => prev.filter((id) => id !== eventId));
       setRegisteredEventIds((prev) => prev.filter((id) => id !== eventId));

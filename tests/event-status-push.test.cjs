@@ -1,0 +1,40 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { PGlite } = require('@electric-sql/pglite');
+test('scheduled event banners target registered attendees, deduplicate, retry and respect cancellation', async () => {
+ const db = new PGlite();
+ try {
+  await db.exec(`create role anon; create role authenticated; create role service_role;
+   create table profiles(id uuid primary key,account_status text,expo_push_token text);
+   create table events(id uuid primary key,title text,event_date date,start_time time,end_time time,status text);
+   create table event_registrations(user_id uuid,event_id uuid,status text,registered_at timestamptz);
+   create table notifications(id uuid primary key default gen_random_uuid(),user_id uuid,event_id uuid,title text,message text,type text,source_key text unique,is_read boolean,created_at timestamptz default now());`);
+  const sql=fs.readFileSync('supabase/APPLY_EVENT_STATUS_PUSH.sql','utf8').replace('create extension if not exists pg_cron with schema pg_catalog;','').split("select cron.schedule(")[0]+'commit;';
+  await db.exec(sql);
+  const user='00000000-0000-0000-0000-000000000001',waitlist='00000000-0000-0000-0000-000000000002';
+  const ongoing='00000000-0000-0000-0000-000000000101',ended='00000000-0000-0000-0000-000000000102';
+  await db.exec(`insert into profiles values ('${user}','approved','ExpoPushToken[test]'),('${waitlist}','approved','ExpoPushToken[waitlist]');
+   insert into events select '${ongoing}','Ongoing',(now() at time zone 'Africa/Lagos'-interval '1 minute')::date,(now() at time zone 'Africa/Lagos'-interval '1 minute')::time,(now() at time zone 'Africa/Lagos'+interval '30 minutes')::time,'published';
+   insert into events select '${ended}','Ended',(now() at time zone 'Africa/Lagos'-interval '1 hour')::date,(now() at time zone 'Africa/Lagos'-interval '1 hour')::time,(now() at time zone 'Africa/Lagos'-interval '1 minute')::time,'published';
+   insert into event_registrations select '${user}',id,'registered',now()-interval '2 hours' from events;
+   insert into event_registrations select '${waitlist}',id,'waitlisted',now()-interval '2 hours' from events;`);
+  await db.query('select queue_event_status_notifications()');
+  await db.query('select queue_event_status_notifications()');
+  const rows=(await db.query('select * from notifications order by title')).rows;
+  assert.equal(rows.length,2); assert.ok(rows.every(r=>r.user_id===user));
+  assert.ok(rows.some(r=>r.title==='Your event is ongoing')); assert.ok(rows.some(r=>r.title==='Your event has ended'));
+  assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,2);
+  assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
+  await db.exec("update event_status_push_queue set available_at=now()-interval '1 minute'");
+  assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,2);
+  await db.exec("update event_status_push_queue set expires_at=now()-interval '1 minute',available_at=now()-interval '1 minute'");
+  assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
+  await db.exec("update event_status_push_queue set expires_at=now()+interval '30 minutes'; update events set start_time=start_time+interval '1 minute',end_time=end_time+interval '1 minute'");
+  assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
+  await db.exec("update events set status='cancelled'; update event_status_push_queue set available_at=now()-interval '1 minute'");
+  assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
+  await db.exec('set role authenticated');
+  await assert.rejects(db.query('select * from claim_event_status_pushes()'),/permission denied/);
+ } finally { await db.close(); }
+});

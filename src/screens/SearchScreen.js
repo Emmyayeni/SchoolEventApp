@@ -11,7 +11,7 @@ import { campusDateKey, eventTimeStatus } from "../utils/eventTime";
 import { ms } from "../utils/responsive";
 import { useCurrentTime } from "../utils/useCurrentTime";
 
-const DATE_FILTERS = ["Upcoming", "Today", "This week", "Any date"];
+const DATE_FILTERS = ["Upcoming", "Past", "Today", "This week", "Any date"];
 
 export default function SearchScreen({ value = "", results = [], bookmarkedEventIds = [], onChange, onOpenEvent, onToggleBookmark }) {
   const { colors, isDark } = useAppTheme();
@@ -35,9 +35,10 @@ export default function SearchScreen({ value = "", results = [], bookmarkedEvent
       if (venue !== "All venues" && event.venue !== venue) return false;
       if (dateFilter === "Today" && event.date !== today) return false;
       if (dateFilter === "This week" && !(event.date >= today && event.date <= weekEnd)) return false;
+      if (dateFilter === "Past" && eventTimeStatus(event, now) !== "past") return false;
       if (dateFilter === "Upcoming" && !["upcoming", "ongoing"].includes(eventTimeStatus(event, now))) return false;
       return true;
-    });
+    }).sort((a, b) => dateFilter === "Past" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
   }, [category, dateFilter, now, venue, visibleEvents]);
   const activeFilters = [dateFilter !== "Any date" && dateFilter, category !== "All categories" && category, venue !== "All venues" && venue].filter(Boolean);
   const clearFilters = () => { setDateFilter("Upcoming"); setCategory("All categories"); setVenue("All venues"); };
@@ -57,6 +58,9 @@ export default function SearchScreen({ value = "", results = [], bookmarkedEvent
             <View style={styles.searchBox}><Ionicons name="search-outline" size={22} color={colors.textMuted} /><AppTextInput value={value} onChangeText={onChange} placeholder="Search events and venues" placeholderTextColor={colors.textSubtle} style={styles.searchInput} />{!!value && <Pressable style={styles.smallButton} onPress={() => onChange?.("")} accessibilityRole="button" accessibilityLabel="Clear search"><Ionicons name="close" size={20} color={colors.textMuted} /></Pressable>}</View>
             <Pressable style={styles.filterButton} onPress={() => setShowFilters(true)} accessibilityRole="button" accessibilityLabel="Open event filters"><Ionicons name="options-outline" size={22} color="#fff" />{activeFilters.length > 1 && <View style={styles.filterCount}><AppText style={styles.filterCountText}>{activeFilters.length}</AppText></View>}</Pressable>
           </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityRole="tablist">
+            {DATE_FILTERS.map(filter => <Pressable key={filter} onPress={() => setDateFilter(filter)} style={[styles.activeChip, { minHeight: 48, borderWidth: 1, borderColor: dateFilter === filter ? colors.accent : colors.borderSoft, backgroundColor: dateFilter === filter ? colors.accentTint : colors.surface }]} accessibilityRole="tab" accessibilityState={{ selected: dateFilter === filter }}><AppText style={styles.activeChipText}>{filter}</AppText></Pressable>)}
+          </ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {activeFilters.map(item => <Pressable key={item} style={styles.activeChip} onPress={() => item === dateFilter ? setDateFilter("Any date") : item === category ? setCategory("All categories") : setVenue("All venues")} accessibilityRole="button" accessibilityLabel={`Remove ${item} filter`}><AppText style={styles.activeChipText}>{item}</AppText><Ionicons name="close" size={15} color={colors.accent} /></Pressable>)}
             {activeFilters.length === 0 && <AppText style={styles.helper}>Showing all available events</AppText>}

@@ -354,3 +354,33 @@ test('push registration does not report success when token persistence fails', a
   });
   assert.equal(await api.registerForPushNotificationsAsync('user-1'), null);
 });
+const personalEvents = loadModule('src/utils/personalEvents.js', eventTime);
+test('personal history retains ended registrations and bookmarks with newest events first', () => {
+  const events = [
+    { id: 'old', date: '2026-09-20', time: '10:00', endTime: '11:00', status: 'published' },
+    { id: 'saved', date: '2026-09-22', time: '10:00', endTime: '11:00', status: 'published' },
+    { id: 'next', date: '2026-09-24', time: '10:00', endTime: '11:00', status: 'published' },
+  ];
+  const groups = personalEvents.personalEventGroups(events, { registeredEventIds: ['old', 'next'], bookmarkedEventIds: ['saved'], now: Date.parse('2026-09-23T12:00:00Z') });
+  assert.deepEqual(Array.from(groups.Past, e => e.id), ['saved', 'old']);
+  assert.deepEqual(Array.from(groups.Registered, e => e.id), ['next']);
+  assert.equal(groups.Saved.length, 1);
+});
+test('organizer event moves into history exactly at its overnight end without deleting it', () => {
+  const event = { id: 'overnight', date: '2026-09-22', time: '23:00', endTime: '01:00', status: 'published' };
+  const options = { isStaff: true, now: Date.parse('2026-09-22T23:59:59Z') };
+  assert.equal(personalEvents.personalEventGroups([event], options).Published.length, 1);
+  options.now += 1000;
+  const groups = personalEvents.personalEventGroups([event, { ...event, id: 'draft', status: 'draft' }], options);
+  assert.equal(groups.Published.length, 0);
+  assert.deepEqual(Array.from(groups.Past, e => e.id), ['overnight']);
+  assert.equal(groups.Drafts.length, 1);
+  assert.equal(event.status, 'published');
+});
+test('a database event with stored end time remains in registered history after ending', () => {
+  const { data } = dataFixture();
+  const event = data.mapEventRowToApp({ id: 'ended-event', title: 'Head phone testing', event_date: '2026-09-22', start_time: '11:00:00', end_time: '11:30:00', status: 'published' });
+  const groups = personalEvents.personalEventGroups([event], { registeredEventIds: ['ended-event'], now: Date.parse('2026-09-23T12:00:00Z') });
+  assert.equal(groups.Past[0].id, 'ended-event');
+  assert.equal(groups.Registered.length, 0);
+});
