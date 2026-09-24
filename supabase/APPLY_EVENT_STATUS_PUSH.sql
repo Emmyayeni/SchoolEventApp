@@ -37,7 +37,7 @@ begin
   ), inserted as (
     insert into public.notifications (user_id,event_id,title,message,type,source_key,is_read)
       select r.user_id, d.id,
-        case when d.phase='ongoing' then 'Your event is ongoing' else 'Your event has ended' end,
+        d.title || case when d.phase='ongoing' then ' — Ongoing' else ' — Ended' end,
         d.title || case when d.phase='ongoing' then ' is now ongoing.' else ' has ended. Thank you for attending.' end,
         'event', 'event-status:' || d.id || ':' || d.phase || ':' || extract(epoch from d.boundary)::text || ':' || r.user_id, false
       from due d join public.event_registrations r on r.event_id=d.id and r.status='registered'

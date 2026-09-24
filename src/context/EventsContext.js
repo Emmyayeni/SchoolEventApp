@@ -24,6 +24,8 @@ import { STORAGE_BUCKETS, uploadImageToBucket } from "../services/storage";
 import { addPushTokenListener, registerForPushNotificationsAsync, syncEventReminders } from "../services/notifications";
 import { useAuth } from "./AuthContext";
 
+import { coalescedRefresh } from "../utils/coalescedRefresh";
+
 const CACHE_EVENTS_KEY = "@nsuk/cached_events";
 const CACHE_ANNOUNCEMENTS_KEY = "@nsuk/cached_announcements";
 
@@ -80,41 +82,34 @@ export function EventsProvider({ children }) {
     };
     restoreCache();
 
-    // Realtime channel for announcements and events
-    const channel = supabase
-      .channel("nsuk_realtime_feed")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "announcements" },
-        () => {
-          fetchAnnouncements().then((rows) => {
-            if (active) setAnnouncements(rows);
-          }).catch(() => {});
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "events" },
-        (_payload) => {
-          const revision = ++eventRevision.current;
-          fetchEvents()
-            .then((latestEvents) => {
-              if (active && revision === eventRevision.current && Array.isArray(latestEvents)) {
-                freshFeedFor.current = currentUserId;
-                setEvents(latestEvents);
-                AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(latestEvents)).catch(() => {});
-              }
-            })
-            .catch(() => {});
-        }
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${currentUserId}` }, () => {
-        fetchNotifications(currentUserId).then(rows => { if (active) setNotifications(rows); }).catch(() => {});
-      })
+    const refreshAnnouncements = coalescedRefresh(async () => {
+      const rows = await fetchAnnouncements();
+      if (active) setAnnouncements(rows);
+    });
+    const refreshEvents = coalescedRefresh(async () => {
+      const revision = ++eventRevision.current;
+      const rows = await fetchEvents();
+      if (active && revision === eventRevision.current) {
+        freshFeedFor.current = currentUserId;
+        setEvents(rows);
+        AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(rows)).catch(() => {});
+      }
+    });
+    const refreshNotifications = coalescedRefresh(async () => {
+      const rows = await fetchNotifications(currentUserId);
+      if (active) setNotifications(rows);
+    });
+    const channel = supabase.channel("nsuk_realtime_feed")
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, refreshAnnouncements)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, refreshEvents)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${currentUserId}` }, refreshNotifications)
       .subscribe();
 
     return () => {
       active = false;
+      refreshAnnouncements.dispose();
+      refreshEvents.dispose();
+      refreshNotifications.dispose();
       supabase.removeChannel(channel);
     };
   }, [isAuthenticated, user?.id]);
@@ -127,7 +122,14 @@ export function EventsProvider({ children }) {
         setRefreshing(true);
         setLoadError(null);
         const baseQueries = [
-          fetchEvents(),
+          fetchEvents().then(rows => {
+            if (activeUserId.current === currentUserId && revision === eventRevision.current) {
+              freshFeedFor.current = currentUserId;
+              setEvents(rows);
+              AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(rows)).catch(() => {});
+            }
+            return rows;
+          }),
           fetchEventRegistrations(currentUserId),
           fetchEventBookmarks(currentUserId),
           fetchNotifications(currentUserId),
@@ -138,14 +140,14 @@ export function EventsProvider({ children }) {
         baseQueries.push(shouldLoadAdminUsers ? fetchAdminUsers() : Promise.resolve([]));
         baseQueries.push(["staff", "organizer", "admin"].includes(accountType) ? fetchVisibleRegistrations() : Promise.resolve([]));
 
-        const [eventRows, registrationRows, bookmarkIds, notificationRows, announcementRows, adminUserRows, allRegistrationRows] =
+        const [, registrationRows, bookmarkIds, notificationRows, announcementRows, adminUserRows, allRegistrationRows] =
           await Promise.all(baseQueries);
 
         if (activeUserId.current !== currentUserId || sequence !== loadSequence.current) return;
         freshFeedFor.current = currentUserId;
 
         setVisibleRegistrations(allRegistrationRows);
-        if (revision === eventRevision.current) setEvents(eventRows);
+
         setRegisteredEventIds(
           registrationRows.filter((item) => item.status === "registered").map((item) => item.event_id)
         );
@@ -162,7 +164,7 @@ export function EventsProvider({ children }) {
         }
 
         // Cache for offline/instant launch
-        if (revision === eventRevision.current) AsyncStorage.setItem(`${CACHE_EVENTS_KEY}/${currentUserId}`, JSON.stringify(eventRows)).catch(() => {});
+
         AsyncStorage.setItem(`${CACHE_ANNOUNCEMENTS_KEY}/${currentUserId}`, JSON.stringify(announcementRows)).catch(() => {});
       } catch (err) {
         if (activeUserId.current === currentUserId && sequence === loadSequence.current) setLoadError(err?.message || "Could not load campus updates.");

@@ -349,10 +349,11 @@ export function syncEventReminders({
     .then(async () => {
       if (!Notifications) return;
       const desired = new Map();
+      const registered = new Set(registeredEventIds);
       if (userId)
         for (const event of events) {
           if (
-            !registeredEventIds.includes(event.id) ||
+            !registered.has(event.id) ||
             event.status !== "published"
           )
             continue;
@@ -371,6 +372,7 @@ export function syncEventReminders({
         if (
           next &&
           notification.content.data.reminderAt === next.reminderAt &&
+          notification.content.title === `${next.event.title} — Starts in 15 minutes` &&
           notification.content.body ===
             `${next.event.title} · ${next.event.venue}`
         ) {
@@ -382,7 +384,7 @@ export function syncEventReminders({
       for (const [identifier, { event, reminderAt }] of desired) {
         await scheduleEventReminderAsync({
           identifier,
-          title: "Your event starts in 15 minutes",
+          title: `${event.title} — Starts in 15 minutes`,
           body: `${event.title} · ${event.venue}`,
           triggerDate: new Date(reminderAt),
           data: { eventId: event.id, type: "event-reminder", reminderAt },

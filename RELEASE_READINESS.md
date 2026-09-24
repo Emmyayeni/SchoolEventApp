@@ -83,3 +83,9 @@ Current token storage retains one push token per profile: the most recently regi
 ## Scheduled event status alerts
 
 Deploy `send-event-status-push` with `--no-verify-jwt` and apply `supabase/APPLY_EVENT_STATUS_PUSH.sql`. It uses the existing EVENT_WEBHOOK_SECRET in Vault and Edge Function secrets. The protected queue is service-role-only; inbox notifications are deduplicated by event, phase, boundary and recipient. A successful Expo ticket marks the queue sent; it is not a delivery receipt. Delivery can duplicate if a worker crashes after Expo accepts a send but before saving the ticket.
+
+## 24 September update
+
+Event publication, update, cancellation, start reminders and ongoing/ended notifications include the event name in their heading. Apply `supabase/APPLY_EVENT_NOTIFICATION_TITLES.sql` after the status-push migration; it also adds missing event names to existing inbox entries without changing their IDs or read flags. Deploy the updated `send-event-push` function. Local reminders and sidebar/performance improvements require the new APK.
+
+Realtime refreshes now coalesce bursts and serialize requests per feed; foreground push bursts are also coalesced. Event results render without waiting for the other account queries. Search result computation is deferred behind typing, and image fades are shorter. These changes reduce measured request counts in regression tests; on-device frame-rate and network profiling remain necessary if lag persists.

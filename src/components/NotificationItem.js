@@ -20,7 +20,7 @@ export default function NotificationItem({ title, message, time, isRead, onPress
         <Ionicons name={isRead ? "notifications-outline" : "notifications"} size={18} color={colors.text} />
       </View>
       <View style={styles.body}>
-        <AppText style={styles.title} numberOfLines={1}>
+        <AppText style={styles.title} numberOfLines={3}>
           {title}
         </AppText>
         <AppText style={styles.message} numberOfLines={2}>

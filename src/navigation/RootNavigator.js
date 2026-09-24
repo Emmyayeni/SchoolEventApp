@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
 import { Alert, View, StyleSheet, Share } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
@@ -142,7 +142,8 @@ export default function RootNavigator() {
     return searchEvents(categoryList, homeSearch);
   }, [events, selectedCategory, homeSearch]);
 
-  const searchResults = useMemo(() => searchEvents(events, searchQuery), [events, searchQuery]);
+  const deferredSearch = useDeferredValue(searchQuery);
+  const searchResults = useMemo(() => searchEvents(events, deferredSearch), [events, deferredSearch]);
 
   const myEvents = useMemo(() => {
     if (["staff", "organizer", "admin"].includes(user?.accountType)) {

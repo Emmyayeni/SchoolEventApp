@@ -1,13 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Animated, Dimensions, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Modal, useWindowDimensions, Pressable, StyleSheet, View } from "react-native";
 import { Avatar } from "./Avatar";
 import { AppText } from "./AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme/theme";
 
-const { width } = Dimensions.get("window");
-const SIDEBAR_WIDTH = Math.min(width * 0.75, 300);
 
 export default function Sidebar({
   isOpen,
@@ -21,7 +19,9 @@ export default function Sidebar({
 }) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [translateX] = useState(() => new Animated.Value(-SIDEBAR_WIDTH));
+  const { width } = useWindowDimensions();
+  const sidebarWidth = Math.min(width * 0.75, 300);
+  const [translateX] = useState(() => new Animated.Value(-sidebarWidth));
   const [fade] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function Sidebar({
     } else {
       Animated.parallel([
         Animated.timing(translateX, {
-          toValue: -SIDEBAR_WIDTH,
+          toValue: -sidebarWidth,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -52,7 +52,7 @@ export default function Sidebar({
         }),
       ]).start();
     }
-  }, [isOpen, fade, translateX]);
+  }, [isOpen, fade, translateX, sidebarWidth]);
 
   const navItems = [
     { key: "home", label: "Dashboard", icon: "home-outline", activeIcon: "home" },
@@ -63,17 +63,19 @@ export default function Sidebar({
   ];
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? "auto" : "none"}>
+    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+    <View style={{ flex: 1 }} accessibilityViewIsModal>
       {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, { opacity: fade }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      </Animated.View>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close menu">
+        <Animated.View pointerEvents="none" style={[styles.backdrop, { opacity: fade }]} />
+      </Pressable>
 
       {/* Drawer */}
       <Animated.View
         style={[
           styles.drawer,
           {
+            width: sidebarWidth,
             backgroundColor: isDark ? colors.surfaceAlt : colors.surface,
             transform: [{ translateX }],
             paddingTop: insets.top + 20,
@@ -170,6 +172,7 @@ export default function Sidebar({
         </View>
       </Animated.View>
     </View>
+    </Modal>
   );
 }
 
@@ -184,7 +187,6 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: SIDEBAR_WIDTH,
     zIndex: 100,
     shadowColor: "#000",
     shadowOffset: { width: 4, height: 0 },

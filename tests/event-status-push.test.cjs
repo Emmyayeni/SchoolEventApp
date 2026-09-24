@@ -19,11 +19,13 @@ test('scheduled event banners target registered attendees, deduplicate, retry an
    insert into events select '${ended}','Ended',(now() at time zone 'Africa/Lagos'-interval '1 hour')::date,(now() at time zone 'Africa/Lagos'-interval '1 hour')::time,(now() at time zone 'Africa/Lagos'-interval '1 minute')::time,'published';
    insert into event_registrations select '${user}',id,'registered',now()-interval '2 hours' from events;
    insert into event_registrations select '${waitlist}',id,'waitlisted',now()-interval '2 hours' from events;`);
+  await db.exec(`insert into notifications(user_id,event_id,title,message,is_read) values ('${user}','${ended}','Event reminder','Legacy reminder',true)`);
+  await db.exec(fs.readFileSync('supabase/APPLY_EVENT_NOTIFICATION_TITLES.sql','utf8'));
   await db.query('select queue_event_status_notifications()');
   await db.query('select queue_event_status_notifications()');
-  const rows=(await db.query('select * from notifications order by title')).rows;
+  const rows=(await db.query('select * from notifications where source_key is not null order by title')).rows;
   assert.equal(rows.length,2); assert.ok(rows.every(r=>r.user_id===user));
-  assert.ok(rows.some(r=>r.title==='Your event is ongoing')); assert.ok(rows.some(r=>r.title==='Your event has ended'));
+  assert.ok(rows.some(r=>r.title==='Ongoing — Ongoing')); assert.ok(rows.some(r=>r.title==='Ended — Ended'));
   assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,2);
   assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
   await db.exec("update event_status_push_queue set available_at=now()-interval '1 minute'");
@@ -34,6 +36,12 @@ test('scheduled event banners target registered attendees, deduplicate, retry an
   assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
   await db.exec("update events set status='cancelled'; update event_status_push_queue set available_at=now()-interval '1 minute'");
   assert.equal((await db.query('select * from claim_event_status_pushes()')).rows.length,0);
+  await db.exec(`insert into notifications(user_id,event_id,title,message) values ('${user}','${ended}','Registration confirmed','Registered')`);
+  assert.equal((await db.query("select title from notifications where message='Registered'")).rows[0].title,'Ended — Registration confirmed');
+  await db.exec(fs.readFileSync('supabase/APPLY_EVENT_NOTIFICATION_TITLES.sql','utf8'));
+  assert.equal((await db.query("select title from notifications where message='Registered'")).rows[0].title,'Ended — Registration confirmed');
+  const legacy=(await db.query("select title,is_read from notifications where message='Legacy reminder'")).rows[0];
+  assert.equal(legacy.title,'Ended — Event reminder'); assert.equal(legacy.is_read,true);
   await db.exec('set role authenticated');
   await assert.rejects(db.query('select * from claim_event_status_pushes()'),/permission denied/);
  } finally { await db.close(); }

@@ -280,6 +280,7 @@ test('reminders deduplicate, follow changed event times, and clear at logout', a
   const input = { userId: 'user-1', events: [event], registeredEventIds: ['event-1'] };
   await api.syncEventReminders(input);
   assert.equal(scheduled.size, 1);
+  assert.equal([...scheduled.values()][0].content.title, "Workshop — Starts in 15 minutes");
   await api.syncEventReminders(input);
   assert.equal(writes, 1);
   await api.syncEventReminders({ ...input, events: [{ ...event, time: '2:00 PM' }] });
@@ -383,4 +384,23 @@ test('a database event with stored end time remains in registered history after 
   const groups = personalEvents.personalEventGroups([event], { registeredEventIds: ['ended-event'], now: Date.parse('2026-09-23T12:00:00Z') });
   assert.equal(groups.Past[0].id, 'ended-event');
   assert.equal(groups.Registered.length, 0);
+});
+
+const refreshTools = loadModule('src/utils/coalescedRefresh.js');
+test('realtime bursts use one request, queue one follow-up and stop after disposal', async () => {
+  let calls = 0, finish;
+  const request = refreshTools.coalescedRefresh(() => { calls++; return new Promise(resolve => { finish = resolve; }); }, 5);
+  for (let i = 0; i < 50; i++) request();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(calls, 1);
+  for (let i = 0; i < 50; i++) request();
+  assert.equal(calls, 1);
+  finish();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(calls, 2);
+  request(); request.dispose(); finish();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  request();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(calls, 2);
 });

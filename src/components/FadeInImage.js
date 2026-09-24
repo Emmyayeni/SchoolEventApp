@@ -5,7 +5,7 @@ import { useAppTheme } from "../theme/theme";
 
 export function FadeInImage({ source, style, resizeMode = "cover", ...props }) {
   const { colors } = useAppTheme();
-  const [opacityAnim] = useState(new Animated.Value(0));
+  const [opacityAnim] = useState(() => new Animated.Value(0));
   const uri = source && typeof source === "object" ? source.uri : "";
   const [failedUri, setFailedUri] = useState("");
 
@@ -13,7 +13,7 @@ export function FadeInImage({ source, style, resizeMode = "cover", ...props }) {
     opacityAnim.setValue(0);
     Animated.timing(opacityAnim, {
       toValue: 1,
-      duration: 500,
+      duration: 150,
       useNativeDriver: true,
     }).start();
   };

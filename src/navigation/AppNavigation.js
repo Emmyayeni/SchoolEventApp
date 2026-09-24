@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { addNotificationReceivedListener, addNotificationResponseListener, getInitialNotificationData } from "../services/notifications";
+import { coalescedRefresh } from "../utils/coalescedRefresh";
 import RootNavigator from "./RootNavigator";
 import { useAppTheme } from "../theme/theme";
 
@@ -25,8 +26,9 @@ export default function AppNavigation() {
   }, []);
   useEffect(() => {
     if (!isAuthenticated) return;
-    const received = addNotificationReceivedListener(() => handleRefresh());
-    return () => received.remove();
+    const refresh = coalescedRefresh(handleRefresh, 300);
+    const received = addNotificationReceivedListener(refresh);
+    return () => { received.remove(); refresh.dispose(); };
   }, [isAuthenticated, handleRefresh]);
   useEffect(() => {
     if (!pending || !isAuthenticated || !ready || refreshing || !navigation.isReady()) return;

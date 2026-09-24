@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
     if (error) throw error;
     const recipients = (profiles || []).filter((profile: ProfileRow) => profile.id !== event.created_by);
     if (!recipients.length) return Response.json({ inboxCreated: 0, pushAccepted: 0 });
-    const title = `${payload.type === "INSERT" || old?.status === "draft" ? "New event" : "Event update"}: ${event.title}`;
+    const title = `${event.title} — ${event.status === "cancelled" ? "Cancelled" : payload.type === "INSERT" || old?.status === "draft" ? "New event" : "Updated"}`;
     const timeRange = event.start_time ? `${event.start_time}${event.end_time ? `–${event.end_time}` : ""}` : "Time TBA";
     const message = event.status === "cancelled" ? "This event has been cancelled." : `${event.event_date} · ${timeRange} · ${event.venue}`;
     const rows = recipients.map((profile: ProfileRow) => ({ user_id: profile.id, event_id: event.id, title, message, type: "event", source_key: `${event.id}:${event.updated_at || event.created_at}:${profile.id}` }));
